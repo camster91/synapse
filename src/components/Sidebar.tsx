@@ -18,6 +18,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Zap,
+  X,
 } from "lucide-react";
 import XpBar from "./XpBar";
 
@@ -27,6 +28,8 @@ interface SidebarProps {
   userXp?: number;
   userLevel?: number;
   unprocessedCount?: number;
+  mobileOpen?: boolean;
+  onMobileClose?: () => void;
 }
 
 const navItems = [
@@ -48,26 +51,37 @@ export default function Sidebar({
   userXp = 0,
   userLevel = 1,
   unprocessedCount = 0,
+  mobileOpen = false,
+  onMobileClose,
 }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
   const pathname = usePathname();
 
-  return (
+  const navContent = (
     <aside
       className={`flex flex-col h-full bg-sidebar border-r border-sidebar-border transition-all duration-300 ${
         collapsed ? "w-16" : "w-60"
       }`}
     >
       {/* Logo */}
-      <div className="flex items-center gap-2 px-4 h-14 border-b border-sidebar-border flex-shrink-0">
-        <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center flex-shrink-0">
-          <Zap className="w-4 h-4 text-primary-foreground" />
+      <div className="flex items-center justify-between px-4 h-14 border-b border-sidebar-border flex-shrink-0">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center flex-shrink-0">
+            <Zap className="w-4 h-4 text-primary-foreground" />
+          </div>
+          {!collapsed && (
+            <span className="text-lg font-bold text-foreground tracking-tight">
+              Synapse
+            </span>
+          )}
         </div>
-        {!collapsed && (
-          <span className="text-lg font-bold text-foreground tracking-tight">
-            Synapse
-          </span>
-        )}
+        {/* Close button on mobile */}
+        <button
+          onClick={onMobileClose}
+          className="lg:hidden p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+        >
+          <X className="w-5 h-5" />
+        </button>
       </div>
 
       {/* Navigation */}
@@ -84,6 +98,12 @@ export default function Sidebar({
               <li key={item.href}>
                 <Link
                   href={item.href}
+                  onClick={() => {
+                    // Close mobile sidebar on nav
+                    if (window.innerWidth < 1024) {
+                      onMobileClose?.();
+                    }
+                  }}
                   className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                     isActive
                       ? "bg-sidebar-accent text-sidebar-accent-foreground"
@@ -105,10 +125,25 @@ export default function Sidebar({
         </ul>
       </nav>
 
+      {/* Level Badge */}
+      {!collapsed && (
+        <div className="px-4 py-2 border-t border-sidebar-border">
+          <div className="flex items-center gap-2 px-2 py-1 rounded-lg bg-sidebar-accent/50 text-xs">
+            <span className="font-semibold text-sidebar-accent-foreground">Lv.{userLevel}</span>
+            <XpBar currentXp={userXp} level={userLevel} compact showLabel={false} />
+          </div>
+        </div>
+      )}
+
       {/* Settings */}
       <div className="px-2 py-1 border-t border-sidebar-border">
         <Link
           href="/settings"
+          onClick={() => {
+            if (window.innerWidth < 1024) {
+              onMobileClose?.();
+            }
+          }}
           className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
             pathname === "/settings"
               ? "bg-sidebar-accent text-sidebar-accent-foreground"
@@ -164,10 +199,10 @@ export default function Sidebar({
         )}
       </div>
 
-      {/* Collapse Toggle */}
+      {/* Collapse Toggle (desktop only) */}
       <button
         onClick={() => setCollapsed(!collapsed)}
-        className="flex items-center justify-center h-8 border-t border-sidebar-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+        className="hidden lg:flex items-center justify-center h-8 border-t border-sidebar-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
       >
         {collapsed ? (
           <ChevronRight className="w-4 h-4" />
@@ -176,5 +211,21 @@ export default function Sidebar({
         )}
       </button>
     </aside>
+  );
+
+  return (
+    <>
+      {/* Desktop sidebar */}
+      <div className="hidden lg:block h-full">{navContent}</div>
+
+      {/* Mobile sidebar overlay */}
+      <div
+        className={`fixed inset-0 z-40 lg:hidden transition-transform duration-300 ${
+          mobileOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
+      >
+        {navContent}
+      </div>
+    </>
   );
 }

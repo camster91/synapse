@@ -102,10 +102,34 @@
   border-color: var(--border);
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans), system-ui, sans-serif;
+}
+
+/* Better focus ring styles */
+*:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+*:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Page transition utilities */
+.page-enter {
+  animation: fade-in 0.2s ease-out;
+}
+
+.page-exit {
+  animation: fade-in 0.15s ease-out reverse;
 }
 
 /* Custom scrollbar */
@@ -125,13 +149,6 @@ body {
 
 ::-webkit-scrollbar-thumb:hover {
   background: var(--foreground);
-}
-
-/* Focus ring */
-*:focus-visible {
-  outline: 2px solid var(--ring);
-  outline-offset: 2px;
-  border-radius: 4px;
 }
 
 /* Smooth transitions */

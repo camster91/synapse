@@ -8,6 +8,10 @@ const updateSettingsSchema = z.object({
   email: z.string().email().optional(),
   timezone: z.string().max(100).optional(),
   avatarUrl: z.string().max(2000).nullable().optional(),
+  anthropicApiKey: z.string().max(200).optional(),
+  openaiApiKey: z.string().max(200).optional(),
+  ollamaBaseUrl: z.string().max(500).optional(),
+  preferredAiProvider: z.enum(["anthropic", "openai", "ollama"]).optional(),
 });
 
 export async function GET() {
@@ -24,6 +28,10 @@ export async function GET() {
         email: true,
         timezone: true,
         avatarUrl: true,
+        anthropicApiKey: true,
+        openaiApiKey: true,
+        ollamaBaseUrl: true,
+        preferredAiProvider: true,
       },
     });
 
@@ -31,7 +39,18 @@ export async function GET() {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    return NextResponse.json(user);
+    // Mask API keys in the response
+    const maskKey = (key: string | null) => {
+      if (!key) return null;
+      if (key.length <= 4) return "****";
+      return "****" + key.slice(-4);
+    };
+
+    return NextResponse.json({
+      ...user,
+      anthropicApiKey: maskKey(user.anthropicApiKey),
+      openaiApiKey: maskKey(user.openaiApiKey),
+    });
   } catch (error) {
     console.error("Failed to fetch settings:", error);
     return NextResponse.json(
@@ -67,18 +86,55 @@ export async function PUT(request: Request) {
       }
     }
 
+    // Handle API keys: only update if a real key is provided (starts with "sk-" and is longer than 4 chars)
+    // If value is "****" or empty string, keep the existing key
+    const updateData: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(data)) {
+      if (key === "anthropicApiKey" || key === "openaiApiKey") {
+        if (typeof value === "string" && value.startsWith("sk-") && value.length > 4) {
+          updateData[key] = value;
+        } else if (value === "" || value === null) {
+          updateData[key] = null;
+        }
+        // else: "****" or undefined — skip, keep existing
+      } else if (key === "ollamaBaseUrl") {
+        if (typeof value === "string" && value.trim() !== "") {
+          updateData[key] = value.trim();
+        } else if (value === null) {
+          updateData[key] = null;
+        }
+        // else: undefined — skip
+      } else if (value !== undefined) {
+        updateData[key] = value;
+      }
+    }
+
     const user = await prisma.user.update({
       where: { id: session.user.id },
-      data,
+      data: updateData,
       select: {
         name: true,
         email: true,
         timezone: true,
         avatarUrl: true,
+        anthropicApiKey: true,
+        openaiApiKey: true,
+        ollamaBaseUrl: true,
+        preferredAiProvider: true,
       },
     });
 
-    return NextResponse.json(user);
+    const maskKey = (key: string | null) => {
+      if (!key) return null;
+      if (key.length <= 4) return "****";
+      return "****" + key.slice(-4);
+    };
+
+    return NextResponse.json({
+      ...user,
+      anthropicApiKey: maskKey(user.anthropicApiKey),
+      openaiApiKey: maskKey(user.openaiApiKey),
+    });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(

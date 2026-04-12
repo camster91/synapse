@@ -27,6 +27,8 @@ interface DashboardData {
 
 export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [quickCapture, setQuickCapture] = useState("");
 
   useEffect(() => {
@@ -35,21 +37,16 @@ export default function DashboardPage() {
         const res = await fetch("/api/dashboard");
         if (res.ok) {
           setData(await res.json());
-          return;
+        } else if (res.status === 401) {
+          setError("Please sign in to view your dashboard.");
+        } else {
+          setError("Failed to load dashboard data. Please try again.");
         }
       } catch {
-        // fall through to defaults
+        setError("Network error. Please check your connection and try again.");
+      } finally {
+        setLoading(false);
       }
-      setData({
-        habits: { total: 0, completed: 0 },
-        todos: [],
-        events: [],
-        streak: 0,
-        xp: 0,
-        level: 1,
-        journal: null,
-        inboxUnprocessed: 0,
-      });
     }
     load();
   }, []);
@@ -64,15 +61,51 @@ export default function DashboardPage() {
     setQuickCapture("");
   };
 
-  if (!data) {
+  if (loading) {
     return (
-      <div className="space-y-6 animate-pulse">
-        <div className="h-10 bg-muted rounded-xl w-full max-w-xl" />
+      <div className="space-y-6">
+        <div className="h-10 bg-muted rounded-xl w-full max-w-xl animate-pulse" />
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[...Array(4)].map((_, i) => (
-            <div key={i} className="h-28 bg-muted rounded-xl" />
+            <div key={i} className="h-28 bg-muted rounded-xl animate-pulse" />
           ))}
         </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <div className="lg:col-span-2 h-48 bg-muted rounded-xl animate-pulse" />
+          <div className="h-48 bg-muted rounded-xl animate-pulse" />
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[50vh] text-center gap-4">
+        <div className="w-12 h-12 rounded-full bg-destructive/10 flex items-center justify-center">
+          <Zap className="w-6 h-6 text-destructive" />
+        </div>
+        <h2 className="text-lg font-semibold text-foreground">Something went wrong</h2>
+        <p className="text-sm text-muted-foreground max-w-sm">{error}</p>
+        <button
+          onClick={() => window.location.reload()}
+          className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors"
+        >
+          Try again
+        </button>
+      </div>
+    );
+  }
+
+  if (!data) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[50vh] text-center gap-4">
+        <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+          <Zap className="w-6 h-6 text-primary" />
+        </div>
+        <h2 className="text-lg font-semibold text-foreground">Welcome to Synapse</h2>
+        <p className="text-sm text-muted-foreground max-w-sm">
+          Start capturing thoughts, tracking habits, and building your second brain.
+        </p>
       </div>
     );
   }

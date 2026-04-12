@@ -63,6 +63,19 @@ export async function addXp(
     }),
   ]);
 
+  // Create a notification if the user leveled up
+  if (leveledUp) {
+    await prisma.notification.create({
+      data: {
+        userId,
+        title: "Level Up!",
+        message: `You reached level ${newLevel}!`,
+        type: "achievement",
+        actionUrl: "/achievements",
+      },
+    }).catch((err) => console.error("Failed to create level-up notification:", err));
+  }
+
   return { xp: newTotalXp, level: newLevel, leveledUp };
 }
 
@@ -256,6 +269,17 @@ export async function checkAndAwardAchievements(
           achievementId: achievementRecord.id,
         },
       });
+
+      // Create a notification for the new achievement
+      await prisma.notification.create({
+        data: {
+          userId,
+          title: def.name,
+          message: def.description,
+          type: "achievement",
+          actionUrl: "/achievements",
+        },
+      }).catch((err) => console.error("Failed to create achievement notification:", err));
 
       // Award bonus XP
       await addXp(userId, achievement.xpReward, `achievement:${achievement.key}`);

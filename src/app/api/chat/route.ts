@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { getProvider, resolveModel, type ChatMessage } from '@/lib/ai/provider';
+import { getProvider, getProviderForUser, resolveModel, type ChatMessage } from '@/lib/ai/provider';
 import { buildUserContext } from '@/lib/ai/context';
 import { toolDefinitions, toolExecutors } from '@/lib/ai/tools';
 
@@ -88,7 +88,9 @@ export async function POST(request: Request) {
     }));
 
     // Add current user message (already saved, so it's in history)
-    const provider = getProvider(providerName);
+    const provider = providerName
+      ? getProvider(providerName)
+      : await getProviderForUser(userId);
     const model = modelShorthand
       ? resolveModel(providerName ?? 'anthropic', modelShorthand)
       : undefined;

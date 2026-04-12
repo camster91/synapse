@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import OpenAI from 'openai';
+import { prisma } from '@/lib/prisma';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -90,9 +91,9 @@ class AnthropicProvider implements AIProvider {
   name = 'anthropic';
   private client: Anthropic;
 
-  constructor() {
+  constructor(apiKey?: string) {
     this.client = new Anthropic({
-      apiKey: process.env.ANTHROPIC_API_KEY,
+      apiKey: apiKey ?? process.env.ANTHROPIC_API_KEY,
     });
   }
 
@@ -217,9 +218,9 @@ class OpenAIProvider implements AIProvider {
   name = 'openai';
   private client: OpenAI;
 
-  constructor() {
+  constructor(apiKey?: string) {
     this.client = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
+      apiKey: apiKey ?? process.env.OPENAI_API_KEY,
     });
   }
 
@@ -384,8 +385,8 @@ class OllamaProvider implements AIProvider {
   name = 'ollama';
   private baseUrl: string;
 
-  constructor() {
-    this.baseUrl = process.env.OLLAMA_BASE_URL ?? 'http://localhost:11434';
+  constructor(baseUrl?: string) {
+    this.baseUrl = baseUrl ?? process.env.OLLAMA_BASE_URL ?? 'http://localhost:11434';
   }
 
   async chat(messages: ChatMessage[], options?: ChatOptions): Promise<ChatResult> {
@@ -534,4 +535,32 @@ export function getAvailableProviders(): string[] {
   if (process.env.OPENAI_API_KEY) available.push('openai');
   if (process.env.OLLAMA_BASE_URL || true) available.push('ollama');
   return available;
+}
+
+/**
+ * Get an AI provider configured with the user's personal API keys, falling back
+ * to environment variables when the user hasn't set their own keys.
+ */
+export async function getProviderForUser(userId: string): Promise<AIProvider> {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      preferredAiProvider: true,
+      anthropicApiKey: true,
+      openaiApiKey: true,
+      ollamaBaseUrl: true,
+    },
+  });
+
+  const providerName = user?.preferredAiProvider ?? process.env.DEFAULT_AI_PROVIDER ?? 'anthropic';
+
+  switch (providerName) {
+    case 'openai':
+      return new OpenAIProvider(user?.openaiApiKey ?? undefined);
+    case 'ollama':
+      return new OllamaProvider(user?.ollamaBaseUrl ?? undefined);
+    case 'anthropic':
+    default:
+      return new AnthropicProvider(user?.anthropicApiKey ?? undefined);
+  }
 }

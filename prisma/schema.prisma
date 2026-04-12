@@ -25,6 +25,12 @@ model User {
   longestStreak Int       @default(0)
   lastActiveAt  DateTime?
 
+  // AI Provider
+  anthropicApiKey    String?
+  openaiApiKey       String?
+  ollamaBaseUrl      String?
+  preferredAiProvider String?  @default("anthropic")
+
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
@@ -45,6 +51,7 @@ model User {
   tags          Tag[]
   attachments   Attachment[]
   habitLogs     HabitLog[]
+  notifications Notification[]
 
   @@map("users")
 }
@@ -512,4 +519,21 @@ model AiMessage {
   conversation    AiConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 
   @@map("ai_messages")
+}
+
+// ─── Notifications ──────────────────────────────────────────────────────────
+
+model Notification {
+  id          String   @id @default(cuid())
+  userId      String
+  title       String
+  message     String
+  type        String   // "achievement", "reminder", "info", "streak"
+  read        Boolean  @default(false)
+  actionUrl   String?  // e.g., "/habits" or "/achievements"
+  createdAt   DateTime @default(now())
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
 }
