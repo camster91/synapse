@@ -1,0 +1,29 @@
+{
+  "name": "finance-tracker",
+  "displayName": "Finance Tracker",
+  "version": "1.0.0",
+  "description": "Track expenses, budgets, and subscriptions",
+  "author": "Synapse",
+  "icon": "💰",
+  "permissions": ["read:todos", "write:todos", "read:notes", "write:notes"],
+  "configSchema": {
+    "currency": {
+      "type": "select",
+      "label": "Currency",
+      "options": ["USD", "EUR", "GBP", "CAD"],
+      "default": "USD"
+    },
+    "monthlyBudget": {
+      "type": "number",
+      "label": "Monthly Budget",
+      "default": 0
+    }
+  },
+  "hooks": {},
+  "routes": [
+    { "path": "/plugins/finance", "component": "./FinancePage" }
+  ],
+  "widgets": [
+    { "id": "budget-summary", "title": "Budget Summary", "location": "dashboard", "component": "./BudgetWidget" }
+  ]
+}

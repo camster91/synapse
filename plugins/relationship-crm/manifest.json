@@ -1,0 +1,23 @@
+{
+  "name": "relationship-crm",
+  "displayName": "Relationship CRM",
+  "version": "1.0.0",
+  "description": "Remember birthdays, reach out reminders, and notes on conversations",
+  "author": "Synapse",
+  "icon": "🤝",
+  "permissions": ["read:calendar", "write:calendar", "read:notes", "write:notes"],
+  "configSchema": {
+    "reminderDays": {
+      "type": "number",
+      "label": "Reminder days ahead",
+      "default": 3
+    }
+  },
+  "hooks": {},
+  "routes": [
+    { "path": "/plugins/relationships", "component": "./RelationshipsPage" }
+  ],
+  "widgets": [
+    { "id": "birthdays-this-week", "title": "Birthdays This Week", "location": "dashboard", "component": "./BirthdaysWidget" }
+  ]
+}

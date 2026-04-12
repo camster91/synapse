@@ -1,0 +1,515 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Auth ────────────────────────────────────────────────────────────────────
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String?
+  avatarUrl     String?
+  timezone      String    @default("America/New_York")
+  locale        String    @default("en")
+  onboardingComplete Boolean @default(false)
+
+  // Gamification
+  xp            Int       @default(0)
+  level         Int       @default(1)
+  streakDays    Int       @default(0)
+  longestStreak Int       @default(0)
+  lastActiveAt  DateTime?
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  accounts      Account[]
+  sessions      Session[]
+  habits        Habit[]
+  todos         Todo[]
+  notes         Note[]
+  journals      Journal[]
+  goals         Goal[]
+  calendarEvents CalendarEvent[]
+  inboxItems    InboxItem[]
+  plugins       UserPlugin[]
+  achievements  UserAchievement[]
+  xpTransactions XpTransaction[]
+  aiConversations AiConversation[]
+  tags          Tag[]
+  attachments   Attachment[]
+  habitLogs     HabitLog[]
+
+  @@map("users")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  provider          String  // "google", "github", "credentials"
+  providerAccountId String
+  accessToken       String? @db.Text
+  refreshToken      String? @db.Text
+  expiresAt         DateTime?
+  tokenType         String?
+  scope             String?
+  idToken           String? @db.Text
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+// ─── Habits ──────────────────────────────────────────────────────────────────
+
+model Habit {
+  id          String   @id @default(cuid())
+  userId      String
+  name        String
+  description String?
+  icon        String?
+  color       String?
+  frequency   HabitFrequency @default(DAILY)
+  targetCount Int      @default(1)
+  schedule    Json?
+
+  sortOrder   Int      @default(0)
+  archived    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  logs        HabitLog[]
+
+  @@map("habits")
+}
+
+model HabitLog {
+  id        String   @id @default(cuid())
+  habitId   String
+  userId    String
+  date      DateTime
+  count     Int      @default(1)
+  note      String?
+  createdAt DateTime @default(now())
+
+  habit     Habit    @relation(fields: [habitId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([habitId, date])
+  @@map("habit_logs")
+}
+
+enum HabitFrequency {
+  DAILY
+  WEEKLY
+  CUSTOM
+}
+
+// ─── Todos ───────────────────────────────────────────────────────────────────
+
+model Todo {
+  id          String    @id @default(cuid())
+  userId      String
+  title       String
+  description String?   @db.Text
+  status      TodoStatus @default(INBOX)
+  priority    Int       @default(0)
+
+  dueDate     DateTime?
+  scheduledAt DateTime?
+  completedAt DateTime?
+
+  goalId      String?
+  goal        Goal?     @relation(fields: [goalId], references: [id])
+
+  parentId    String?
+  parent      Todo?     @relation("Subtasks", fields: [parentId], references: [id])
+  subtasks    Todo[]    @relation("Subtasks")
+
+  sortOrder   Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tags        Tag[]
+  attachments Attachment[]
+
+  @@map("todos")
+}
+
+enum TodoStatus {
+  INBOX
+  TODO
+  IN_PROGRESS
+  DONE
+  CANCELLED
+  SNOOZED
+}
+
+// ─── Notes (Notion-style with backlinks) ─────────────────────────────────────
+
+model Note {
+  id          String   @id @default(cuid())
+  userId      String
+  title       String
+  content     String   @db.Text
+  slug        String?
+
+  icon        String?
+  coverImage  String?
+
+  parentId    String?
+  parent      Note?    @relation("ChildNotes", fields: [parentId], references: [id])
+  children    Note[]   @relation("ChildNotes")
+
+  isPublished Boolean  @default(false)
+  publishedAt DateTime?
+
+  sortOrder   Int      @default(0)
+  archived    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tags        Tag[]
+  backlinks   NoteBacklink[] @relation("FromNote")
+  linkedBy    NoteBacklink[] @relation("ToNote")
+  attachments Attachment[]
+
+  @@unique([userId, slug])
+  @@map("notes")
+}
+
+model NoteBacklink {
+  id          String  @id @default(cuid())
+  fromNoteId  String
+  toNoteId    String
+
+  fromNote    Note    @relation("FromNote", fields: [fromNoteId], references: [id], onDelete: Cascade)
+  toNote      Note    @relation("ToNote", fields: [toNoteId], references: [id], onDelete: Cascade)
+
+  @@unique([fromNoteId, toNoteId])
+  @@map("note_backlinks")
+}
+
+// ─── Calendar ────────────────────────────────────────────────────────────────
+
+model CalendarEvent {
+  id          String   @id @default(cuid())
+  userId      String
+  title       String
+  description String?  @db.Text
+  location    String?
+
+  startAt     DateTime
+  endAt       DateTime?
+  allDay      Boolean  @default(false)
+  recurrence  String?
+
+  color       String?
+  source      String?   // "manual", "google", "outlook", "plugin"
+  externalId  String?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tags        Tag[]
+  attachments Attachment[]
+
+  @@map("calendar_events")
+}
+
+// ─── Goals (hierarchical) ───────────────────────────────────────────────────
+
+model Goal {
+  id          String     @id @default(cuid())
+  userId      String
+  title       String
+  description String?    @db.Text
+  status      GoalStatus @default(ACTIVE)
+
+  level       GoalLevel  @default(QUARTERLY)
+  parentId    String?
+  parent      Goal?      @relation("SubGoals", fields: [parentId], references: [id])
+  children    Goal[]     @relation("SubGoals")
+
+  startDate   DateTime?
+  endDate     DateTime?
+  progress    Int        @default(0)
+
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  todos       Todo[]
+  tags        Tag[]
+
+  @@map("goals")
+}
+
+enum GoalStatus {
+  ACTIVE
+  COMPLETED
+  ABANDONED
+  ON_HOLD
+}
+
+enum GoalLevel {
+  YEARLY
+  QUARTERLY
+  MONTHLY
+  WEEKLY
+}
+
+// ─── Journal ─────────────────────────────────────────────────────────────────
+
+model Journal {
+  id          String   @id @default(cuid())
+  userId      String
+  date        DateTime
+  content     String   @db.Text
+  mood        Int?
+  gratitude   String?  @db.Text
+  highlights  String?  @db.Text
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tags        Tag[]
+
+  @@unique([userId, date])
+  @@map("journals")
+}
+
+// ─── Quick Capture Inbox ─────────────────────────────────────────────────────
+
+model InboxItem {
+  id          String       @id @default(cuid())
+  userId      String
+  content     String       @db.Text
+  source      InboxSource  @default(MANUAL)
+  type        InboxType    @default(THOUGHT)
+
+  processed   Boolean      @default(false)
+  processedAt DateTime?
+  linkedId    String?
+
+  createdAt   DateTime     @default(now())
+
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  attachments Attachment[]
+
+  @@map("inbox_items")
+}
+
+enum InboxSource {
+  MANUAL
+  AI_CHAT
+  EMAIL
+  WEB_CLIPPER
+  PLUGIN
+}
+
+enum InboxType {
+  THOUGHT
+  LINK
+  IMAGE
+  TASK
+  NOTE
+}
+
+// ─── Tags (polymorphic) ──────────────────────────────────────────────────────
+
+model Tag {
+  id        String  @id @default(cuid())
+  userId    String
+  name      String
+  color     String?
+
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  notes     Note[]
+  todos     Todo[]
+  journals  Journal[]
+  calendarEvents CalendarEvent[]
+  goals     Goal[]
+
+  @@unique([userId, name])
+  @@map("tags")
+}
+
+// ─── Attachments ─────────────────────────────────────────────────────────────
+
+model Attachment {
+  id          String   @id @default(cuid())
+  userId      String
+  url         String
+  filename    String
+  mimeType    String
+  sizeBytes   Int
+
+  noteId          String?
+  todoId          String?
+  calendarEventId String?
+  inboxItemId     String?
+
+  createdAt   DateTime @default(now())
+
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  note        Note?       @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  todo        Todo?       @relation(fields: [todoId], references: [id], onDelete: Cascade)
+  calendarEvent CalendarEvent? @relation(fields: [calendarEventId], references: [id], onDelete: Cascade)
+  inboxItem   InboxItem?  @relation(fields: [inboxItemId], references: [id], onDelete: Cascade)
+
+  @@map("attachments")
+}
+
+// ─── Plugin System ───────────────────────────────────────────────────────────
+
+model Plugin {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  displayName String
+  description String?  @db.Text
+  version     String
+  author      String?
+  icon        String?
+  homepage    String?
+
+  entryServer String?
+  entryUI     String?
+
+  permissions Json?
+  configSchema Json?
+
+  published   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  userPlugins UserPlugin[]
+
+  @@map("plugins")
+}
+
+model UserPlugin {
+  id          String   @id @default(cuid())
+  userId      String
+  pluginId    String
+
+  enabled     Boolean  @default(true)
+  config      Json?
+
+  installedAt DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plugin      Plugin   @relation(fields: [pluginId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, pluginId])
+  @@map("user_plugins")
+}
+
+// ─── Gamification ────────────────────────────────────────────────────────────
+
+model Achievement {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  name        String
+  description String
+  icon        String
+  category    String   // "habits", "journal", "productivity", "explorer"
+  xpReward   Int
+
+  userAchievements UserAchievement[]
+
+  @@map("achievements")
+}
+
+model UserAchievement {
+  id            String   @id @default(cuid())
+  userId        String
+  achievementId String
+  earnedAt      DateTime @default(now())
+
+  user          User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievement   Achievement  @relation(fields: [achievementId], references: [id])
+
+  @@unique([userId, achievementId])
+  @@map("user_achievements")
+}
+
+model XpTransaction {
+  id          String   @id @default(cuid())
+  userId      String
+  amount      Int
+  reason      String
+  referenceId String?
+
+  createdAt   DateTime @default(now())
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("xp_transactions")
+}
+
+// ─── AI Chat ─────────────────────────────────────────────────────────────────
+
+model AiConversation {
+  id          String   @id @default(cuid())
+  userId      String
+  title       String?
+  model       String   @default("claude-sonnet-4-20250514")
+  provider    String   @default("anthropic")
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages    AiMessage[]
+
+  @@map("ai_conversations")
+}
+
+model AiMessage {
+  id              String   @id @default(cuid())
+  conversationId  String
+  role             String   // "user", "assistant", "system"
+  content          String   @db.Text
+
+  contextSnapshot  Json?
+  tokensUsed       Int?
+  createdAt        DateTime @default(now())
+
+  conversation    AiConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@map("ai_messages")
+}
