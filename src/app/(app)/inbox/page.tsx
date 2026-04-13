@@ -48,7 +48,7 @@ export default function InboxPage() {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ processed: true }),
-    });
+    }).catch(() => {});
   };
 
   const deleteItem = async (id: string) => {

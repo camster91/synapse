@@ -37,7 +37,7 @@ export default function ChatPage() {
     if (activeConvo) {
       fetch(`/api/chat/conversations/${activeConvo}/messages`)
         .then((r) => r.json())
-        .then((data) => setMessages(data.messages || []))
+        .then((data) => setMessages(Array.isArray(data) ? data : (data.messages || [])))
         .catch(() => {});
     } else {
       setMessages([]);
@@ -70,17 +70,6 @@ export default function ChatPage() {
 
       if (!res.ok) throw new Error("Chat request failed");
 
-      if (!activeConvo) {
-        const convoRes = await fetch("/api/chat/conversations", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ title: userMessage.slice(0, 50) }),
-        });
-        const convoData = await convoRes.json();
-        setActiveConvo(convoData.id);
-        setConversations((prev) => [convoData, ...prev]);
-      }
-
       const reader = res.body?.getReader();
       const decoder = new TextDecoder();
       let fullContent = "";
@@ -104,7 +93,14 @@ export default function ChatPage() {
                     { id: tempId, role: "user", content: userMessage, createdAt: new Date().toISOString() },
                     { id: `resp-${Date.now()}`, role: "assistant", content: fullContent, createdAt: new Date().toISOString() },
                   ]);
-                  setStreamContent("");
+                  if (data.conversationId && !activeConvo) {
+                    setActiveConvo(data.conversationId);
+                    // Refresh conversations list to include the new one
+                    fetch("/api/chat/conversations")
+                      .then((r) => r.json())
+                      .then((d) => setConversations(Array.isArray(d) ? d : (d.conversations || [])))
+                      .catch(() => {});
+                  }
                 }
               } catch {
                 fullContent += line.slice(6);

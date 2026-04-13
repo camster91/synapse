@@ -32,7 +32,7 @@ export default function CalendarPage() {
     const end = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
     fetch(`/api/calendar?start=${start.toISOString()}&end=${end.toISOString()}`)
       .then((r) => r.json())
-      .then((data) => setEvents(data.events || []))
+      .then((data) => setEvents(Array.isArray(data) ? data : (data.events || [])))
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [currentDate]);

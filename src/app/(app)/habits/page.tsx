@@ -43,7 +43,7 @@ export default function HabitsPage() {
     });
     if (res.ok) {
       const data = await res.json();
-      setHabits([...habits, data]);
+      setHabits([...habits, { ...data, logs: data.logs || [] }]);
       setNewName("");
       setNewDesc("");
       setShowAdd(false);

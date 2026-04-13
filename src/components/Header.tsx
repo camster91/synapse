@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { usePathname } from "next/navigation";
-import { Search, Bell, Plus, CheckSquare, FileText, Inbox, Menu } from "lucide-react";
+import { Search, Bell, Plus, CheckSquare, FileText, Inbox, Menu, LogOut } from "lucide-react";
 import QuickAdd from "./QuickAdd";
 
 interface HeaderProps {
@@ -174,6 +174,16 @@ export default function Header({
 
       {/* Actions */}
       <div className="flex items-center gap-2">
+        <button
+          onClick={async () => {
+            const { signOut } = await import("next-auth/react");
+            signOut({ callbackUrl: "/login" });
+          }}
+          className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+          title="Sign out"
+        >
+          <LogOut className="w-5 h-5" />
+        </button>
         {/* Mobile search toggle */}
         <button
           className="sm:hidden p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"

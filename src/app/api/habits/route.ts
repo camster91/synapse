@@ -44,6 +44,7 @@ export async function POST(request: Request) {
         ...data,
         userId: session.user.id,
       },
+      include: { logs: true },
     });
 
     return NextResponse.json(habit, { status: 201 });

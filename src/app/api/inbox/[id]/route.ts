@@ -10,6 +10,13 @@ const updateInboxSchema = z.object({
   type: z.enum(['THOUGHT', 'LINK', 'IMAGE', 'TASK', 'NOTE']).optional(),
 });
 
+export async function PATCH(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  return PUT(request, { params });
+}
+
 export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
