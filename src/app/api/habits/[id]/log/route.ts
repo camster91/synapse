@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { addXp } from '@/lib/xp';
+import { sendPushNotification } from '@/lib/push';
 import { fireHookForUser } from '@/lib/plugins/executor';
 import { z } from 'zod/v4';
 
@@ -93,6 +94,17 @@ export async function POST(
 
       if (streakCount > (user?.longestStreak ?? 0)) {
         updateData.longestStreak = streakCount;
+      }
+
+      // Streak milestone notifications
+      const milestones = [7, 14, 30, 60, 90, 365];
+      if (milestones.includes(streakCount)) {
+        sendPushNotification(session.user.id, {
+          title: `${streakCount}-Day Streak!`,
+          body: `Amazing! You've been active for ${streakCount} days in a row.`,
+          actionUrl: "/habits",
+          tag: "streak",
+        }).catch(() => {});
       }
 
       await prisma.user.update({

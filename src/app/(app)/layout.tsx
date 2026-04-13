@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
 import { useApp } from "@/components/Providers";
+import { PWAInstallPrompt } from "@/components/PWAInstallPrompt";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { sidebarOpen, setSidebarOpen } = useApp();
@@ -90,6 +91,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         />
         <main className="flex-1 overflow-y-auto p-4 md:p-6">{children}</main>
       </div>
+
+      <PWAInstallPrompt />
     </div>
   );
 }

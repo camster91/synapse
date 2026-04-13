@@ -17,13 +17,18 @@ export async function GET() {
   }
 
   try {
-    const notifications = await prisma.notification.findMany({
-      where: { userId: session.user.id },
-      orderBy: { createdAt: "desc" },
-      take: 50,
-    });
+    const [notifications, unreadCount] = await Promise.all([
+      prisma.notification.findMany({
+        where: { userId: session.user.id },
+        orderBy: { createdAt: "desc" },
+        take: 50,
+      }),
+      prisma.notification.count({
+        where: { userId: session.user.id, read: false },
+      }),
+    ]);
 
-    return NextResponse.json(notifications);
+    return NextResponse.json({ notifications, unreadCount });
   } catch (error) {
     console.error("Failed to fetch notifications:", error);
     return NextResponse.json(
@@ -62,6 +67,34 @@ export async function POST(request: Request) {
       );
     }
     console.error("Failed to create notification:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function PATCH(req: Request) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  try {
+    const body = await req.json();
+    const { markAll } = body as { markAll?: boolean };
+
+    if (markAll) {
+      await prisma.notification.updateMany({
+        where: { userId: session.user.id, read: false },
+        data: { read: true },
+      });
+      return NextResponse.json({ ok: true });
+    }
+
+    return NextResponse.json({ error: "Provide markAll" }, { status: 400 });
+  } catch (error) {
+    console.error("Failed to mark notifications:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

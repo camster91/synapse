@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 
 interface Notification {
   id: string;
@@ -29,6 +29,17 @@ export const useApp = () => useContext(AppContext);
 export function Providers({ children }: { children: ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
+
+  // Register service worker for PWA
+  useEffect(() => {
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker
+        .register("/sw.js")
+        .catch((err) => {
+          console.warn("[pwa] Service worker registration failed:", err);
+        });
+    }
+  }, []);
 
   return (
     <AppContext.Provider value={{ sidebarOpen, setSidebarOpen, notifications, setNotifications }}>

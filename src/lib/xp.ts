@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { sendPushNotification } from "@/lib/push";
 
 // ─── Level thresholds (cumulative XP required) ────────────────────────────────
 
@@ -65,14 +66,11 @@ export async function addXp(
 
   // Create a notification if the user leveled up
   if (leveledUp) {
-    await prisma.notification.create({
-      data: {
-        userId,
-        title: "Level Up!",
-        message: `You reached level ${newLevel}!`,
-        type: "achievement",
-        actionUrl: "/achievements",
-      },
+    await sendPushNotification(userId, {
+      title: "Level Up!",
+      body: `You reached level ${newLevel}!`,
+      actionUrl: "/achievements",
+      tag: "achievement",
     }).catch((err) => console.error("Failed to create level-up notification:", err));
   }
 
@@ -271,14 +269,11 @@ export async function checkAndAwardAchievements(
       });
 
       // Create a notification for the new achievement
-      await prisma.notification.create({
-        data: {
-          userId,
-          title: def.name,
-          message: def.description,
-          type: "achievement",
-          actionUrl: "/achievements",
-        },
+      await sendPushNotification(userId, {
+        title: def.name,
+        body: def.description,
+        actionUrl: "/achievements",
+        tag: "achievement",
       }).catch((err) => console.error("Failed to create achievement notification:", err));
 
       // Award bonus XP
