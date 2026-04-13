@@ -119,10 +119,38 @@ class AnthropicProvider implements AIProvider {
       max_tokens: options?.maxTokens ?? 4096,
       temperature: options?.temperature ?? 0.7,
       system: systemContent || undefined,
-      messages: nonSystemMessages.map((m) => ({
-        role: m.role as 'user' | 'assistant',
-        content: m.content,
-      })),
+      messages: nonSystemMessages.map((m) => {
+        if (m.role === 'tool' && m.tool_call_id) {
+          return {
+            role: 'user' as const,
+            content: [
+              {
+                type: 'tool_result' as const,
+                tool_use_id: m.tool_call_id,
+                content: m.content,
+              },
+            ],
+          };
+        }
+        if (m.role === 'assistant' && m.tool_calls?.length) {
+          return {
+            role: 'assistant' as const,
+            content: [
+              ...(m.content ? [{ type: 'text' as const, text: m.content }] : []),
+              ...m.tool_calls.map((tc) => ({
+                type: 'tool_use' as const,
+                id: tc.id,
+                name: tc.function.name,
+                input: JSON.parse(tc.function.arguments),
+              })),
+            ],
+          };
+        }
+        return {
+          role: m.role as 'user' | 'assistant',
+          content: m.content,
+        };
+      }),
       tools: toolDefs?.length ? toolDefs : undefined,
     });
 
@@ -179,10 +207,38 @@ class AnthropicProvider implements AIProvider {
             max_tokens: options?.maxTokens ?? 4096,
             temperature: options?.temperature ?? 0.7,
             system: systemContent || undefined,
-            messages: nonSystemMessages.map((m) => ({
-              role: m.role as 'user' | 'assistant',
-              content: m.content,
-            })),
+            messages: nonSystemMessages.map((m) => {
+              if (m.role === 'tool' && m.tool_call_id) {
+                return {
+                  role: 'user' as const,
+                  content: [
+                    {
+                      type: 'tool_result' as const,
+                      tool_use_id: m.tool_call_id,
+                      content: m.content,
+                    },
+                  ],
+                };
+              }
+              if (m.role === 'assistant' && m.tool_calls?.length) {
+                return {
+                  role: 'assistant' as const,
+                  content: [
+                    ...(m.content ? [{ type: 'text' as const, text: m.content }] : []),
+                    ...m.tool_calls.map((tc) => ({
+                      type: 'tool_use' as const,
+                      id: tc.id,
+                      name: tc.function.name,
+                      input: JSON.parse(tc.function.arguments),
+                    })),
+                  ],
+                };
+              }
+              return {
+                role: m.role as 'user' | 'assistant',
+                content: m.content,
+              };
+            }),
             tools: toolDefs?.length ? toolDefs : undefined,
           });
 
@@ -359,12 +415,47 @@ class OpenAIProvider implements AIProvider {
             stream: true,
           });
 
+          const toolCallAccumulator = new Map<number, { id: string; name: string; arguments: string }>();
+
           for await (const chunk of stream) {
-            const delta = chunk.choices[0]?.delta;
+            const choice = chunk.choices[0];
+            const delta = choice?.delta;
             if (delta?.content) {
               const data = JSON.stringify({ type: 'text', text: delta.content });
               controller.enqueue(encoder.encode(`data: ${data}\n\n`));
             }
+            if (delta?.tool_calls) {
+              for (const tc of delta.tool_calls) {
+                const existing = toolCallAccumulator.get(tc.index);
+                if (!existing) {
+                  toolCallAccumulator.set(tc.index, {
+                    id: tc.id ?? '',
+                    name: tc.function?.name ?? '',
+                    arguments: tc.function?.arguments ?? '',
+                  });
+                } else {
+                  if (tc.id) existing.id = tc.id;
+                  if (tc.function?.name) existing.name = tc.function.name;
+                  if (tc.function?.arguments) existing.arguments += tc.function.arguments;
+                }
+              }
+            }
+          }
+
+          // Emit accumulated tool calls if any
+          if (toolCallAccumulator.size > 0) {
+            const toolCalls = Array.from(toolCallAccumulator.entries())
+              .sort(([a], [b]) => a - b)
+              .map(([, tc]) => ({
+                id: tc.id,
+                type: 'function' as const,
+                function: {
+                  name: tc.name,
+                  arguments: tc.arguments,
+                },
+              }));
+            const data = JSON.stringify({ type: 'tool_calls', toolCalls });
+            controller.enqueue(encoder.encode(`data: ${data}\n\n`));
           }
 
           controller.enqueue(encoder.encode('data: [DONE]\n\n'));

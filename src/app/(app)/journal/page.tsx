@@ -34,18 +34,24 @@ export default function JournalPage() {
 
   const saveEntry = async () => {
     setSaving(true);
-    await fetch("/api/journal", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        date: today,
-        content: todayContent,
-        mood: todayMood,
-        gratitude: todayGratitude,
-        highlights: todayHighlights,
-      }),
-    });
-    setSaving(false);
+    try {
+      const res = await fetch("/api/journal", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          date: today,
+          content: todayContent,
+          mood: todayMood,
+          gratitude: todayGratitude,
+          highlights: todayHighlights,
+        }),
+      });
+      if (!res.ok) throw new Error("Failed to save entry");
+    } catch {
+      alert("Failed to save journal entry. Please try again.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const moodEmojis = ["😢", "😕", "😐", "🙂", "😊"];

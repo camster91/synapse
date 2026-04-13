@@ -68,12 +68,32 @@ export default function TodosPage() {
   };
 
   const handleStatusChange = async (id: string, status: string) => {
+    const prevTodos = todos;
     setTodos(todos.map((t) => (t.id === id ? { ...t, status: status as TodoStatus } : t)));
-    await fetch(`/api/todos/${id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status }),
-    });
+    try {
+      const res = await fetch(`/api/todos/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+      if (!res.ok) throw new Error("Failed to update status");
+    } catch {
+      setTodos(prevTodos);
+      alert("Failed to update todo status. Please try again.");
+    }
+  };
+
+  const handleDelete = (id: string) => {
+    const prevTodos = todos;
+    setTodos(todos.filter((t) => t.id !== id));
+    fetch(`/api/todos/${id}`, { method: "DELETE" })
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to delete");
+      })
+      .catch(() => {
+        setTodos(prevTodos);
+        alert("Failed to delete todo. Please try again.");
+      });
   };
 
   const filteredTodos = filterPriority !== null
@@ -147,6 +167,7 @@ export default function TodosPage() {
                       key={todo.id}
                       todo={todo}
                       onStatusChange={handleStatusChange}
+                      onDelete={handleDelete}
                     />
                   ))
                 ) : (

@@ -73,12 +73,19 @@ export default function DashboardPage() {
 
   const handleQuickCapture = async () => {
     if (!quickCapture.trim()) return;
-    await fetch("/api/inbox", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ content: quickCapture.trim() }),
-    });
+    const prevCapture = quickCapture;
     setQuickCapture("");
+    try {
+      const res = await fetch("/api/inbox", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: prevCapture.trim() }),
+      });
+      if (!res.ok) throw new Error("Failed to capture");
+    } catch {
+      setQuickCapture(prevCapture);
+      alert("Failed to capture. Please try again.");
+    }
   };
 
   if (loading) {

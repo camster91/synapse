@@ -54,11 +54,7 @@ export async function POST(request: Request) {
     const date = new Date(journalData.date);
     date.setHours(0, 0, 0, 0);
 
-    // Upsert by userId + date
-    const isNew = !(await prisma.journal.findUnique({
-      where: { userId_date: { userId: session.user.id, date } },
-    }));
-
+    // Upsert by userId + date — determine isNew from the result to avoid race condition
     const journal = await prisma.journal.upsert({
       where: { userId_date: { userId: session.user.id, date } },
       update: {
@@ -83,6 +79,9 @@ export async function POST(request: Request) {
       },
       include: { tags: true },
     });
+
+    // If createdAt and updatedAt are within the same second, this was a create
+    const isNew = Math.abs(journal.createdAt.getTime() - journal.updatedAt.getTime()) < 1000;
 
     // Award XP for journal entry (only for new entries)
     if (isNew) {

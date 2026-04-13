@@ -27,27 +27,39 @@ export default function NoteEditorPage({ params }: { params: Promise<{ id: strin
   const [saving, setSaving] = useState(false);
   const [editMode, setEditMode] = useState(true);
   const [showBacklinks, setShowBacklinks] = useState(false);
+  const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {
     fetch(`/api/notes/${id}`)
-      .then((r) => r.json())
+      .then((r) => {
+        if (!r.ok) throw new Error("Failed to load note");
+        return r.json();
+      })
       .then((data) => {
         setNote(data);
         setTitle(data.title);
         setContent(data.content);
       })
-      .catch(() => {});
+      .catch(() => {
+        setLoadError(true);
+      });
   }, [id]);
 
   const saveNote = async () => {
     if (!note) return;
     setSaving(true);
-    await fetch(`/api/notes/${id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title, content }),
-    });
-    setSaving(false);
+    try {
+      const res = await fetch(`/api/notes/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title, content }),
+      });
+      if (!res.ok) throw new Error("Failed to save note");
+    } catch {
+      alert("Failed to save note. Please try again.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleBlur = () => {
@@ -77,6 +89,21 @@ export default function NoteEditorPage({ params }: { params: Promise<{ id: strin
       .replace(/^&gt; (.*$)/gm, '<blockquote class="border-l-2 border-primary pl-4 text-muted-foreground italic">$1</blockquote>')
       .replace(/\n/g, "<br />");
   };
+
+  if (loadError) {
+    return (
+      <div className="max-w-4xl mx-auto flex flex-col items-center justify-center min-h-[50vh] text-center gap-4">
+        <h2 className="text-lg font-semibold text-foreground">Failed to load note</h2>
+        <p className="text-sm text-muted-foreground">The note could not be found or loaded. Please try again.</p>
+        <button
+          onClick={() => window.location.reload()}
+          className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors"
+        >
+          Reload
+        </button>
+      </div>
+    );
+  }
 
   if (!note) {
     return (

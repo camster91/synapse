@@ -39,13 +39,8 @@ function parseManifest(manifestPath: string): PluginManifest {
   const raw = fs.readFileSync(manifestPath, "utf-8");
   const json = JSON.parse(raw);
 
-  // Hooks are stored as empty objects in JSON; we'll resolve actual hook
-  // implementations from separate .js/.ts files later.  For now, strip
-  // the hooks key so the registry only sees metadata — runtime hooks are
-  // wired up via the loader when implementations exist.
-  const { hooks: _hooks, ...metadata } = json;
-
-  return metadata as PluginManifest;
+  // Include hooks in the manifest so they can be resolved at runtime
+  return json as PluginManifest;
 }
 
 // ─── Public API ───────────────────────────────────────────────────────────────

@@ -60,12 +60,19 @@ export default function GoalsPage() {
   };
 
   const updateProgress = async (goalId: string, progress: number) => {
-    await fetch(`/api/goals/${goalId}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ progress }),
-    });
+    const prevGoals = goals;
     setGoals(goals.map((g) => (g.id === goalId ? { ...g, progress } : g)));
+    try {
+      const res = await fetch(`/api/goals/${goalId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ progress }),
+      });
+      if (!res.ok) throw new Error("Failed to update progress");
+    } catch {
+      setGoals(prevGoals);
+      alert("Failed to update goal progress. Please try again.");
+    }
   };
 
   const toggleExpand = (id: string) => {

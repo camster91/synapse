@@ -63,9 +63,17 @@ export default function CalendarPage() {
   };
 
   const deleteEvent = async (id: string) => {
-    await fetch(`/api/calendar/${id}`, { method: "DELETE" });
+    if (!confirm("Are you sure you want to delete this event?")) return;
+    const prevEvents = events;
     setEvents(events.filter((e) => e.id !== id));
     setShowEvent(null);
+    try {
+      const res = await fetch(`/api/calendar/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Failed to delete event");
+    } catch {
+      setEvents(prevEvents);
+      alert("Failed to delete event. Please try again.");
+    }
   };
 
   const year = currentDate.getFullYear();

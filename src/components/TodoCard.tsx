@@ -7,7 +7,7 @@ import {
   GripVertical,
   Calendar,
   Flag,
-  MoreHorizontal,
+  Trash2,
 } from "lucide-react";
 
 interface Todo {
@@ -25,6 +25,7 @@ interface Todo {
 interface TodoCardProps {
   todo: Todo;
   onStatusChange?: (id: string, status: string) => Promise<void> | void;
+  onDelete?: (id: string) => void;
   onExpand?: (id: string) => void;
 }
 
@@ -42,7 +43,7 @@ const priorityLabels: Record<number, string> = {
   3: "High",
 };
 
-export default function TodoCard({ todo, onStatusChange, onExpand }: TodoCardProps) {
+export default function TodoCard({ todo, onStatusChange, onDelete, onExpand }: TodoCardProps) {
   const [expanded, setExpanded] = useState(false);
   const hasSubtasks = todo.subtasks && todo.subtasks.length > 0;
 
@@ -121,10 +122,15 @@ export default function TodoCard({ todo, onStatusChange, onExpand }: TodoCardPro
           {statusLabels[todo.status] || todo.status}
         </span>
 
-        {/* More */}
-        <button className="p-1 rounded-lg text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity">
-          <MoreHorizontal className="w-4 h-4" />
-        </button>
+        {/* Delete */}
+        {onDelete && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onDelete(todo.id); }}
+            className="p-1 rounded-lg text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        )}
       </div>
 
       {/* Subtasks */}

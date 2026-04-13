@@ -43,17 +43,31 @@ export default function InboxPage() {
   }, []);
 
   const processItem = async (id: string) => {
+    const prevItems = items;
     setItems(items.map((i) => (i.id === id ? { ...i, processed: true } : i)));
-    await fetch(`/api/inbox/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ processed: true }),
-    }).catch(() => {});
+    try {
+      const res = await fetch(`/api/inbox/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ processed: true }),
+      });
+      if (!res.ok) throw new Error("Failed to process item");
+    } catch {
+      setItems(prevItems);
+      alert("Failed to process inbox item. Please try again.");
+    }
   };
 
   const deleteItem = async (id: string) => {
+    const prevItems = items;
     setItems(items.filter((i) => i.id !== id));
-    await fetch(`/api/inbox/${id}`, { method: "DELETE" });
+    try {
+      const res = await fetch(`/api/inbox/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Failed to delete item");
+    } catch {
+      setItems(prevItems);
+      alert("Failed to delete inbox item. Please try again.");
+    }
   };
 
   const filteredItems = filter === "unprocessed"

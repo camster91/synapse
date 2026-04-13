@@ -51,11 +51,11 @@ export default function HabitsPage() {
   };
 
   const toggleHabit = async (habitId: string) => {
-    await fetch(`/api/habits/${habitId}/log`, { method: "POST" });
+    const prevHabits = habits;
+    const today = new Date().toISOString().split("T")[0];
     setHabits(
       habits.map((h) => {
         if (h.id === habitId) {
-          const today = new Date().toISOString().split("T")[0];
           const hasToday = h.logs.some((l) => l.date.startsWith(today));
           return {
             ...h,
@@ -67,6 +67,13 @@ export default function HabitsPage() {
         return h;
       })
     );
+    try {
+      const res = await fetch(`/api/habits/${habitId}/log`, { method: "POST" });
+      if (!res.ok) throw new Error("Failed to toggle habit");
+    } catch {
+      setHabits(prevHabits);
+      alert("Failed to toggle habit. Please try again.");
+    }
   };
 
   const getStreak = (habit: Habit) => {
