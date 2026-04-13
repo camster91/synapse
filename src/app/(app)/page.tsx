@@ -25,6 +25,25 @@ interface DashboardData {
   userName?: string;
 }
 
+function normalizeDashboard(raw: Record<string, unknown>): DashboardData {
+  const user = (raw.user ?? {}) as Record<string, unknown>;
+  const habits = (raw.habits ?? {}) as Record<string, unknown>;
+  return {
+    habits: {
+      total: (habits.total as number) ?? 0,
+      completed: (habits.completed as number) ?? 0,
+    },
+    todos: (raw.todos ?? []) as DashboardData["todos"],
+    events: (raw.events ?? []) as DashboardData["events"],
+    streak: (user.streakDays as number) ?? (raw.streak as number) ?? 0,
+    xp: (user.xp as number) ?? (raw.xp as number) ?? 0,
+    level: (user.level as number) ?? (raw.level as number) ?? 1,
+    journal: (raw.recentJournal ?? raw.journal ?? null) as DashboardData["journal"],
+    inboxUnprocessed: (raw.unprocessedInbox as number) ?? (raw.inboxUnprocessed as number) ?? 0,
+    userName: (user.name as string) ?? (raw.userName as string) ?? undefined,
+  };
+}
+
 export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -36,7 +55,8 @@ export default function DashboardPage() {
       try {
         const res = await fetch("/api/dashboard");
         if (res.ok) {
-          setData(await res.json());
+          const raw = await res.json();
+          setData(normalizeDashboard(raw));
         } else if (res.status === 401) {
           setError("Please sign in to view your dashboard.");
         } else {

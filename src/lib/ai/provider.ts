@@ -533,7 +533,7 @@ export function getAvailableProviders(): string[] {
   const available: string[] = [];
   if (process.env.ANTHROPIC_API_KEY) available.push('anthropic');
   if (process.env.OPENAI_API_KEY) available.push('openai');
-  if (process.env.OLLAMA_BASE_URL || true) available.push('ollama');
+  if (process.env.OLLAMA_BASE_URL) available.push('ollama');
   return available;
 }
 

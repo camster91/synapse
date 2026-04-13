@@ -29,7 +29,7 @@ export default function HabitsPage() {
   useEffect(() => {
     fetch("/api/habits")
       .then((r) => r.json())
-      .then((data) => setHabits(data.habits || []))
+      .then((data) => setHabits(Array.isArray(data) ? data : (data.habits || [])))
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);

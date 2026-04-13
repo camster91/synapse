@@ -29,7 +29,7 @@ export default function ChatPage() {
   useEffect(() => {
     fetch("/api/chat/conversations")
       .then((r) => r.json())
-      .then((data) => setConversations(data.conversations || []))
+      .then((data) => setConversations(Array.isArray(data) ? data : (data.conversations || [])))
       .catch(() => {});
   }, []);
 

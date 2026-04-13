@@ -19,7 +19,7 @@ export default function JournalPage() {
     fetch("/api/journal")
       .then((r) => r.json())
       .then((data) => {
-        const journals = data.journals || [];
+        const journals = Array.isArray(data) ? data : (data.journals || []);
         setEntries(journals);
         const todayEntry = journals.find((j: { date: string }) => j.date.startsWith(today));
         if (todayEntry) {

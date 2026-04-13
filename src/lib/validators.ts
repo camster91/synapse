@@ -2,7 +2,7 @@ import { z } from "zod/v4";
 
 // ─── Shared reusable validators ────────────────────────────────────────────────
 
-const cuid = z.string().regex(/^c[a-z0-9]{24}$/);
+const cuid = z.string().regex(/^[a-z0-9]{20,30}$/);
 
 // ─── Habit ────────────────────────────────────────────────────────────────────
 

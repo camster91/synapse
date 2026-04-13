@@ -40,7 +40,7 @@ export default function TodosPage() {
   useEffect(() => {
     fetch("/api/todos")
       .then((r) => r.json())
-      .then((data) => setTodos(data.todos || []))
+      .then((data) => setTodos(Array.isArray(data) ? data : (data.todos || [])))
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);

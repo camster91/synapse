@@ -22,7 +22,7 @@ export default function AchievementsPage() {
   useEffect(() => {
     fetch("/api/gamification/achievements")
       .then((r) => r.json())
-      .then((data) => setAchievements(data.achievements || []))
+      .then((data) => setAchievements(Array.isArray(data) ? data : (data.achievements || [])))
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);

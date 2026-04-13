@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { User, Key, Download, Bell, Palette } from "lucide-react";
 
 export default function SettingsPage() {
@@ -14,9 +14,46 @@ export default function SettingsPage() {
   );
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/settings")
+      .then((r) => r.json())
+      .then((data) => {
+        setName(data.name || "");
+        setEmail(data.email || "");
+        setTimezone(data.timezone || "America/New_York");
+        setAnthropicKey(data.anthropicApiKey || "");
+        setOpenaiKey(data.openaiApiKey || "");
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, []);
 
   const handleSave = async () => {
     setSaving(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: name || undefined,
+          timezone: timezone || undefined,
+          anthropicApiKey: anthropicKey || undefined,
+          openaiApiKey: openaiKey || undefined,
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        setError(data.error || "Failed to save settings");
+        return;
+      }
+    } catch {
+      setError("Network error. Please try again.");
+      return;
+    }
     if (darkMode) {
       document.documentElement.classList.add("dark");
       localStorage.setItem("synapse-theme", "dark");
@@ -24,7 +61,6 @@ export default function SettingsPage() {
       document.documentElement.classList.remove("dark");
       localStorage.setItem("synapse-theme", "light");
     }
-    await new Promise((resolve) => setTimeout(resolve, 500));
     setSaving(false);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
@@ -207,7 +243,8 @@ export default function SettingsPage() {
           </section>
 
           {/* Save Button */}
-          <div className="flex justify-end">
+          <div className="flex justify-end items-center gap-3">
+            {error && <p className="text-sm text-destructive">{error}</p>}
             <button
               onClick={handleSave}
               disabled={saving}

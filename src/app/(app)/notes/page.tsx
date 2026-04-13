@@ -29,7 +29,7 @@ export default function NotesPage() {
   useEffect(() => {
     fetch("/api/notes")
       .then((r) => r.json())
-      .then((data) => setNotes(data.notes || []))
+      .then((data) => setNotes(Array.isArray(data) ? data : (data.notes || [])))
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);

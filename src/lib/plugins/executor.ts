@@ -83,9 +83,10 @@ function buildScopedDb(
       create: requirePerm("write:todos", (data: unknown) =>
         prisma.todo.create({ data: { ...(data as any), userId } })
       ),
-      update: requirePerm("write:todos", (args: unknown) =>
-        prisma.todo.update(args as Parameters<typeof prisma.todo.update>[0])
-      ),
+      update: requirePerm("write:todos", (args: unknown) => {
+        const a = args as Parameters<typeof prisma.todo.update>[0];
+        return prisma.todo.update({ ...a, where: { ...a.where, userId } });
+      }),
     },
     note: {
       findMany: requirePerm("read:notes", () =>
@@ -95,9 +96,10 @@ function buildScopedDb(
       create: requirePerm("write:notes", (data: unknown) =>
         prisma.note.create({ data: { ...(data as any), userId } })
       ),
-      update: requirePerm("write:notes", (args: unknown) =>
-        prisma.note.update(args as Parameters<typeof prisma.note.update>[0])
-      ),
+      update: requirePerm("write:notes", (args: unknown) => {
+        const a = args as Parameters<typeof prisma.note.update>[0];
+        return prisma.note.update({ ...a, where: { ...a.where, userId } });
+      }),
     },
     journal: {
       findMany: requirePerm("read:journal", () =>
@@ -116,11 +118,10 @@ function buildScopedDb(
       create: requirePerm("write:calendar", (data: unknown) =>
         prisma.calendarEvent.create({ data: { ...(data as any), userId } })
       ),
-      update: requirePerm("write:calendar", (args: unknown) =>
-        prisma.calendarEvent.update(
-          args as Parameters<typeof prisma.calendarEvent.update>[0]
-        )
-      ),
+      update: requirePerm("write:calendar", (args: unknown) => {
+        const a = args as Parameters<typeof prisma.calendarEvent.update>[0];
+        return prisma.calendarEvent.update({ ...a, where: { ...a.where, userId } });
+      }),
     },
     goal: {
       findMany: requirePerm("read:goals", () =>

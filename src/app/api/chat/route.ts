@@ -50,6 +50,15 @@ export async function POST(request: Request) {
 
     // Get or create conversation
     let conversationIdResolved = conversationId;
+    if (conversationIdResolved) {
+      // Verify ownership of the conversation
+      const convo = await prisma.aiConversation.findFirst({
+        where: { id: conversationIdResolved, userId },
+      });
+      if (!convo) {
+        return NextResponse.json({ error: 'Conversation not found' }, { status: 404 });
+      }
+    }
     if (!conversationIdResolved) {
       const conversation = await prisma.aiConversation.create({
         data: {

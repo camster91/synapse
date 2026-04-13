@@ -78,8 +78,10 @@ export async function saveFile(file: File): Promise<{
 
 export async function deleteFile(url: string): Promise<void> {
   const filename = url.split("/").pop();
-  if (!filename) return;
-  const filePath = path.join(UPLOAD_DIR, filename);
+  if (!filename || filename.includes("..") || filename.includes("/") || filename.includes("\\")) return;
+  const filePath = path.resolve(UPLOAD_DIR, filename);
+  // Ensure resolved path stays within UPLOAD_DIR
+  if (!filePath.startsWith(path.resolve(UPLOAD_DIR))) return;
   if (existsSync(filePath)) {
     await unlink(filePath);
   }

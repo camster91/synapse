@@ -39,7 +39,7 @@ export default function GoalsPage() {
   useEffect(() => {
     fetch("/api/goals")
       .then((r) => r.json())
-      .then((data) => setGoals(data.goals || []))
+      .then((data) => setGoals(Array.isArray(data) ? data : (data.goals || [])))
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
