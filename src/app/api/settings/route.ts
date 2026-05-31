@@ -39,17 +39,16 @@ export async function GET() {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // Mask API keys in the response
-    const maskKey = (key: string | null) => {
-      if (!key) return null;
-      if (key.length <= 4) return "****";
-      return "****" + key.slice(-4);
-    };
-
+    // Never return API keys in any form — only expose whether they are configured
     return NextResponse.json({
-      ...user,
-      anthropicApiKey: maskKey(user.anthropicApiKey),
-      openaiApiKey: maskKey(user.openaiApiKey),
+      name: user.name,
+      email: user.email,
+      timezone: user.timezone,
+      avatarUrl: user.avatarUrl,
+      ollamaBaseUrl: user.ollamaBaseUrl,
+      preferredAiProvider: user.preferredAiProvider,
+      hasAnthropicKey: Boolean(user.anthropicApiKey),
+      hasOpenaiKey: Boolean(user.openaiApiKey),
     });
   } catch (error) {
     console.error("Failed to fetch settings:", error);
@@ -124,16 +123,16 @@ export async function PUT(request: Request) {
       },
     });
 
-    const maskKey = (key: string | null) => {
-      if (!key) return null;
-      if (key.length <= 4) return "****";
-      return "****" + key.slice(-4);
-    };
-
+    // Never return API keys in the response — only expose whether they are configured
     return NextResponse.json({
-      ...user,
-      anthropicApiKey: maskKey(user.anthropicApiKey),
-      openaiApiKey: maskKey(user.openaiApiKey),
+      name: user.name,
+      email: user.email,
+      timezone: user.timezone,
+      avatarUrl: user.avatarUrl,
+      ollamaBaseUrl: user.ollamaBaseUrl,
+      preferredAiProvider: user.preferredAiProvider,
+      hasAnthropicKey: Boolean(user.anthropicApiKey),
+      hasOpenaiKey: Boolean(user.openaiApiKey),
     });
   } catch (error) {
     if (error instanceof z.ZodError) {

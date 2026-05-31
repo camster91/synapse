@@ -4,6 +4,7 @@ import { useState, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Save, Eye, Edit2, Link2 } from "lucide-react";
 import Link from "next/link";
+import DOMPurify from "dompurify";
 
 interface Note {
   id: string;
@@ -68,17 +69,18 @@ export default function NoteEditorPage({ params }: { params: Promise<{ id: strin
     }
   };
 
-  // Simple markdown rendering (sanitized against XSS)
-  const sanitize = (str: string) =>
+  // HTML-escape text before markdown processing to prevent XSS
+  const escapeHtml = (str: string) =>
     str
       .replace(/&/g, "&amp;")
       .replace(/</g, "&lt;")
       .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;");
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
 
   const renderMarkdown = (text: string) => {
-    const safe = sanitize(text);
-    return safe
+    const safe = escapeHtml(text);
+    const html = safe
       .replace(/^### (.*$)/gm, '<h3 class="text-lg font-semibold text-foreground mt-4 mb-2">$1</h3>')
       .replace(/^## (.*$)/gm, '<h2 class="text-xl font-semibold text-foreground mt-6 mb-2">$1</h2>')
       .replace(/^# (.*$)/gm, '<h1 class="text-2xl font-bold text-foreground mt-8 mb-3">$1</h1>')
@@ -88,6 +90,12 @@ export default function NoteEditorPage({ params }: { params: Promise<{ id: strin
       .replace(/^- (.*$)/gm, '<li class="ml-4 text-foreground">$1</li>')
       .replace(/^&gt; (.*$)/gm, '<blockquote class="border-l-2 border-primary pl-4 text-muted-foreground italic">$1</blockquote>')
       .replace(/\n/g, "<br />");
+
+    // Sanitize the generated HTML with DOMPurify to block any XSS vectors
+    return DOMPurify.sanitize(html, {
+      ALLOWED_TAGS: ["h1", "h2", "h3", "strong", "em", "a", "li", "blockquote", "br"],
+      ALLOWED_ATTR: ["class", "href"],
+    });
   };
 
   if (loadError) {
