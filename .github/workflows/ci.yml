@@ -14,7 +14,6 @@ permissions:
 
 concurrency:
   group: ci-build-${{ github.ref }}
-  cancel-in-progress: true
 
 jobs:
   build:
