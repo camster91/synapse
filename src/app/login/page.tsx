@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { postAuthenticationPath } from "@/lib/routes";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -28,7 +29,7 @@ export default function LoginPage() {
     }
 
     if (result?.ok) {
-      router.push("/");
+      router.push(postAuthenticationPath());
     }
   };
 
