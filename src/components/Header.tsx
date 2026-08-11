@@ -15,7 +15,7 @@ interface HeaderProps {
 }
 
 const pageTitles: Record<string, string> = {
-  "/": "Dashboard",
+  "/": "Today",
   "/inbox": "Inbox",
   "/todos": "Todos",
   "/habits": "Habits",

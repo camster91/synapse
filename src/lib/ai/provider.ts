@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import OpenAI from 'openai';
 import { prisma } from '@/lib/prisma';
+import { decryptSecret } from '@/lib/security/secrets';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -644,14 +645,22 @@ export async function getProviderForUser(userId: string): Promise<AIProvider> {
   });
 
   const providerName = user?.preferredAiProvider ?? process.env.DEFAULT_AI_PROVIDER ?? 'anthropic';
+  const encryptionKey = process.env.SYNAPSE_ENCRYPTION_KEY;
+  const decryptUserKey = (value: string | null | undefined) => {
+    if (!value) return undefined;
+    if (!encryptionKey && value.startsWith('v1:')) {
+      throw new Error('SYNAPSE_ENCRYPTION_KEY is required to use saved AI provider keys');
+    }
+    return encryptionKey ? decryptSecret(value, encryptionKey) : value;
+  };
 
   switch (providerName) {
     case 'openai':
-      return new OpenAIProvider(user?.openaiApiKey ?? undefined);
+      return new OpenAIProvider(decryptUserKey(user?.openaiApiKey));
     case 'ollama':
       return new OllamaProvider(user?.ollamaBaseUrl ?? undefined);
     case 'anthropic':
     default:
-      return new AnthropicProvider(user?.anthropicApiKey ?? undefined);
+      return new AnthropicProvider(decryptUserKey(user?.anthropicApiKey));
   }
 }

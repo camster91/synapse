@@ -33,15 +33,19 @@ interface SidebarProps {
 }
 
 const navItems = [
-  { href: "/", icon: LayoutDashboard, label: "Dashboard" },
+  { href: "/", icon: LayoutDashboard, label: "Today" },
   { href: "/inbox", icon: Inbox, label: "Inbox", badge: true },
   { href: "/todos", icon: CheckSquare, label: "Todos" },
   { href: "/habits", icon: Target, label: "Habits" },
-  { href: "/notes", icon: FileText, label: "Notes" },
   { href: "/calendar", icon: Calendar, label: "Calendar" },
-  { href: "/goals", icon: Trophy, label: "Goals" },
   { href: "/journal", icon: BookOpen, label: "Journal" },
   { href: "/chat", icon: MessageSquare, label: "Chat" },
+];
+
+const secondaryNavItems = [
+  { href: "/notes", icon: FileText, label: "Notes" },
+  { href: "/goals", icon: Trophy, label: "Goals" },
+  { href: "/achievements", icon: Trophy, label: "Achievements" },
   { href: "/plugins", icon: Puzzle, label: "Plugins" },
 ];
 
@@ -121,6 +125,14 @@ export default function Sidebar({
                 </Link>
               </li>
             );
+          })}
+        </ul>
+        {!collapsed && <p className="px-3 pt-5 pb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">More</p>}
+        <ul className="space-y-0.5">
+          {secondaryNavItems.map((item) => {
+            const isActive = pathname.startsWith(item.href);
+            const Icon = item.icon;
+            return <li key={item.href}><Link href={item.href} onClick={() => { if (window.innerWidth < 1024) onMobileClose?.(); }} className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${isActive ? "bg-sidebar-accent text-sidebar-accent-foreground" : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"}`} title={collapsed ? item.label : undefined}><Icon className="w-5 h-5 flex-shrink-0" />{!collapsed && <span>{item.label}</span>}</Link></li>;
           })}
         </ul>
       </nav>

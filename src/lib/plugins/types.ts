@@ -190,7 +190,7 @@ export interface PermissionScopedDb {
     create: (args: Record<string, unknown>) => Promise<unknown>;
   };
   user: {
-    findUnique: (args: Record<string, unknown>) => Promise<unknown | null>;
+    findCurrent: () => Promise<unknown | null>;
   };
 }
 

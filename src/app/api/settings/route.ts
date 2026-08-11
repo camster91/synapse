@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod/v4";
+import { encryptSecret } from "@/lib/security/secrets";
 
 const updateSettingsSchema = z.object({
   name: z.string().min(1).max(100).optional(),
@@ -21,7 +22,7 @@ export async function GET() {
   }
 
   try {
-    const user = await prisma.user.findUnique({
+    let user = await prisma.user.findUnique({
       where: { id: session.user.id },
       select: {
         name: true,
@@ -37,6 +38,27 @@ export async function GET() {
 
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    const encryptionKey = process.env.SYNAPSE_ENCRYPTION_KEY;
+    const legacyUpdates: Record<string, string> = {};
+    if (encryptionKey) {
+      if (user.anthropicApiKey && !user.anthropicApiKey.startsWith("v1:")) {
+        legacyUpdates.anthropicApiKey = encryptSecret(user.anthropicApiKey, encryptionKey);
+      }
+      if (user.openaiApiKey && !user.openaiApiKey.startsWith("v1:")) {
+        legacyUpdates.openaiApiKey = encryptSecret(user.openaiApiKey, encryptionKey);
+      }
+    }
+    if (Object.keys(legacyUpdates).length > 0) {
+      user = await prisma.user.update({
+        where: { id: session.user.id },
+        data: legacyUpdates,
+        select: {
+          name: true, email: true, timezone: true, avatarUrl: true,
+          anthropicApiKey: true, openaiApiKey: true, ollamaBaseUrl: true, preferredAiProvider: true,
+        },
+      });
     }
 
     // Never return API keys in any form — only expose whether they are configured
@@ -85,13 +107,20 @@ export async function PUT(request: Request) {
       }
     }
 
-    // Handle API keys: only update if a real key is provided (starts with "sk-" and is longer than 4 chars)
-    // If value is "****" or empty string, keep the existing key
+    const encryptionKey = process.env.SYNAPSE_ENCRYPTION_KEY;
+    if ((data.anthropicApiKey || data.openaiApiKey) && !encryptionKey) {
+      return NextResponse.json(
+        { error: "AI key storage is unavailable. Contact the beta administrator." },
+        { status: 503 }
+      );
+    }
+
+    // API keys are encrypted before persistence and are never returned to clients.
     const updateData: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(data)) {
       if (key === "anthropicApiKey" || key === "openaiApiKey") {
         if (typeof value === "string" && value.startsWith("sk-") && value.length > 4) {
-          updateData[key] = value;
+          updateData[key] = encryptSecret(value, encryptionKey!);
         } else if (value === "" || value === null) {
           updateData[key] = null;
         }

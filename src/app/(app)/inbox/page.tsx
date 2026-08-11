@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Inbox, Check, Trash2 } from "lucide-react";
+import { Inbox, Check, Trash2, FileText, ListTodo } from "lucide-react";
 import EmptyState from "@/components/EmptyState";
 
 interface InboxItem {
@@ -42,22 +42,6 @@ export default function InboxPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  const processItem = async (id: string) => {
-    const prevItems = items;
-    setItems(items.map((i) => (i.id === id ? { ...i, processed: true } : i)));
-    try {
-      const res = await fetch(`/api/inbox/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ processed: true }),
-      });
-      if (!res.ok) throw new Error("Failed to process item");
-    } catch {
-      setItems(prevItems);
-      alert("Failed to process inbox item. Please try again.");
-    }
-  };
-
   const deleteItem = async (id: string) => {
     const prevItems = items;
     setItems(items.filter((i) => i.id !== id));
@@ -70,11 +54,25 @@ export default function InboxPage() {
     }
   };
 
+  const triageItem = async (id: string, destination: "todo" | "note" | "archive") => {
+    const prevItems = items;
+    setItems(items.map((item) => item.id === id ? { ...item, processed: true } : item));
+    try {
+      const res = await fetch(`/api/inbox/${id}/triage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ destination }),
+      });
+      if (!res.ok) throw new Error("Failed to triage item");
+    } catch {
+      setItems(prevItems);
+      alert("Failed to triage inbox item. Please try again.");
+    }
+  };
+
   const filteredItems = filter === "unprocessed"
     ? items.filter((i) => !i.processed)
     : items;
-
-  const unprocessedCount = items.filter((i) => !i.processed).length;
 
   if (loading) {
     return (
@@ -92,7 +90,7 @@ export default function InboxPage() {
         <div>
           <h1 className="text-2xl font-bold text-foreground">Inbox</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            {unprocessedCount} unprocessed item{unprocessedCount !== 1 ? "s" : ""}
+            Turn each capture into a task, note, or archive it when you are done.
           </p>
         </div>
         <div className="flex gap-1 bg-muted rounded-lg p-1">
@@ -143,13 +141,11 @@ export default function InboxPage() {
                 </div>
                 <div className="flex items-center gap-1">
                   {!item.processed && (
-                    <button
-                      onClick={() => processItem(item.id)}
-                      className="p-1.5 rounded-lg text-muted-foreground hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors"
-                      title="Mark as processed"
-                    >
-                      <Check className="w-4 h-4" />
-                    </button>
+                    <>
+                      <button onClick={() => triageItem(item.id, "todo")} className="p-1.5 rounded-lg text-muted-foreground hover:text-primary hover:bg-muted transition-colors" title="Turn into task"><ListTodo className="w-4 h-4" /></button>
+                      <button onClick={() => triageItem(item.id, "note")} className="p-1.5 rounded-lg text-muted-foreground hover:text-primary hover:bg-muted transition-colors" title="Save as note"><FileText className="w-4 h-4" /></button>
+                      <button onClick={() => triageItem(item.id, "archive")} className="p-1.5 rounded-lg text-muted-foreground hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors" title="Archive"><Check className="w-4 h-4" /></button>
+                    </>
                   )}
                   <button
                     onClick={() => deleteItem(item.id)}

@@ -3,14 +3,15 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { getProvider, getProviderForUser, resolveModel, type ChatMessage } from '@/lib/ai/provider';
 import { buildUserContext } from '@/lib/ai/context';
-import { toolDefinitions, toolExecutors } from '@/lib/ai/tools';
+import { readOnlyToolDefinitions, toolExecutors } from '@/lib/ai/tools';
+import { serializeTextEvent } from '@/lib/ai/events';
 
 const SYSTEM_PROMPT = `You are Synapse, an AI second brain and life management assistant. You help users manage their habits, todos, notes, journal, calendar, goals, and inbox through natural conversation.
 
 Key principles:
 - Be concise and actionable in your responses
-- Use the available tools to take actions on the user's behalf when they ask
-- Proactively suggest actions based on context (e.g., logging habits, scheduling tasks)
+- Read data with the available tools when it helps answer the user
+- For any change to tasks, habits, notes, calendar, or inbox, describe the proposed change and ask for confirmation; do not claim it was completed
 - Reference the user's current data when relevant
 - When in doubt, ask for clarification rather than assuming
 - Keep responses focused and avoid unnecessary verbosity
@@ -124,7 +125,7 @@ export async function POST(request: Request) {
             const result = await provider.chat(currentMessages, {
               model,
               systemPrompt: fullSystemPrompt,
-              tools: toolDefinitions,
+              tools: readOnlyToolDefinitions,
             });
 
             if (result.usage) {
@@ -138,7 +139,7 @@ export async function POST(request: Request) {
 
               // Stream the content in chunks
               if (assistantContent) {
-                const chunk = JSON.stringify({ type: 'text', text: assistantContent });
+                const chunk = serializeTextEvent(assistantContent);
                 controller.enqueue(encoder.encode(`data: ${chunk}\n\n`));
               }
 
@@ -230,7 +231,7 @@ export async function POST(request: Request) {
           if (iteration >= MAX_TOOL_ITERATIONS) {
             const maxMsg = JSON.stringify({
               type: 'text',
-              text: '\n\n[I reached the maximum number of tool calls for this response. Please continue the conversation if you need more actions taken.]',
+              content: '\n\n[I reached the maximum number of tool calls for this response. Please continue the conversation if you need more information.]',
             });
             controller.enqueue(encoder.encode(`data: ${maxMsg}\n\n`));
           }

@@ -138,10 +138,11 @@ function buildScopedDb(
       ),
     },
     user: {
-      findUnique: requirePerm("read:profile", (args: unknown) =>
-        prisma.user.findUnique(
-          args as Parameters<typeof prisma.user.findUnique>[0]
-        )
+      findCurrent: requirePerm("read:profile", () =>
+        prisma.user.findUnique({
+          where: { id: userId },
+          select: { id: true, name: true, email: true, timezone: true, locale: true },
+        })
       ),
     },
   };

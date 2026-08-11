@@ -9,8 +9,8 @@ Your second brain — habit tracker, todo, planner, notes, calendar, journal, an
 docker compose up -d
 
 # 2. Copy env file and configure
-cp .env.example .env
-# Edit .env with your database URL and API keys
+Copy-Item .env.example .env # PowerShell
+# Edit .env with your database URL, auth secret, and 32-byte encryption key
 
 # 3. Set up database (migrate + seed)
 npm run setup

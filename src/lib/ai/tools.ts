@@ -224,6 +224,15 @@ export const toolDefinitions: ToolDef[] = [
   },
 ];
 
+/**
+ * Mutating tools stay out of the beta chat loop until the UI can present an
+ * explicit confirmation card. Read-only tools are safe to execute immediately.
+ */
+const READ_ONLY_TOOL_NAMES = new Set(["search_notes", "get_habits_status", "get_todos"]);
+export const readOnlyToolDefinitions = toolDefinitions.filter((tool) =>
+  READ_ONLY_TOOL_NAMES.has(tool.name)
+);
+
 // ─── Tool Executors ──────────────────────────────────────────────────────────
 
 type ExecutorResult = { success: boolean; data: unknown; error?: string };

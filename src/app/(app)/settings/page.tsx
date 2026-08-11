@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { User, Key, Download, Bell, Palette } from "lucide-react";
+import { User, Key, Download, Palette } from "lucide-react";
 
 export default function SettingsPage() {
   const [name, setName] = useState("");
@@ -9,6 +9,10 @@ export default function SettingsPage() {
   const [timezone, setTimezone] = useState("America/New_York");
   const [anthropicKey, setAnthropicKey] = useState("");
   const [openaiKey, setOpenaiKey] = useState("");
+  const [ollamaBaseUrl, setOllamaBaseUrl] = useState("");
+  const [preferredAiProvider, setPreferredAiProvider] = useState("anthropic");
+  const [hasAnthropicKey, setHasAnthropicKey] = useState(false);
+  const [hasOpenaiKey, setHasOpenaiKey] = useState(false);
   const [darkMode, setDarkMode] = useState(
     typeof window !== "undefined" ? document.documentElement.classList.contains("dark") : false
   );
@@ -24,8 +28,10 @@ export default function SettingsPage() {
         setName(data.name || "");
         setEmail(data.email || "");
         setTimezone(data.timezone || "America/New_York");
-        setAnthropicKey(data.anthropicApiKey || "");
-        setOpenaiKey(data.openaiApiKey || "");
+        setOllamaBaseUrl(data.ollamaBaseUrl || "");
+        setPreferredAiProvider(data.preferredAiProvider || "anthropic");
+        setHasAnthropicKey(Boolean(data.hasAnthropicKey));
+        setHasOpenaiKey(Boolean(data.hasOpenaiKey));
         setLoading(false);
       })
       .catch(() => setLoading(false));
@@ -43,15 +49,24 @@ export default function SettingsPage() {
           timezone: timezone || undefined,
           anthropicApiKey: anthropicKey || undefined,
           openaiApiKey: openaiKey || undefined,
+          ollamaBaseUrl: ollamaBaseUrl || undefined,
+          preferredAiProvider,
         }),
       });
       if (!res.ok) {
         const data = await res.json();
         setError(data.error || "Failed to save settings");
+        setSaving(false);
         return;
       }
+      const data = await res.json();
+      setHasAnthropicKey(Boolean(data.hasAnthropicKey));
+      setHasOpenaiKey(Boolean(data.hasOpenaiKey));
+      setAnthropicKey("");
+      setOpenaiKey("");
     } catch {
       setError("Network error. Please try again.");
+      setSaving(false);
       return;
     }
     if (darkMode) {
@@ -83,7 +98,6 @@ export default function SettingsPage() {
     { id: "profile", label: "Profile", icon: User },
     { id: "ai", label: "AI Provider", icon: Key },
     { id: "appearance", label: "Appearance", icon: Palette },
-    { id: "notifications", label: "Notifications", icon: Bell },
     { id: "data", label: "Data", icon: Download },
   ];
 
@@ -124,9 +138,7 @@ export default function SettingsPage() {
                 <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
                   <User className="w-8 h-8 text-muted-foreground" />
                 </div>
-                <button className="px-4 py-2 border border-border rounded-lg text-sm text-foreground hover:bg-muted transition-colors">
-                  Change Avatar
-                </button>
+                <p className="text-sm text-muted-foreground">Profile photo editing is not available in this beta.</p>
               </div>
               <div>
                 <label className="block text-sm font-medium text-foreground mb-1">Name</label>
@@ -172,9 +184,17 @@ export default function SettingsPage() {
           <section id="ai" className="bg-card border border-border rounded-xl p-6">
             <h2 className="text-lg font-semibold text-foreground mb-4">AI Provider</h2>
             <p className="text-sm text-muted-foreground mb-4">
-              Configure your AI provider API keys for the chat assistant.
+              Connect a provider for your own chat usage. Keys are encrypted before storage and are never shown again.
             </p>
             <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-1">Preferred provider</label>
+                <select value={preferredAiProvider} onChange={(e) => setPreferredAiProvider(e.target.value)} className="w-full px-3 py-2 bg-background border border-input rounded-lg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring">
+                  <option value="anthropic">Anthropic</option>
+                  <option value="openai">OpenAI</option>
+                  <option value="ollama">Ollama (self-hosted)</option>
+                </select>
+              </div>
               <div>
                 <label className="block text-sm font-medium text-foreground mb-1">Anthropic API Key</label>
                 <input
@@ -184,6 +204,7 @@ export default function SettingsPage() {
                   placeholder="sk-ant-..."
                   className="w-full px-3 py-2 bg-background border border-input rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                 />
+                {hasAnthropicKey && <p className="mt-1 text-xs text-emerald-600">Connected. Enter a new key only to replace it.</p>}
               </div>
               <div>
                 <label className="block text-sm font-medium text-foreground mb-1">OpenAI API Key</label>
@@ -194,6 +215,11 @@ export default function SettingsPage() {
                   placeholder="sk-..."
                   className="w-full px-3 py-2 bg-background border border-input rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                 />
+                {hasOpenaiKey && <p className="mt-1 text-xs text-emerald-600">Connected. Enter a new key only to replace it.</p>}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-1">Ollama base URL</label>
+                <input type="url" value={ollamaBaseUrl} onChange={(e) => setOllamaBaseUrl(e.target.value)} placeholder="http://localhost:11434" className="w-full px-3 py-2 bg-background border border-input rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
               </div>
             </div>
           </section>
@@ -219,12 +245,6 @@ export default function SettingsPage() {
                 />
               </button>
             </div>
-          </section>
-
-          {/* Notifications */}
-          <section id="notifications" className="bg-card border border-border rounded-xl p-6">
-            <h2 className="text-lg font-semibold text-foreground mb-4">Notifications</h2>
-            <p className="text-sm text-muted-foreground">Notification preferences coming soon.</p>
           </section>
 
           {/* Data Export */}
