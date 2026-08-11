@@ -1,4 +1,4 @@
-import NextAuth, { type NextAuthOptions } from "next-auth";
+import NextAuth, { getServerSession, type NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import bcrypt from "bcryptjs";
@@ -109,7 +109,7 @@ export const authOptions: NextAuthOptions = {
  * Use this in server components and API routes.
  */
 export async function auth() {
-  return NextAuth(authOptions).auth();
+  return getServerSession(authOptions);
 }
 
 export default NextAuth(authOptions);
