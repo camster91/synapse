@@ -1,5 +1,5 @@
-const CACHE_NAME = "synapse-v1";
-const PRECACHE_URLS = ["/", "/login", "/manifest.json"];
+const CACHE_NAME = "synapse-v2";
+const PRECACHE_URLS = ["/manifest.json"];
 
 // Install: precache shell
 self.addEventListener("install", (event) => {
@@ -27,7 +27,7 @@ self.addEventListener("activate", (event) => {
   );
 });
 
-// Fetch: network-first for API, cache-first for assets
+// Fetch: always get navigation and private API data from the network.
 self.addEventListener("fetch", (event) => {
   const { request } = event;
   const url = new URL(request.url);
@@ -35,26 +35,12 @@ self.addEventListener("fetch", (event) => {
   // Skip non-GET and chrome-extension requests
   if (request.method !== "GET" || url.protocol === "chrome-extension:") return;
 
-  // API calls: network-first
-  if (url.pathname.startsWith("/api/")) {
-    event.respondWith(
-      fetch(request)
-        .then((response) => {
-          // Cache successful GET API responses briefly
-          if (response.ok) {
-            const clone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(request, clone);
-            });
-          }
-          return response;
-        })
-        .catch(() => caches.match(request))
-    );
+  if (request.mode === "navigate" || url.pathname.startsWith("/api/")) {
+    event.respondWith(fetch(request));
     return;
   }
 
-  // Static assets: cache-first
+  // Versioned static assets can be cached safely.
   event.respondWith(
     caches.match(request).then((cached) => {
       if (cached) return cached;
@@ -80,7 +66,7 @@ self.addEventListener("push", (event) => {
     icon: "/icons/icon-192.png",
     badge: "/icons/icon-192.png",
     data: {
-      url: data.actionUrl || "/",
+      url: data.actionUrl || "/today",
     },
     vibrate: [100, 50, 100],
     tag: data.tag || "synapse-notification",
@@ -92,7 +78,7 @@ self.addEventListener("push", (event) => {
 // Notification click: focus or open window
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const url = event.notification.data?.url || "/";
+  const url = event.notification.data?.url || "/today";
 
   event.waitUntil(
     self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {

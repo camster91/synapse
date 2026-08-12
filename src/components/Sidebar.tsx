@@ -33,7 +33,7 @@ interface SidebarProps {
 }
 
 const navItems = [
-  { href: "/", icon: LayoutDashboard, label: "Today" },
+  { href: "/today", icon: LayoutDashboard, label: "Today" },
   { href: "/inbox", icon: Inbox, label: "Inbox", badge: true },
   { href: "/todos", icon: CheckSquare, label: "Todos" },
   { href: "/habits", icon: Target, label: "Habits" },
@@ -92,10 +92,7 @@ export default function Sidebar({
       <nav className="flex-1 overflow-y-auto py-2 px-2">
         <ul className="space-y-0.5">
           {navItems.map((item) => {
-            const isActive =
-              item.href === "/"
-                ? pathname === "/"
-                : pathname.startsWith(item.href);
+            const isActive = pathname.startsWith(item.href);
             const Icon = item.icon;
 
             return (
