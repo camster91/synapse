@@ -27,6 +27,7 @@ export async function GET() {
       user,
       recentJournal,
       unprocessedInboxCount,
+      activeGoals,
     ] = await Promise.all([
       // Today's habits with today's logs
       prisma.habit.findMany({
@@ -49,7 +50,10 @@ export async function GET() {
         },
         orderBy: [{ priority: "desc" }, { sortOrder: "asc" }],
         take: 10,
-        include: { tags: { select: { id: true, name: true, color: true } } },
+        include: {
+          tags: { select: { id: true, name: true, color: true } },
+          goal: { select: { id: true, title: true } },
+        },
       }),
 
       // Today's calendar events
@@ -85,6 +89,13 @@ export async function GET() {
       prisma.inboxItem.count({
         where: { userId, processed: false },
       }),
+
+      prisma.goal.findMany({
+        where: { userId, status: "ACTIVE" },
+        orderBy: [{ level: "asc" }, { createdAt: "desc" }],
+        take: 3,
+        select: { id: true, title: true, level: true, progress: true },
+      }),
     ]);
 
     // Calculate habits completed / total for today
@@ -109,6 +120,7 @@ export async function GET() {
       },
       recentJournal,
       unprocessedInbox: unprocessedInboxCount,
+      goals: activeGoals,
     });
   } catch (error) {
     console.error("Failed to load dashboard:", error);
