@@ -59,3 +59,22 @@ Before release, the owner and operator must approve and verify:
 6. evidence that export, account deletion, and backup retention policies agree.
 
 Until all six are evidenced, backup and recovery remain a release blocker.
+
+## Health and error signals
+
+- `GET /api/health` is a cache-disabled liveness probe. It proves only that the
+  process can answer HTTP and reports uptime plus `RELEASE_REV`.
+- `GET /api/health/ready` is a cache-disabled readiness probe. It returns `200`
+  only after PostgreSQL responds and the uploads directory is readable and writable;
+  otherwise it returns `503` without exposing connection or filesystem details.
+- The production image runs the readiness probe every 30 seconds and becomes
+  unhealthy after three consecutive failures.
+- Server startup, readiness failures, and uncaught Next.js request errors emit
+  one-line JSON to standard output. Request paths, queries, headers, bodies, error
+  messages, and user identifiers are deliberately excluded.
+
+Production still requires a log destination, retention policy, dashboards, alert
+thresholds, and a named responder. Recommended release alerts are: any unhealthy
+instance for two minutes, request-error rate above 1% for five minutes, backup job
+failure, and disk usage above 80%. Vendor selection or paid monitoring requires
+owner approval.

@@ -54,8 +54,10 @@ security-remediation working tree.
 - Public desktop/mobile rendering and registration field semantics are browser
   verified. Authenticated onboarding, export, and deletion remain browser-verification
   gates pending approval to submit disposable local credentials in the browser.
-- No billing, analytics, error monitoring, support path, restore workflow, automated
-  backup, terms, or privacy notice exists.
+- No billing, product analytics, external log destination/alerts, support path,
+  automated off-site backup, terms, or privacy notice exists. Local liveness,
+  database/filesystem readiness, privacy-minimal structured error logs, backup
+  creation, and restore-drill tooling are implemented and locally verified.
 - Recurrence strings are stored but occurrences are not expanded; public copy no
   longer promises recurrence expansion or automatic time blocking.
 - AI mutations are implemented internally but intentionally excluded from the chat
@@ -93,7 +95,7 @@ security-remediation working tree.
 | Docker runtime | Unavailable | Install/provide runtime or CI runner | Blocks image and migration smoke test |
 | GitHub-hosted runners | Unavailable before checkout | Account runner/quota/billing owner | Blocks authoritative PR checks |
 | Production hosting/domain | Unknown | Owner selection and credentials | Blocks release |
-| Analytics/monitoring/logs | Absent | Product implementation; vendor spend needs approval | Blocks launch evidence |
+| Analytics/monitoring/logs | Local health and structured signals implemented; collection/alerts absent | Operator destination and ownership; vendor spend needs approval | Blocks launch evidence |
 | Billing | Absent | Pricing and payment approval | Blocks paid launch, not pilot |
 | Customers/feedback/support | No evidence/access | Owner recruits or authorizes outreach | Blocks customer validation |
 | Legal identity/policies | Unknown/absent | Owner/legal approval | Blocks public commercial launch |
@@ -213,7 +215,7 @@ No baselines exist. Instrument only with documented consent and minimal data.
 | High | Image/migrations untested together | GitHub issue #29 | Operator |
 | High | No legal identity, privacy, or terms | Owner/legal approval required | Product owner |
 | Medium | Landing promise needs customer comprehension and conversion evidence | Public copy is implementation-truthful; validate in pilot | Product |
-| Medium | No analytics or monitoring | Add privacy-respecting pilot telemetry | Product owner |
+| Medium | No product analytics or external monitoring/alerts | Local health/error signals verified; add consented pilot metrics plus operator-owned collection and alerts | Product owner + operator |
 | Medium | AI quality, privacy, latency, and cost unmeasured | Keep mutations disabled; item 5 | Engineering/product |
 | Resolved | Raw browser-push delivery permitted tenant-controlled outbound requests | Unsafe sender removed; in-app notifications remain until standards-compliant Web Push exists | Engineering |
 | Resolved | Uploads lacked aggregate tenant/storage quotas | Atomic 512 MB account reservations, migration backfill, and deletion release verified | Engineering |
@@ -268,3 +270,8 @@ No baselines exist. Instrument only with documented consent and minimal data.
   its exact 42-byte file, both migrations, and quota accounting; the temporary source
   fixture and restore database were removed. Production scheduling, encrypted
   off-site retention, alert ownership, and RPO/RTO evidence remain release blockers.
+- 2026-08-28: cache-disabled liveness and PostgreSQL/upload readiness endpoints,
+  image health checks, revision metadata, and privacy-minimal structured startup,
+  readiness-failure, and request-error logs were implemented. Runtime verification
+  proved `200` liveness, `200` readiness, `503` readiness during a forced database
+  outage, and recovery to `200`; 76 tests, typecheck, and zero-warning lint pass.
