@@ -205,7 +205,7 @@ No baselines exist. Instrument only with documented consent and minimal data.
 
 | Severity | Risk | Mitigation/state | Owner |
 |---|---|---|---|
-| Critical | No production backup/restore evidence | Roadmap item 2/4; release blocked | Product owner + operator |
+| Critical | No production backup/restore evidence | Local database-plus-upload backup and representative restore drill pass; encrypted off-site schedule, retention, alerts, and production-like RPO/RTO proof remain blocked on owner/operator decisions | Product owner + operator |
 | High | Export/deletion lack authenticated runtime and restore-drill evidence | Roadmap item 2 | Engineering |
 | High | Onboarding lacks authenticated browser completion evidence | Roadmap item 1 in progress | Engineering/product |
 | High | CI jobs never receive a runner | GitHub issue #49 | Account owner |
@@ -262,3 +262,9 @@ No baselines exist. Instrument only with documented consent and minimal data.
   chains and patched in the lockfile. Prisma validation/client generation, 70 tests,
   typecheck, zero-warning lint, production build, full `npm audit`, and
   production-only `npm audit` pass with zero vulnerabilities.
+- 2026-08-28: fail-closed database-plus-upload backup and destructive restore-drill
+  tooling were added with checksums, archive-path validation, migration validation,
+  and upload reconciliation. A disposable PostgreSQL drill restored one attachment,
+  its exact 42-byte file, both migrations, and quota accounting; the temporary source
+  fixture and restore database were removed. Production scheduling, encrypted
+  off-site retention, alert ownership, and RPO/RTO evidence remain release blockers.

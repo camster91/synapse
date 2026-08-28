@@ -58,6 +58,9 @@ real deployment, keep browser push disabled until a standards-compliant sender i
 configured, then smoke-test the built application and database together in the
 target environment.
 
+Backup creation, destructive restore-drill safeguards, and the remaining production
+recovery gates are documented in [OPERATIONS.md](OPERATIONS.md).
+
 ## Project Structure
 
 ```
