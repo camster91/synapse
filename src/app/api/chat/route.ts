@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { getProvider, getProviderForUser, resolveModel, type ChatMessage } from '@/lib/ai/provider';
+import { getDefaultModel, getProviderForUser, type ChatMessage } from '@/lib/ai/provider';
 import { buildUserContext } from '@/lib/ai/context';
 import { readOnlyToolDefinitions, toolExecutors } from '@/lib/ai/tools';
 import { serializeTextEvent } from '@/lib/ai/events';
@@ -30,16 +30,9 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json();
-    const {
-      message,
-      conversationId,
-      provider: providerName,
-      model: modelShorthand,
-    } = body as {
+    const { message, conversationId } = body as {
       message: string;
       conversationId?: string;
-      provider?: string;
-      model?: string;
     };
 
     if (!message || typeof message !== 'string') {
@@ -48,6 +41,11 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
+
+    // Provider selection is always derived from the authenticated user's saved
+    // settings. Request-level overrides could otherwise spend shared operator
+    // credentials or select an unexpectedly expensive model.
+    const provider = await getProviderForUser(userId);
 
     // Get or create conversation
     let conversationIdResolved = conversationId;
@@ -64,8 +62,8 @@ export async function POST(request: Request) {
       const conversation = await prisma.aiConversation.create({
         data: {
           userId,
-          provider: providerName ?? 'anthropic',
-          model: modelShorthand ? resolveModel(providerName ?? 'anthropic', modelShorthand) : 'claude-sonnet-4-20250514',
+          provider: provider.name,
+          model: getDefaultModel(provider.name),
           title: message.slice(0, 100),
         },
       });
@@ -98,13 +96,6 @@ export async function POST(request: Request) {
     }));
 
     // Add current user message (already saved, so it's in history)
-    const provider = providerName
-      ? getProvider(providerName)
-      : await getProviderForUser(userId);
-    const model = modelShorthand
-      ? resolveModel(providerName ?? 'anthropic', modelShorthand)
-      : undefined;
-
     const fullSystemPrompt = `${SYSTEM_PROMPT}\n\n--- USER CONTEXT ---\n${userContext}`;
 
     // ─── Streaming response with tool handling ──────────────────────────────
@@ -123,7 +114,6 @@ export async function POST(request: Request) {
 
           while (iteration < MAX_TOOL_ITERATIONS) {
             const result = await provider.chat(currentMessages, {
-              model,
               systemPrompt: fullSystemPrompt,
               tools: readOnlyToolDefinitions,
             });

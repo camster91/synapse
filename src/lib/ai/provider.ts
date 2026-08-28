@@ -86,6 +86,18 @@ export function resolveModel(providerName: string, modelShorthand: string): stri
   return providerMap[modelShorthand] ?? modelShorthand;
 }
 
+export function getDefaultModel(providerName: string): string {
+  switch (providerName) {
+    case 'openai':
+      return MODEL_MAP.openai.gpt4;
+    case 'ollama':
+      return MODEL_MAP.ollama.local;
+    case 'anthropic':
+    default:
+      return MODEL_MAP.anthropic.claude;
+  }
+}
+
 // ─── Anthropic Provider ───────────────────────────────────────────────────────
 
 class AnthropicProvider implements AIProvider {
@@ -654,13 +666,34 @@ export async function getProviderForUser(userId: string): Promise<AIProvider> {
     return encryptionKey ? decryptSecret(value, encryptionKey) : value;
   };
 
+  const requireUserKey = (value: string | undefined, provider: string) => {
+    if (!value) {
+      throw new Error(
+        `Configure your own ${provider} API key in Settings before using AI chat`
+      );
+    }
+    return value;
+  };
+
   switch (providerName) {
-    case 'openai':
-      return new OpenAIProvider(decryptUserKey(user?.openaiApiKey));
-    case 'ollama':
-      return new OllamaProvider(user?.ollamaBaseUrl ?? undefined);
+    case 'openai': {
+      const apiKey = requireUserKey(decryptUserKey(user?.openaiApiKey), 'OpenAI');
+      return new OpenAIProvider(apiKey);
+    }
+    case 'ollama': {
+      const operatorBaseUrl = process.env.OLLAMA_BASE_URL;
+      if (!operatorBaseUrl) {
+        throw new Error('Ollama is not available on this Synapse instance');
+      }
+      return new OllamaProvider(operatorBaseUrl);
+    }
     case 'anthropic':
-    default:
-      return new AnthropicProvider(decryptUserKey(user?.anthropicApiKey));
+    default: {
+      const apiKey = requireUserKey(
+        decryptUserKey(user?.anthropicApiKey),
+        'Anthropic'
+      );
+      return new AnthropicProvider(apiKey);
+    }
   }
 }

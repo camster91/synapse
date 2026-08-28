@@ -10,10 +10,10 @@ export default function SettingsPage() {
   const [timezone, setTimezone] = useState("America/New_York");
   const [anthropicKey, setAnthropicKey] = useState("");
   const [openaiKey, setOpenaiKey] = useState("");
-  const [ollamaBaseUrl, setOllamaBaseUrl] = useState("");
   const [preferredAiProvider, setPreferredAiProvider] = useState("anthropic");
   const [hasAnthropicKey, setHasAnthropicKey] = useState(false);
   const [hasOpenaiKey, setHasOpenaiKey] = useState(false);
+  const [ollamaAvailable, setOllamaAvailable] = useState(false);
   const [darkMode, setDarkMode] = useState(
     typeof window !== "undefined" ? document.documentElement.classList.contains("dark") : false
   );
@@ -31,10 +31,14 @@ export default function SettingsPage() {
         setName(data.name || "");
         setEmail(data.email || "");
         setTimezone(data.timezone || "America/New_York");
-        setOllamaBaseUrl(data.ollamaBaseUrl || "");
-        setPreferredAiProvider(data.preferredAiProvider || "anthropic");
+        setPreferredAiProvider(
+          data.preferredAiProvider === "ollama" && !data.ollamaAvailable
+            ? "anthropic"
+            : data.preferredAiProvider || "anthropic"
+        );
         setHasAnthropicKey(Boolean(data.hasAnthropicKey));
         setHasOpenaiKey(Boolean(data.hasOpenaiKey));
+        setOllamaAvailable(Boolean(data.ollamaAvailable));
       })
       .catch(() => {});
   }, []);
@@ -51,7 +55,6 @@ export default function SettingsPage() {
           timezone: timezone || undefined,
           anthropicApiKey: anthropicKey || undefined,
           openaiApiKey: openaiKey || undefined,
-          ollamaBaseUrl: ollamaBaseUrl || undefined,
           preferredAiProvider,
         }),
       });
@@ -219,7 +222,7 @@ export default function SettingsPage() {
                 <select value={preferredAiProvider} onChange={(e) => setPreferredAiProvider(e.target.value)} className="w-full px-3 py-2 bg-background border border-input rounded-lg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring">
                   <option value="anthropic">Anthropic</option>
                   <option value="openai">OpenAI</option>
-                  <option value="ollama">Ollama (self-hosted)</option>
+                  {ollamaAvailable && <option value="ollama">Ollama (managed by this instance)</option>}
                 </select>
               </div>
               <div>
@@ -244,10 +247,11 @@ export default function SettingsPage() {
                 />
                 {hasOpenaiKey && <p className="mt-1 text-xs text-emerald-600">Connected. Enter a new key only to replace it.</p>}
               </div>
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-1">Ollama base URL</label>
-                <input type="url" value={ollamaBaseUrl} onChange={(e) => setOllamaBaseUrl(e.target.value)} placeholder="http://localhost:11434" className="w-full px-3 py-2 bg-background border border-input rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
-              </div>
+              {ollamaAvailable && (
+                <p className="text-xs text-muted-foreground">
+                  Ollama is connected by the instance operator. Its network address is not exposed or changed from your account.
+                </p>
+              )}
             </div>
           </section>
 

@@ -11,9 +11,8 @@ const updateSettingsSchema = z.object({
   avatarUrl: z.string().max(2000).nullable().optional(),
   anthropicApiKey: z.string().max(200).optional(),
   openaiApiKey: z.string().max(200).optional(),
-  ollamaBaseUrl: z.string().max(500).optional(),
   preferredAiProvider: z.enum(["anthropic", "openai", "ollama"]).optional(),
-});
+}).strict();
 
 export async function GET() {
   const session = await auth();
@@ -67,10 +66,10 @@ export async function GET() {
       email: user.email,
       timezone: user.timezone,
       avatarUrl: user.avatarUrl,
-      ollamaBaseUrl: user.ollamaBaseUrl,
       preferredAiProvider: user.preferredAiProvider,
       hasAnthropicKey: Boolean(user.anthropicApiKey),
       hasOpenaiKey: Boolean(user.openaiApiKey),
+      ollamaAvailable: Boolean(process.env.OLLAMA_BASE_URL),
     });
   } catch (error) {
     console.error("Failed to fetch settings:", error);
@@ -125,13 +124,6 @@ export async function PUT(request: Request) {
           updateData[key] = null;
         }
         // else: "****" or undefined — skip, keep existing
-      } else if (key === "ollamaBaseUrl") {
-        if (typeof value === "string" && value.trim() !== "") {
-          updateData[key] = value.trim();
-        } else if (value === null) {
-          updateData[key] = null;
-        }
-        // else: undefined — skip
       } else if (value !== undefined) {
         updateData[key] = value;
       }
@@ -158,10 +150,10 @@ export async function PUT(request: Request) {
       email: user.email,
       timezone: user.timezone,
       avatarUrl: user.avatarUrl,
-      ollamaBaseUrl: user.ollamaBaseUrl,
       preferredAiProvider: user.preferredAiProvider,
       hasAnthropicKey: Boolean(user.anthropicApiKey),
       hasOpenaiKey: Boolean(user.openaiApiKey),
+      ollamaAvailable: Boolean(process.env.OLLAMA_BASE_URL),
     });
   } catch (error) {
     if (error instanceof z.ZodError) {

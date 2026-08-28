@@ -5,8 +5,8 @@ implementation detail remains in `BACKLOG.md`; when the two disagree, this file
 controls product priority and launch claims.
 
 Last reconciled: 2026-08-28 against branch
-`codex/integrated-backlog-hardening`, commit `d1758bd`, PR #55, and the current
-market-positioning/accessibility working tree.
+`codex/integrated-backlog-hardening`, commit `adf6aa6`, PR #55, and the current
+security-remediation working tree.
 
 ## Product charter
 
@@ -56,6 +56,10 @@ market-positioning/accessibility working tree.
 - AI mutations are implemented internally but intentionally excluded from the chat
   tool list until explicit confirmation UI exists. Current AI value is retrieval and
   context, not safe autonomous execution.
+- AI chat now derives provider execution only from the authenticated user's saved
+  settings. Anthropic and OpenAI require that user's encrypted key; request-level
+  provider/model overrides cannot consume operator credentials. Ollama execution is
+  pinned to the instance operator's configured endpoint rather than a tenant URL.
 
 ### Inferences
 
@@ -205,6 +209,9 @@ No baselines exist. Instrument only with documented consent and minimal data.
 | Medium | Landing promise needs customer comprehension and conversion evidence | Public copy is implementation-truthful; validate in pilot | Product |
 | Medium | No analytics or monitoring | Add privacy-respecting pilot telemetry | Product owner |
 | Medium | AI quality, privacy, latency, and cost unmeasured | Keep mutations disabled; item 5 | Engineering/product |
+| Medium | Push destinations permit stored blind SSRF when VAPID is enabled | Replace raw fetch with constrained standards-compliant Web Push | Engineering |
+| Medium | Uploads lack aggregate tenant/storage quotas | Add durable byte/count quotas and capacity guardrails | Engineering |
+| Medium | Upload failures can retain untracked files | Add compensating cleanup and durable reconciliation | Engineering |
 | Medium | MIT license copyright placeholders | Confirm holder/year before edit | Product owner |
 
 ## Release record and work log
@@ -226,3 +233,8 @@ No baselines exist. Instrument only with documented consent and minimal data.
 - 2026-08-28: isolated local PostgreSQL migration and seed passed; public desktop and
   mobile browser captures verified the revised goals-to-today positioning. Registration
   and login now expose programmatic labels, autocomplete intent, and live error regions.
+- 2026-08-28: repository-wide offline security review validated six findings: one
+  high, four medium, and one low. The highest-risk shared-AI-credential path and the
+  tenant-controlled Ollama destination were remediated in code; 58 tests, typecheck,
+  zero-warning lint, and the production build pass. Push egress, upload quotas, and
+  file reconciliation remain release-gate work.
