@@ -154,15 +154,15 @@ No baselines exist. Instrument only with documented consent and minimal data.
    - Evidence: lifecycle contracts plus existing file rollback tests, typecheck,
      zero-warning lint, and production build pass. Database-backed export/deletion,
      restore, owner-approved policies, and backup drill remain release gates.
-3. **Daily plan vertical loop — in progress.**
+3. **Daily plan vertical loop — implemented; automated/build verified, runtime journey pending.**
    - Connect inbox triage, top priorities, habits, real calendar events, deliberate
      rescheduling, and end-of-day reflection in one Today workflow.
-   - First increment implemented: Today returns goal-linked priorities, daily habits,
-     active goals, and schedule context; task and habit completion is available in
-     place with optimistic updates and explicit rollback messaging on failure.
-   - Evidence: 51 tests, typecheck, zero-warning lint, and production build pass.
-     Inbox triage, deliberate rescheduling, reflection, timezone-backed runtime tests,
-     and database/browser verification remain.
+   - Today returns focused goal-linked priorities, daily habits, active goals, schedule
+     context, and recent inbox captures. Users can complete tasks/habits, deliberately
+     move work to tomorrow, triage captures, and close the day with a reflection in
+     place; failures restore optimistic state or preserve the reflection draft.
+   - Evidence: 53 tests, typecheck, zero-warning lint, and production build pass.
+     Timezone-backed runtime tests and database/browser verification remain.
 4. **Production-like pilot readiness — blocked.**
    - Docker image/migrations, health/authenticated smoke test, monitoring, backups,
      rollback, support path, and five-user pilot protocol. Blocked by runtime/hosting,
@@ -214,3 +214,6 @@ No baselines exist. Instrument only with documented consent and minimal data.
   implemented; 48 tests, typecheck, lint, and production build passed.
 - 2026-08-28: first executable Today loop implemented with goal context and recoverable
   task/habit completion; 51 tests, typecheck, lint, and production build passed.
+- 2026-08-28: Today loop completed in code with focused selection, tomorrow deferral,
+  inbox triage, and draft-preserving reflection; 53 tests, typecheck, lint, and
+  production build passed.

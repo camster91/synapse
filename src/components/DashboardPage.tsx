@@ -8,6 +8,10 @@ import {
   Zap,
   ArrowRight,
   Check,
+  CalendarClock,
+  FileText,
+  ListTodo,
+  Archive,
 } from "lucide-react";
 import XpBar from "@/components/XpBar";
 
@@ -23,6 +27,7 @@ interface DashboardData {
   todos: { id: string; title: string; priority: number; status: string; dueDate: string | null; goal: { id: string; title: string } | null }[];
   events: { id: string; title: string; startAt: string; endAt: string | null }[];
   goals: { id: string; title: string; level: string; progress: number }[];
+  inboxItems: { id: string; content: string; type: string; createdAt: string }[];
   streak: number;
   xp: number;
   level: number;
@@ -43,6 +48,7 @@ function normalizeDashboard(raw: Record<string, unknown>): DashboardData {
     todos: (raw.todos ?? []) as DashboardData["todos"],
     events: (raw.events ?? []) as DashboardData["events"],
     goals: (raw.goals ?? []) as DashboardData["goals"],
+    inboxItems: (raw.inboxItems ?? []) as DashboardData["inboxItems"],
     streak: (user.streakDays as number) ?? (raw.streak as number) ?? 0,
     xp: (user.xp as number) ?? (raw.xp as number) ?? 0,
     level: (user.level as number) ?? (raw.level as number) ?? 1,
@@ -58,6 +64,8 @@ export default function DashboardPage() {
   const [error, setError] = useState<string | null>(null);
   const [quickCapture, setQuickCapture] = useState("");
   const [actionError, setActionError] = useState<string | null>(null);
+  const [reflection, setReflection] = useState("");
+  const [savingReflection, setSavingReflection] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -141,6 +149,71 @@ export default function DashboardPage() {
     } catch {
       setData(previous);
       setActionError("We could not complete that habit. Your Today view was restored.");
+    }
+  };
+
+  const moveTodoToTomorrow = async (todoId: string) => {
+    if (!data) return;
+    const previous = data;
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(9, 0, 0, 0);
+    setActionError(null);
+    setData({ ...data, todos: data.todos.filter((todo) => todo.id !== todoId) });
+    try {
+      const response = await fetch(`/api/todos/${todoId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ scheduledAt: tomorrow.toISOString(), dueDate: null }),
+      });
+      if (!response.ok) throw new Error("Task rescheduling failed");
+    } catch {
+      setData(previous);
+      setActionError("We could not move that task. Your Today view was restored.");
+    }
+  };
+
+  const triageInboxItem = async (itemId: string, destination: "todo" | "note" | "archive") => {
+    if (!data) return;
+    const previous = data;
+    setActionError(null);
+    setData({
+      ...data,
+      inboxItems: data.inboxItems.filter((item) => item.id !== itemId),
+      inboxUnprocessed: Math.max(0, data.inboxUnprocessed - 1),
+    });
+    try {
+      const response = await fetch(`/api/inbox/${itemId}/triage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ destination }),
+      });
+      if (!response.ok) throw new Error("Inbox triage failed");
+    } catch {
+      setData(previous);
+      setActionError("We could not process that capture. Your Today view was restored.");
+    }
+  };
+
+  const saveReflection = async () => {
+    if (!data || !reflection.trim()) return;
+    setSavingReflection(true);
+    setActionError(null);
+    const date = new Date().toISOString().slice(0, 10);
+    try {
+      const response = await fetch("/api/journal", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ date, content: reflection.trim() }),
+      });
+      if (!response.ok) throw new Error("Reflection save failed");
+      const journal = await response.json();
+      setData({ ...data, journal });
+      setReflection("");
+    } catch {
+      setActionError("We could not save your reflection. Your draft is still here.");
+    } finally {
+      setSavingReflection(false);
     }
   };
 
@@ -318,10 +391,13 @@ export default function DashboardPage() {
                     {todo.goal && <span className="block truncate text-xs text-muted-foreground">For {todo.goal.title}</span>}
                   </div>
                   {todo.dueDate && (
-                    <span className="ml-auto text-xs text-muted-foreground">
+                    <span className="text-xs text-muted-foreground">
                       {new Date(todo.dueDate).toLocaleDateString()}
                     </span>
                   )}
+                  <button type="button" onClick={() => void moveTodoToTomorrow(todo.id)} className="ml-auto flex items-center gap-1 rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-muted hover:text-foreground" aria-label={`Move ${todo.title} to tomorrow`}>
+                    <CalendarClock className="h-3.5 w-3.5" /> Tomorrow
+                  </button>
                 </div>
               ))}
             </div>
@@ -352,6 +428,30 @@ export default function DashboardPage() {
             </div>
           )}
           {actionError && <p role="alert" className="mt-4 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">{actionError}</p>}
+
+          {data.inboxItems.length > 0 && (
+            <div className="mt-5 border-t border-border pt-4">
+              <div className="mb-3 flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-semibold text-foreground">Clear captured thoughts</h3>
+                  <p className="text-xs text-muted-foreground">Turn each one into something useful or archive it.</p>
+                </div>
+                <a href="/inbox" className="text-xs text-primary hover:underline">Open inbox</a>
+              </div>
+              <div className="space-y-2">
+                {data.inboxItems.map((item) => (
+                  <div key={item.id} className="flex items-start gap-2 rounded-lg border border-border px-3 py-2">
+                    <p className="min-w-0 flex-1 truncate text-sm text-foreground">{item.content}</p>
+                    <div className="flex flex-shrink-0 gap-1">
+                      <button type="button" title="Turn into task" aria-label={`Turn ${item.content} into a task`} onClick={() => void triageInboxItem(item.id, "todo")} className="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-primary"><ListTodo className="h-4 w-4" /></button>
+                      <button type="button" title="Save as note" aria-label={`Save ${item.content} as a note`} onClick={() => void triageInboxItem(item.id, "note")} className="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-primary"><FileText className="h-4 w-4" /></button>
+                      <button type="button" title="Archive" aria-label={`Archive ${item.content}`} onClick={() => void triageInboxItem(item.id, "archive")} className="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-primary"><Archive className="h-4 w-4" /></button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Right Column */}
@@ -400,9 +500,13 @@ export default function DashboardPage() {
                 <p className="text-sm text-foreground/80 line-clamp-3">{data.journal.content.slice(0, 150)}</p>
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground text-center py-4">
-                Start writing today&apos;s entry
-              </p>
+              <div className="space-y-2">
+                <label htmlFor="today-reflection" className="text-xs font-medium text-foreground">What moved forward today?</label>
+                <textarea id="today-reflection" value={reflection} onChange={(event) => setReflection(event.target.value)} rows={3} maxLength={100000} placeholder="Capture one win, lesson, or loose end…" className="w-full resize-none rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
+                <button type="button" disabled={savingReflection || !reflection.trim()} onClick={() => void saveReflection()} className="w-full rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50">
+                  {savingReflection ? "Saving reflection…" : "Close the day"}
+                </button>
+              </div>
             )}
           </div>
 
