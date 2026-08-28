@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod/v4";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { localDayKey } from "@/lib/product-metrics";
 
 const onboardingSchema = z
   .object({
@@ -9,6 +10,7 @@ const onboardingSchema = z
     goal: z.string().trim().max(500).optional(),
     habit: z.string().trim().max(200).optional(),
     task: z.string().trim().max(500).optional(),
+    productAnalyticsConsent: z.boolean().default(false),
   })
   .superRefine((data, ctx) => {
     if (!data.skip && !data.task) {
@@ -81,8 +83,27 @@ export async function POST(request: Request) {
 
       await tx.user.update({
         where: { id: session.user.id },
-        data: { onboardingComplete: true },
+        data: {
+          onboardingComplete: true,
+          productAnalyticsConsent: data.productAnalyticsConsent,
+        },
       });
+
+      if (data.productAnalyticsConsent && !data.skip && data.task) {
+        const user = await tx.user.findUniqueOrThrow({
+          where: { id: session.user.id },
+          select: { timezone: true },
+        });
+        const occurredAt = new Date();
+        await tx.productEvent.create({
+          data: {
+            userId: session.user.id,
+            name: "FIRST_PLAN_CREATED",
+            dayKey: localDayKey(occurredAt, user.timezone),
+            occurredAt,
+          },
+        });
+      }
     });
 
     return NextResponse.json({ complete: true });

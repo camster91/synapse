@@ -135,7 +135,11 @@ interviews/pilot behavior rather than more vendor pages.
 
 ## Metrics and decision rules
 
-No baselines exist. Instrument only with documented consent and minimal data.
+No real-customer baselines exist. Activation, Today engagement, and export success
+now use explicit opt-in, fixed-name, day-deduplicated events stored in the private
+instance. The aggregate report emits no account identifiers or activity content and
+remains decision-ineligible below five consented participants. Daily-plan resolution,
+AI acceptance, and production reliability still require scoped instrumentation.
 
 | Metric | Pilot target | Decision rule |
 |---|---|---|
@@ -180,10 +184,16 @@ No baselines exist. Instrument only with documented consent and minimal data.
      place; failures restore optimistic state or preserve the reflection draft.
    - Evidence: 53 tests, typecheck, zero-warning lint, and production build pass.
      Timezone-backed runtime tests and database/browser verification remain.
-4. **Production-like pilot readiness — blocked.**
+4. **Production-like pilot readiness — partially implemented; blocked.**
    - Docker image/migrations, health/authenticated smoke test, monitoring, backups,
      rollback, support path, and five-user pilot protocol. Blocked by runtime/hosting,
      runner, legal/support decisions, and customer access.
+   - Privacy-minimal pilot measurement is implemented for first-plan activation,
+     distinct-day Today engagement, and successful export. Consent defaults off,
+     Settings explains the fixed signals, opt-out deletes them atomically, exports
+     disclose them, and `npm run metrics:pilot` returns aggregates only. Synthetic
+     PostgreSQL verification proved migration, daily deduplication, target rules,
+     empty-state reporting, and deletion; it is not customer evidence.
 5. **AI evaluation and confirmation — proposed.**
    - Representative evaluation set, privacy disclosure, cost/latency tracking,
      explicit mutation confirmation, correction/undo, outage behavior.
@@ -200,7 +210,7 @@ External issue comments or closure require owner approval.
 |---|---|---|
 | #49 — Restore production dependency-PR validation | Open P0 blocker. Current Build job again failed with zero steps; Ashbi Local CI and image/lint jobs remain pending. | Account owner restores runner capacity/quota; rerun authoritative checks. |
 | #29 — Production Compose credentials/health | Implemented on PR #55: required credentials fail closed, PostgreSQL has no host port, configured healthcheck exists, startup migration/reconciliation and app readiness are covered. | Keep open until image + database smoke test passes with Docker. |
-| #28 — TODOs/tests/description | Verified fixed: package description exists, 76 tests pass, and source contains no TODO/FIXME markers; enum value `TODO` is application data, not a marker. | Ready for owner-approved evidence comment and closure. |
+| #28 — TODOs/tests/description | Verified fixed: package description exists, 81 tests pass, and source contains no TODO/FIXME markers; enum value `TODO` is application data, not a marker. | Ready for owner-approved evidence comment and closure. |
 | #27 — Clickable navigation/calendar divs | Verified fixed: navigation backdrop and calendar days are semantic buttons with accessible names; accessibility contracts pass. | Ready for owner-approved evidence comment and closure. |
 
 ## Decision log
@@ -227,7 +237,7 @@ External issue comments or closure require owner approval.
 | High | Image/migrations untested together | GitHub issue #29 | Operator |
 | High | No legal identity, privacy, or terms | Owner/legal approval required | Product owner |
 | Medium | Landing promise needs customer comprehension and conversion evidence | Public copy is implementation-truthful; validate in pilot | Product |
-| Medium | No product analytics or external monitoring/alerts | Local health/error signals verified; add consented pilot metrics plus operator-owned collection and alerts | Product owner + operator |
+| Medium | Pilot metrics have no real-customer baseline; daily-plan success and external alerts remain absent | Opt-in aggregate activation/engagement/export metrics and local health/error signals verified; obtain pilot consent and operator-owned collection/alerts before relying on targets | Product owner + operator |
 | Medium | AI quality, privacy, latency, and cost unmeasured | Keep mutations disabled; item 5 | Engineering/product |
 | Resolved | Raw browser-push delivery permitted tenant-controlled outbound requests | Unsafe sender removed; in-app notifications remain until standards-compliant Web Push exists | Engineering |
 | Resolved | Uploads lacked aggregate tenant/storage quotas | Atomic 512 MB account reservations, migration backfill, and deletion release verified | Engineering |
@@ -287,3 +297,11 @@ External issue comments or closure require owner approval.
   readiness-failure, and request-error logs were implemented. Runtime verification
   proved `200` liveness, `200` readiness, `503` readiness during a forced database
   outage, and recovery to `200`; 76 tests, typecheck, and zero-warning lint pass.
+- 2026-08-28: explicit opt-in product measurement was added for first-plan
+  activation, distinct-day Today engagement, and successful export. Only fixed event
+  names and local day keys are stored; opt-out deletes prior signals, portable export
+  discloses them, and the pilot report emits aggregate counts only. A disposable
+  PostgreSQL run verified the third migration, per-day deduplication, activation and
+  retention rules, opt-out cleanup, and empty-state output; the synthetic fixture was
+  removed. All 81 tests, Prisma validation/generation, typecheck, zero-warning lint,
+  and production build pass. No customer baseline is claimed.

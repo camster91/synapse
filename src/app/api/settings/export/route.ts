@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { readFileForExport } from "@/lib/upload";
+import { recordProductEvent } from "@/lib/product-metrics";
 
 export async function GET() {
   const session = await auth();
@@ -41,6 +42,7 @@ export async function GET() {
           timezone: true,
           locale: true,
           onboardingComplete: true,
+          productAnalyticsConsent: true,
           preferredAiProvider: true,
           ollamaBaseUrl: true,
           anthropicApiKey: true,
@@ -91,10 +93,23 @@ export async function GET() {
       }))
     );
 
+    if (user) {
+      await recordProductEvent({
+        userId,
+        name: "EXPORT_SUCCEEDED",
+        timezone: user.timezone,
+      });
+    }
+    const productEvents = await prisma.productEvent.findMany({
+      where: { userId },
+      select: { name: true, dayKey: true, occurredAt: true },
+      orderBy: { occurredAt: "asc" },
+    });
+
     const exportData = {
       exportedAt: new Date().toISOString(),
       format: "synapse-portable-export",
-      version: 2,
+      version: 3,
       security: {
         excluded: [
           "password hashes",
@@ -127,6 +142,7 @@ export async function GET() {
       attachments: attachmentArchive,
       installedPlugins,
       notifications,
+      productEvents,
     };
 
     return new NextResponse(JSON.stringify(exportData, null, 2), {

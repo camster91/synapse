@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { recordProductEvent } from "@/lib/product-metrics";
 
 export async function GET() {
   const session = await auth();
@@ -79,6 +80,7 @@ export async function GET() {
           level: true,
           streakDays: true,
           name: true,
+          timezone: true,
         },
       }),
 
@@ -116,6 +118,12 @@ export async function GET() {
       (h) => h.logs.length > 0 && h.logs.some((log) => log.count >= h.targetCount)
     ).length;
     const habitsTotal = habitsWithLogs.length;
+
+    await recordProductEvent({
+      userId,
+      name: "TODAY_OPENED",
+      timezone: user?.timezone ?? "UTC",
+    });
 
     return NextResponse.json({
       habits: {

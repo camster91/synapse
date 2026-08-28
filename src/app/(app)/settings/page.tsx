@@ -14,6 +14,7 @@ export default function SettingsPage() {
   const [hasAnthropicKey, setHasAnthropicKey] = useState(false);
   const [hasOpenaiKey, setHasOpenaiKey] = useState(false);
   const [ollamaAvailable, setOllamaAvailable] = useState(false);
+  const [productAnalyticsConsent, setProductAnalyticsConsent] = useState(false);
   const [darkMode, setDarkMode] = useState(
     typeof window !== "undefined" ? document.documentElement.classList.contains("dark") : false
   );
@@ -39,6 +40,7 @@ export default function SettingsPage() {
         setHasAnthropicKey(Boolean(data.hasAnthropicKey));
         setHasOpenaiKey(Boolean(data.hasOpenaiKey));
         setOllamaAvailable(Boolean(data.ollamaAvailable));
+        setProductAnalyticsConsent(Boolean(data.productAnalyticsConsent));
       })
       .catch(() => {});
   }, []);
@@ -56,6 +58,7 @@ export default function SettingsPage() {
           anthropicApiKey: anthropicKey || undefined,
           openaiApiKey: openaiKey || undefined,
           preferredAiProvider,
+          productAnalyticsConsent,
         }),
       });
       if (!res.ok) {
@@ -291,6 +294,20 @@ export default function SettingsPage() {
               <Download className="w-4 h-4" />
               Export Data
             </button>
+            <label className="mt-5 flex items-start gap-3 rounded-lg border border-border bg-muted/30 p-3">
+              <input
+                type="checkbox"
+                checked={productAnalyticsConsent}
+                onChange={(event) => setProductAnalyticsConsent(event.target.checked)}
+                className="mt-0.5 h-4 w-4 rounded border-input"
+              />
+              <span>
+                <span className="block text-sm font-medium text-foreground">Share private-beta activity signals</span>
+                <span className="mt-1 block text-xs text-muted-foreground">
+                  Stores only first plan created, Today opened, and export succeeded in this Synapse instance. No content, browsing history, device data, or third-party analytics. Turning this off deletes previously stored signals when you save.
+                </span>
+              </span>
+            </label>
           </section>
 
           <section id="delete-account" className="rounded-xl border border-destructive/30 bg-card p-6">

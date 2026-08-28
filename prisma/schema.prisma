@@ -17,6 +17,7 @@ model User {
   timezone      String    @default("America/New_York")
   locale        String    @default("en")
   onboardingComplete Boolean @default(false)
+  productAnalyticsConsent Boolean @default(false)
 
   // Gamification
   xp            Int       @default(0)
@@ -54,8 +55,29 @@ model User {
   habitLogs     HabitLog[]
   notifications Notification[]
   pushSubscriptions PushSubscription[]
+  productEvents ProductEvent[]
 
   @@map("users")
+}
+
+enum ProductEventName {
+  FIRST_PLAN_CREATED
+  TODAY_OPENED
+  EXPORT_SUCCEEDED
+}
+
+model ProductEvent {
+  id         String           @id @default(cuid())
+  userId     String
+  name       ProductEventName
+  dayKey     String
+  occurredAt DateTime         @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, name, dayKey])
+  @@index([name, occurredAt])
+  @@map("product_events")
 }
 
 model Account {

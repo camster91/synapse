@@ -10,6 +10,7 @@ export default function OnboardingPage() {
   const [goal, setGoal] = useState("");
   const [habit, setHabit] = useState("");
   const [task, setTask] = useState("");
+  const [productAnalyticsConsent, setProductAnalyticsConsent] = useState(false);
   const [loading, setLoading] = useState(false);
   const [checking, setChecking] = useState(true);
   const [error, setError] = useState("");
@@ -32,7 +33,7 @@ export default function OnboardingPage() {
       const response = await fetch("/api/onboarding", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ skip, goal, habit, task }),
+        body: JSON.stringify({ skip, goal, habit, task, productAnalyticsConsent }),
       });
       if (!response.ok) {
         const data = await response.json();
@@ -77,6 +78,21 @@ export default function OnboardingPage() {
             <p className="mb-2 mt-1 text-xs text-muted-foreground">A result you want over the next few months.</p>
             <input id="onboarding-goal" value={goal} onChange={(event) => setGoal(event.target.value)} maxLength={500} placeholder="Ship my portfolio and find three strong clients" className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
           </div>
+
+          <label className="flex items-start gap-3 rounded-lg border border-border bg-muted/30 p-3">
+            <input
+              type="checkbox"
+              checked={productAnalyticsConsent}
+              onChange={(event) => setProductAnalyticsConsent(event.target.checked)}
+              className="mt-0.5 h-4 w-4 rounded border-input"
+            />
+            <span>
+              <span className="block text-sm font-medium text-foreground">Help improve the private beta</span>
+              <span className="mt-1 block text-xs text-muted-foreground">
+                Store three fixed activity signals in this Synapse instance: first plan created, Today opened, and export succeeded. No task content, page history, device data, or third-party analytics. Optional and reversible in Settings.
+              </span>
+            </span>
+          </label>
 
           <div>
             <label htmlFor="onboarding-habit" className="block text-sm font-semibold text-foreground">What small practice would support it? <span className="font-normal text-muted-foreground">Optional</span></label>
