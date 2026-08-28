@@ -5,6 +5,7 @@ import { addXp } from '@/lib/xp';
 import { fireHookForUser } from '@/lib/plugins/executor';
 import { InvalidRelationshipError, validateOwnedRelationships } from '@/lib/ownership';
 import { stageFilesForDeletion } from '@/lib/upload';
+import { releaseUploadCapacity } from '@/lib/upload-quota';
 import { isoDateOrDateTimeSchema, isoDateTimeSchema } from '@/lib/date-validation';
 import { z } from 'zod/v4';
 
@@ -151,7 +152,7 @@ export async function DELETE(
   try {
     const attachments = await prisma.attachment.findMany({
       where: { todoId: id, userId: session.user.id },
-      select: { url: true },
+      select: { url: true, sizeBytes: true },
     });
     const stagedFiles = await stageFilesForDeletion(attachments.map(({ url }) => url));
     try {
@@ -161,6 +162,10 @@ export async function DELETE(
       throw error;
     }
     await stagedFiles.commit();
+    await releaseUploadCapacity(
+      session.user.id,
+      attachments.reduce((total, attachment) => total + BigInt(attachment.sizeBytes), BigInt(0))
+    );
     return NextResponse.json({ success: true });
   } catch (error) {
     if ((error as any)?.code === 'P2025') {

@@ -24,6 +24,7 @@ model User {
   streakDays    Int       @default(0)
   longestStreak Int       @default(0)
   lastActiveAt  DateTime?
+  uploadBytes   BigInt    @default(0)
 
   // AI Provider
   anthropicApiKey    String?

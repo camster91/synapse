@@ -210,8 +210,8 @@ No baselines exist. Instrument only with documented consent and minimal data.
 | Medium | No analytics or monitoring | Add privacy-respecting pilot telemetry | Product owner |
 | Medium | AI quality, privacy, latency, and cost unmeasured | Keep mutations disabled; item 5 | Engineering/product |
 | Resolved | Raw browser-push delivery permitted tenant-controlled outbound requests | Unsafe sender removed; in-app notifications remain until standards-compliant Web Push exists | Engineering |
-| Medium | Uploads lack aggregate tenant/storage quotas | Add durable byte/count quotas and capacity guardrails | Engineering |
-| Medium | Upload failures can retain untracked files | Add compensating cleanup and durable reconciliation | Engineering |
+| Resolved | Uploads lacked aggregate tenant/storage quotas | Atomic 512 MB account reservations, migration backfill, and deletion release verified | Engineering |
+| Medium | Staged-file unlink failures can retain private trash files | Add durable reconciliation and operator visibility | Engineering |
 | Medium | MIT license copyright placeholders | Confirm holder/year before edit | Product owner |
 
 ## Release record and work log
@@ -242,3 +242,8 @@ No baselines exist. Instrument only with documented consent and minimal data.
   removed. Notifications remain available in-app, the PWA service worker still
   registers, and browser push is explicitly deferred until a standards-compliant,
   destination-constrained implementation exists; 61 tests pass.
+- 2026-08-28: attachment storage gained an atomic 512 MB per-account quota with
+  migration backfill, compensating cleanup for failed uploads, and quota release
+  across direct and parent-record deletion. The migration and concurrent boundary
+  behavior were verified against isolated PostgreSQL; 65 tests, typecheck, and
+  zero-warning lint pass.

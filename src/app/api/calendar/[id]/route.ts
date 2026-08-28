@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { InvalidRelationshipError, validateOwnedRelationships } from '@/lib/ownership';
 import { isoDateTimeSchema, recurrenceSchema } from '@/lib/date-validation';
 import { stageFilesForDeletion } from '@/lib/upload';
+import { releaseUploadCapacity } from '@/lib/upload-quota';
 import { z } from 'zod/v4';
 
 const updateEventSchema = z.object({
@@ -103,7 +104,7 @@ export async function DELETE(
   try {
     const attachments = await prisma.attachment.findMany({
       where: { calendarEventId: id, userId: session.user.id },
-      select: { url: true },
+      select: { url: true, sizeBytes: true },
     });
     const stagedFiles = await stageFilesForDeletion(attachments.map(({ url }) => url));
     try {
@@ -113,6 +114,10 @@ export async function DELETE(
       throw error;
     }
     await stagedFiles.commit();
+    await releaseUploadCapacity(
+      session.user.id,
+      attachments.reduce((total, attachment) => total + BigInt(attachment.sizeBytes), BigInt(0))
+    );
     return NextResponse.json({ success: true });
   } catch (error) {
     if ((error as any)?.code === 'P2025') {

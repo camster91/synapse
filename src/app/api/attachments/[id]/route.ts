@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { stageFilesForDeletion } from "@/lib/upload";
+import { releaseUploadCapacity } from "@/lib/upload-quota";
 
 export async function DELETE(
   request: Request,
@@ -38,6 +39,7 @@ export async function DELETE(
       throw error;
     }
     await stagedFiles.commit();
+    await releaseUploadCapacity(session.user.id, attachment.sizeBytes);
 
     return NextResponse.json({ success: true });
   } catch (error) {
