@@ -70,15 +70,18 @@ export default function RegisterPage() {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && (
-            <div className="p-3 text-sm text-destructive bg-destructive/10 rounded-lg">
+            <div role="alert" aria-live="polite" className="p-3 text-sm text-destructive bg-destructive/10 rounded-lg">
               {error}
             </div>
           )}
 
           <div>
-            <label className="block text-sm font-medium text-foreground mb-1">Name</label>
+            <label htmlFor="register-name" className="block text-sm font-medium text-foreground mb-1">Name</label>
             <input
+              id="register-name"
+              name="name"
               type="text"
+              autoComplete="name"
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Your name"
@@ -88,9 +91,13 @@ export default function RegisterPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-foreground mb-1">Email</label>
+            <label htmlFor="register-email" className="block text-sm font-medium text-foreground mb-1">Email</label>
             <input
+              id="register-email"
+              name="email"
               type="email"
+              autoComplete="email"
+              inputMode="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com"
@@ -100,9 +107,12 @@ export default function RegisterPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-foreground mb-1">Password</label>
+            <label htmlFor="register-password" className="block text-sm font-medium text-foreground mb-1">Password</label>
             <input
+              id="register-password"
+              name="password"
               type="password"
+              autoComplete="new-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="At least 8 characters"
@@ -122,7 +132,7 @@ export default function RegisterPage() {
 
         <p className="mt-6 text-center text-sm text-muted-foreground">
           Already have an account?{" "}
-          <a href="/login" className="text-primary hover:underline">
+          <a href="/login" className="text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm">
             Sign in
           </a>
         </p>

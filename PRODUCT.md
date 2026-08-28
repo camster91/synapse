@@ -5,7 +5,8 @@ implementation detail remains in `BACKLOG.md`; when the two disagree, this file
 controls product priority and launch claims.
 
 Last reconciled: 2026-08-28 against branch
-`codex/integrated-backlog-hardening`, commit `c6978a0`, and PR #55.
+`codex/integrated-backlog-hardening`, commit `d1758bd`, PR #55, and the current
+market-positioning/accessibility working tree.
 
 ## Product charter
 
@@ -38,18 +39,20 @@ Last reconciled: 2026-08-28 against branch
   is blocked.
 - Credentials auth, tenant-scoped habits, tasks, notes/backlinks, calendar, goals,
   journal, inbox, gamification, plugins, export, and read-only AI chat tools exist.
-- PR #55 has 40 passing local tests, passing typecheck, zero-warning lint, and a
+- PR #55 has 53 passing local tests, passing typecheck, zero-warning lint, and a
   passing production build. GitHub-hosted jobs fail before checkout with zero steps;
   issue #49 tracks runner availability.
-- No billing, analytics, error monitoring, support path, onboarding flow, account
-  deletion, restore workflow, automated backup, terms, or privacy notice exists.
-- `User.onboardingComplete` exists but has no application usage. Registration sends
-  a new user directly to an empty multi-module dashboard.
-- Data export omits the user profile, settings, attachments, installed plugins,
-  notifications, and push subscriptions; its “all your data” UI claim is inaccurate.
-- The landing page claims task time-blocking and calendar recurrence behavior that
-  are not implemented end to end. Recurrence strings are stored but occurrences are
-  not expanded.
+- Guided onboarding, a focused Today loop, portable export, and credential-verified
+  account deletion now exist in code and automated coverage. The disposable local
+  PostgreSQL environment successfully generated Prisma client code, applied the
+  initial migration, seeded reference data, and served the public application.
+- Public desktop/mobile rendering and registration field semantics are browser
+  verified. Authenticated onboarding, export, and deletion remain browser-verification
+  gates pending approval to submit disposable local credentials in the browser.
+- No billing, analytics, error monitoring, support path, restore workflow, automated
+  backup, terms, or privacy notice exists.
+- Recurrence strings are stored but occurrences are not expanded; public copy no
+  longer promises recurrence expansion or automatic time blocking.
 - AI mutations are implemented internally but intentionally excluded from the chat
   tool list until explicit confirmation UI exists. Current AI value is retrieval and
   context, not safe autonomous execution.
@@ -135,7 +138,7 @@ No baselines exist. Instrument only with documented consent and minimal data.
 
 ## Authoritative roadmap
 
-1. **Activation and truthful promise — implemented; automated/build verified, runtime journey pending.**
+1. **Activation and truthful promise — implemented; public runtime verified, authenticated journey pending.**
    - Outcome: new user completes a focused setup and reaches a useful Today plan.
    - Acceptance: onboarding routes from registration; creates or skips one goal,
      habit, and priority task; ends on Today with a visible next action; empty,
@@ -145,7 +148,10 @@ No baselines exist. Instrument only with documented consent and minimal data.
      skip path; records are created atomically and Today receives the first priority.
      Public landing access and product copy now match implemented behavior.
    - Evidence: activation contracts, typecheck, zero-warning lint, and production build
-     pass. Database-backed browser verification remains pending a runnable environment.
+     pass. A disposable PostgreSQL database migrated and seeded successfully; desktop
+     and 390 px public views render without clipping, and registration fields resolve
+     by accessible label. Account submission and the authenticated continuation remain
+     pending action-time browser approval.
 2. **Data lifecycle and trust — implemented in code; runtime and policy evidence pending.**
    - Portable JSON export includes profile, content, attachment records and embedded
      bytes, plugins, notifications, and an explicit credential-exclusion manifest.
@@ -191,12 +197,12 @@ No baselines exist. Instrument only with documented consent and minimal data.
 | Severity | Risk | Mitigation/state | Owner |
 |---|---|---|---|
 | Critical | No production backup/restore evidence | Roadmap item 2/4; release blocked | Product owner + operator |
-| High | No account deletion and incomplete export | Roadmap item 2 | Engineering |
-| High | No onboarding/activation evidence | Roadmap item 1 in progress | Engineering/product |
+| High | Export/deletion lack authenticated runtime and restore-drill evidence | Roadmap item 2 | Engineering |
+| High | Onboarding lacks authenticated browser completion evidence | Roadmap item 1 in progress | Engineering/product |
 | High | CI jobs never receive a runner | GitHub issue #49 | Account owner |
 | High | Image/migrations untested together | GitHub issue #29 | Operator |
 | High | No legal identity, privacy, or terms | Owner/legal approval required | Product owner |
-| Medium | Landing/README overclaim unsupported workflows | Fix in item 1 | Engineering/product |
+| Medium | Landing promise needs customer comprehension and conversion evidence | Public copy is implementation-truthful; validate in pilot | Product |
 | Medium | No analytics or monitoring | Add privacy-respecting pilot telemetry | Product owner |
 | Medium | AI quality, privacy, latency, and cost unmeasured | Keep mutations disabled; item 5 | Engineering/product |
 | Medium | MIT license copyright placeholders | Confirm holder/year before edit | Product owner |
@@ -217,3 +223,6 @@ No baselines exist. Instrument only with documented consent and minimal data.
 - 2026-08-28: Today loop completed in code with focused selection, tomorrow deferral,
   inbox triage, and draft-preserving reflection; 53 tests, typecheck, lint, and
   production build passed.
+- 2026-08-28: isolated local PostgreSQL migration and seed passed; public desktop and
+  mobile browser captures verified the revised goals-to-today positioning. Registration
+  and login now expose programmatic labels, autocomplete intent, and live error regions.

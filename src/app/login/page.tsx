@@ -46,15 +46,19 @@ export default function LoginPage() {
 
         <form onSubmit={handleLogin} className="space-y-4">
           {error && (
-            <div className="p-3 text-sm text-destructive bg-destructive/10 rounded-lg">
+            <div role="alert" aria-live="polite" className="p-3 text-sm text-destructive bg-destructive/10 rounded-lg">
               {error}
             </div>
           )}
 
           <div>
-            <label className="block text-sm font-medium text-foreground mb-1">Email</label>
+            <label htmlFor="login-email" className="block text-sm font-medium text-foreground mb-1">Email</label>
             <input
+              id="login-email"
+              name="email"
               type="email"
+              autoComplete="email"
+              inputMode="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com"
@@ -64,9 +68,12 @@ export default function LoginPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-foreground mb-1">Password</label>
+            <label htmlFor="login-password" className="block text-sm font-medium text-foreground mb-1">Password</label>
             <input
+              id="login-password"
+              name="password"
               type="password"
+              autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Enter your password"
@@ -85,7 +92,7 @@ export default function LoginPage() {
 
         <p className="mt-6 text-center text-sm text-muted-foreground">
           Don&apos;t have an account?{" "}
-          <a href="/register" className="text-primary hover:underline">
+          <a href="/register" className="text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm">
             Create one
           </a>
         </p>
