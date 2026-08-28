@@ -39,9 +39,14 @@ security-remediation working tree.
   is blocked.
 - Credentials auth, tenant-scoped habits, tasks, notes/backlinks, calendar, goals,
   journal, inbox, gamification, plugins, export, and read-only AI chat tools exist.
-- PR #55 has 53 passing local tests, passing typecheck, zero-warning lint, and a
-  passing production build. GitHub-hosted jobs fail before checkout with zero steps;
-  issue #49 tracks runner availability.
+- PR #55 has 70 passing local tests, passing typecheck, zero-warning lint, and a
+  passing production build. GitGuardian passes; Ashbi Local CI is queued and issue
+  #49 tracks runner availability.
+- The five current Dependabot alerts on the default branch are resolved in this PR
+  branch: `deepmerge-ts` 8.0.0, `nanoid` 3.3.18, `find-my-way` 9.7.0,
+  `valibot` 1.4.2, and `@babel/core` 7.29.7. Both full and production-only
+  `npm audit` report zero vulnerabilities; the default-branch alerts remain visible
+  until the branch is merged.
 - Guided onboarding, a focused Today loop, portable export, and credential-verified
   account deletion now exist in code and automated coverage. The disposable local
   PostgreSQL environment successfully generated Prisma client code, applied the
@@ -204,6 +209,7 @@ No baselines exist. Instrument only with documented consent and minimal data.
 | High | Export/deletion lack authenticated runtime and restore-drill evidence | Roadmap item 2 | Engineering |
 | High | Onboarding lacks authenticated browser completion evidence | Roadmap item 1 in progress | Engineering/product |
 | High | CI jobs never receive a runner | GitHub issue #49 | Account owner |
+| High | Five default-branch dependency alerts | Patched versions verified on PR branch; default branch remains exposed until approved merge | Product owner + engineering |
 | High | Image/migrations untested together | GitHub issue #29 | Operator |
 | High | No legal identity, privacy, or terms | Owner/legal approval required | Product owner |
 | Medium | Landing promise needs customer comprehension and conversion evidence | Public copy is implementation-truthful; validate in pilot | Product |
@@ -252,3 +258,7 @@ No baselines exist. Instrument only with documented consent and minimal data.
   authoritative attachment rows before serving traffic. The command passed against
   isolated PostgreSQL; 68 tests, typecheck, zero-warning lint, and production build
   pass.
+- 2026-08-28: all five live Dependabot advisories were mapped to exact dependency
+  chains and patched in the lockfile. Prisma validation/client generation, 70 tests,
+  typecheck, zero-warning lint, production build, full `npm audit`, and
+  production-only `npm audit` pass with zero vulnerabilities.
