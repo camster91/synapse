@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
-import { postAuthenticationPath } from "@/lib/routes";
+import { postRegistrationPath } from "@/lib/routes";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -50,7 +50,7 @@ export default function RegisterPage() {
       }
 
       if (result?.ok) {
-        router.push(postAuthenticationPath());
+        router.push(postRegistrationPath());
       }
     } catch {
       setError("Something went wrong. Please try again.");

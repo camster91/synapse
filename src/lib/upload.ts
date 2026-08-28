@@ -1,4 +1,4 @@
-import { writeFile, mkdir, unlink, rename } from "fs/promises";
+import { writeFile, mkdir, unlink, rename, readFile } from "fs/promises";
 import { existsSync } from "fs";
 import path from "path";
 
@@ -85,6 +85,17 @@ export async function deleteFile(url: string): Promise<void> {
   if (existsSync(filePath)) {
     await unlink(filePath);
   }
+}
+
+/** Read an owned upload for a portable export without allowing path traversal. */
+export async function readFileForExport(url: string): Promise<string | null> {
+  const filename = url.split("/").pop();
+  if (!filename || filename.includes("..") || filename.includes("/") || filename.includes("\\")) {
+    return null;
+  }
+  const filePath = path.resolve(UPLOAD_DIR, filename);
+  if (path.dirname(filePath) !== path.resolve(UPLOAD_DIR) || !existsSync(filePath)) return null;
+  return (await readFile(filePath)).toString("base64");
 }
 
 export type StagedFileDeletion = {

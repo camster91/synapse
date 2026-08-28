@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { User, Key, Download, Palette } from "lucide-react";
+import { signOut } from "next-auth/react";
+import { User, Key, Download, Palette, Trash2 } from "lucide-react";
 
 export default function SettingsPage() {
   const [name, setName] = useState("");
@@ -19,6 +20,9 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [deleteConfirmation, setDeleteConfirmation] = useState("");
+  const [deletePassword, setDeletePassword] = useState("");
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     fetch("/api/settings")
@@ -80,6 +84,7 @@ export default function SettingsPage() {
   };
 
   const handleExportData = async () => {
+    setError(null);
     const res = await fetch("/api/settings/export");
     if (res.ok) {
       const blob = await res.blob();
@@ -89,6 +94,29 @@ export default function SettingsPage() {
       a.download = "synapse-export.json";
       a.click();
       URL.revokeObjectURL(url);
+    } else {
+      setError("Data export failed. Please try again.");
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (deleteConfirmation !== "DELETE") return;
+    setDeleting(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/account", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ confirmation: deleteConfirmation, password: deletePassword }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Account deletion failed");
+      }
+      await signOut({ callbackUrl: "/" });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Account deletion failed");
+      setDeleting(false);
     }
   };
 
@@ -97,6 +125,7 @@ export default function SettingsPage() {
     { id: "ai", label: "AI Provider", icon: Key },
     { id: "appearance", label: "Appearance", icon: Palette },
     { id: "data", label: "Data", icon: Download },
+    { id: "delete-account", label: "Delete account", icon: Trash2 },
   ];
 
   return (
@@ -249,7 +278,7 @@ export default function SettingsPage() {
           <section id="data" className="bg-card border border-border rounded-xl p-6">
             <h2 className="text-lg font-semibold text-foreground mb-4">Data</h2>
             <p className="text-sm text-muted-foreground mb-4">
-              Export all your data as JSON for backup or migration.
+              Download a portable JSON archive of your profile and user-owned content. Uploaded files are included as base64 data; reusable credentials are excluded for security.
             </p>
             <button
               onClick={handleExportData}
@@ -258,6 +287,27 @@ export default function SettingsPage() {
               <Download className="w-4 h-4" />
               Export Data
             </button>
+          </section>
+
+          <section id="delete-account" className="rounded-xl border border-destructive/30 bg-card p-6">
+            <h2 className="text-lg font-semibold text-destructive">Delete account</h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Permanently remove your account, records, conversations, and uploaded files. Export first if you need a copy. This cannot be undone.
+            </p>
+            <div className="mt-4 space-y-3">
+              <div>
+                <label htmlFor="delete-password" className="mb-1 block text-sm font-medium text-foreground">Current password</label>
+                <input id="delete-password" type="password" value={deletePassword} onChange={(event) => setDeletePassword(event.target.value)} autoComplete="current-password" className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
+              </div>
+              <div>
+                <label htmlFor="delete-confirmation" className="mb-1 block text-sm font-medium text-foreground">Type DELETE to confirm</label>
+                <input id="delete-confirmation" value={deleteConfirmation} onChange={(event) => setDeleteConfirmation(event.target.value)} className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
+              </div>
+              <button type="button" onClick={handleDeleteAccount} disabled={deleting || deleteConfirmation !== "DELETE"} className="flex items-center gap-2 rounded-lg bg-destructive px-4 py-2 text-sm font-semibold text-destructive-foreground hover:opacity-90 disabled:opacity-50">
+                <Trash2 className="h-4 w-4" />
+                {deleting ? "Deleting account…" : "Permanently delete account"}
+              </button>
+            </div>
           </section>
 
           {/* Save Button */}

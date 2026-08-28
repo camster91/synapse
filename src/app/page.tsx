@@ -39,8 +39,8 @@ export default function LandingPage() {
           <span className="text-indigo-600 dark:text-indigo-400">Do more.</span>
         </h1>
         <p className="mt-6 text-xl text-gray-600 dark:text-gray-400 max-w-2xl">
-          Habits, todos, notes, goals, journal, calendar — and an AI that knows your life.
-          All in one place. All connected.
+          Turn goals, tasks, habits, notes, and reflection into one focused daily view.
+          Self-host it, export your data, and connect your own AI provider when you choose.
         </p>
         <div className="mt-10 flex items-center gap-4">
           <Link
@@ -63,9 +63,9 @@ export default function LandingPage() {
             { icon: "🎯", title: "Habit Tracker", desc: "Build streaks, track daily habits, and watch your XP grow with every completion." },
             { icon: "✅", title: "Smart Todos", desc: "Kanban boards, priorities, subtasks — and an AI that can create them for you." },
             { icon: "📝", title: "Connected Notes", desc: "Notion-style notes with [[backlinks]] that connect your thinking." },
-            { icon: "📅", title: "Calendar", desc: "See your day at a glance. Time-block tasks directly onto your schedule." },
+            { icon: "📅", title: "Daily context", desc: "See today’s events beside the priorities and habits that move life forward." },
             { icon: "🏆", title: "Goals & XP", desc: "Link daily tasks to yearly goals. Earn XP, unlock achievements, level up." },
-            { icon: "🤖", title: "AI Chat", desc: "Talk to your second brain. \"Log my habit\", \"What's on my calendar?\", \"Summarize my week.\"" },
+            { icon: "🤖", title: "Optional AI", desc: "Search your notes and review current tasks with your own Anthropic, OpenAI, or Ollama connection." },
           ].map((feature) => (
             <div
               key={feature.title}

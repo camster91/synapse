@@ -1,5 +1,8 @@
 # Synapse Backlog
 
+Technical implementation record. Product priority, market status, launch claims,
+risks, and acceptance criteria are authoritative in `PRODUCT.md`.
+
 Canonical issue ordering as of 2026-08-28. This reconciles the current `main`
 branch, all 15 GitHub issues, the three open pull requests, local validation,
 and the repository review findings.

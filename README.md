@@ -101,7 +101,7 @@ synapse/
 - **Habits** — Track daily/weekly habits with streaks
 - **Todos** — Kanban-style task management with priorities
 - **Notes** — Notion-style notes with backlinks (`[[wikilinks]]`)
-- **Calendar** — Event management with recurrence
+- **Calendar** — Event management and a daily schedule view
 - **Goals** — Hierarchical goals (yearly → quarterly → monthly → weekly)
 - **Journal** — Daily entries with mood, gratitude, and highlights
 - **Inbox** — Quick capture for thoughts before organizing
