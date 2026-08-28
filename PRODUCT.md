@@ -189,7 +189,19 @@ No baselines exist. Instrument only with documented consent and minimal data.
      explicit mutation confirmation, correction/undo, outage behavior.
 6. **Pricing validation and billing — proposed.**
    - Measure costs and willingness to pay; obtain owner approval before any public
-     price or payment behavior; implement cancellation and entitlement recovery.
+   price or payment behavior; implement cancellation and entitlement recovery.
+
+## GitHub issue register
+
+Reconciled 2026-08-28 against the four open repository issues and commit `899c87d`.
+External issue comments or closure require owner approval.
+
+| Issue | Evidence-backed disposition | Next action |
+|---|---|---|
+| #49 — Restore production dependency-PR validation | Open P0 blocker. Current Build job again failed with zero steps; Ashbi Local CI and image/lint jobs remain pending. | Account owner restores runner capacity/quota; rerun authoritative checks. |
+| #29 — Production Compose credentials/health | Implemented on PR #55: required credentials fail closed, PostgreSQL has no host port, configured healthcheck exists, startup migration/reconciliation and app readiness are covered. | Keep open until image + database smoke test passes with Docker. |
+| #28 — TODOs/tests/description | Verified fixed: package description exists, 76 tests pass, and source contains no TODO/FIXME markers; enum value `TODO` is application data, not a marker. | Ready for owner-approved evidence comment and closure. |
+| #27 — Clickable navigation/calendar divs | Verified fixed: navigation backdrop and calendar days are semantic buttons with accessible names; accessibility contracts pass. | Ready for owner-approved evidence comment and closure. |
 
 ## Decision log
 
