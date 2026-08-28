@@ -54,9 +54,9 @@ npm run build          # Production Next.js build
 ```
 
 Production Compose files fail closed when required secrets are absent. Before a
-real deployment, configure persistent VAPID keys if push notifications are used,
-then smoke-test the built application and database together in the target
-environment.
+real deployment, keep browser push disabled until a standards-compliant sender is
+configured, then smoke-test the built application and database together in the
+target environment.
 
 ## Project Structure
 

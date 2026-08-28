@@ -1,8 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Bell, BellOff, Check } from "lucide-react";
-import { usePushNotifications } from "@/hooks/usePushNotifications";
+import { Bell, Check } from "lucide-react";
 
 interface Notification {
   id: string;
@@ -15,8 +14,6 @@ interface Notification {
 }
 
 export function NotificationBell() {
-  const { isSupported, permission, subscribe, isSubscribed } =
-    usePushNotifications();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [open, setOpen] = useState(false);
@@ -24,6 +21,12 @@ export function NotificationBell() {
 
   // Fetch notifications
   useEffect(() => {
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("/sw.js").catch((error) => {
+        console.warn("[pwa] Service worker registration failed:", error);
+      });
+    }
+
     loadNotifications();
     const interval = setInterval(loadNotifications, 60000);
     return () => clearInterval(interval);
@@ -86,11 +89,7 @@ export function NotificationBell() {
         className="relative p-2 rounded-lg hover:bg-accent transition-colors"
         aria-label="Notifications"
       >
-        {isSupported && isSubscribed ? (
-          <Bell className="w-5 h-5 text-foreground" />
-        ) : (
-          <BellOff className="w-5 h-5 text-muted-foreground" />
-        )}
+        <Bell className="w-5 h-5 text-foreground" />
         {unreadCount > 0 && (
           <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
             {unreadCount > 9 ? "9+" : unreadCount}
@@ -109,14 +108,6 @@ export function NotificationBell() {
                   className="text-xs text-primary hover:underline"
                 >
                   Mark all read
-                </button>
-              )}
-              {isSupported && !isSubscribed && permission !== "denied" && (
-                <button
-                  onClick={subscribe}
-                  className="text-xs text-primary hover:underline"
-                >
-                  Enable push
                 </button>
               )}
             </div>

@@ -209,7 +209,7 @@ No baselines exist. Instrument only with documented consent and minimal data.
 | Medium | Landing promise needs customer comprehension and conversion evidence | Public copy is implementation-truthful; validate in pilot | Product |
 | Medium | No analytics or monitoring | Add privacy-respecting pilot telemetry | Product owner |
 | Medium | AI quality, privacy, latency, and cost unmeasured | Keep mutations disabled; item 5 | Engineering/product |
-| Medium | Push destinations permit stored blind SSRF when VAPID is enabled | Replace raw fetch with constrained standards-compliant Web Push | Engineering |
+| Resolved | Raw browser-push delivery permitted tenant-controlled outbound requests | Unsafe sender removed; in-app notifications remain until standards-compliant Web Push exists | Engineering |
 | Medium | Uploads lack aggregate tenant/storage quotas | Add durable byte/count quotas and capacity guardrails | Engineering |
 | Medium | Upload failures can retain untracked files | Add compensating cleanup and durable reconciliation | Engineering |
 | Medium | MIT license copyright placeholders | Confirm holder/year before edit | Product owner |
@@ -236,5 +236,9 @@ No baselines exist. Instrument only with documented consent and minimal data.
 - 2026-08-28: repository-wide offline security review validated six findings: one
   high, four medium, and one low. The highest-risk shared-AI-credential path and the
   tenant-controlled Ollama destination were remediated in code; 58 tests, typecheck,
-  zero-warning lint, and the production build pass. Push egress, upload quotas, and
-  file reconciliation remain release-gate work.
+  zero-warning lint, and the production build pass. Upload quotas and file
+  reconciliation remain release-gate work.
+- 2026-08-28: unsafe raw browser-push delivery and subscription registration were
+  removed. Notifications remain available in-app, the PWA service worker still
+  registers, and browser push is explicitly deferred until a standards-compliant,
+  destination-constrained implementation exists; 61 tests pass.
