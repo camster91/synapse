@@ -1,16 +1,18 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { InvalidRelationshipError, validateOwnedRelationships } from '@/lib/ownership';
+import { isoDateTimeSchema, recurrenceSchema } from '@/lib/date-validation';
 import { z } from 'zod/v4';
 
 const createEventSchema = z.object({
   title: z.string().min(1).max(500),
   description: z.string().max(10000).optional(),
   location: z.string().max(500).optional(),
-  startAt: z.string(),
-  endAt: z.string().optional(),
+  startAt: isoDateTimeSchema,
+  endAt: isoDateTimeSchema.optional(),
   allDay: z.boolean().default(false),
-  recurrence: z.string().optional(),
+  recurrence: recurrenceSchema.optional(),
   color: z.string().max(20).optional(),
   source: z.string().max(50).default('manual'),
   externalId: z.string().optional(),
@@ -26,6 +28,15 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const from = searchParams.get('from');
   const to = searchParams.get('to');
+
+  const parsedFrom = from ? isoDateTimeSchema.safeParse(from) : null;
+  const parsedTo = to ? isoDateTimeSchema.safeParse(to) : null;
+  if ((parsedFrom && !parsedFrom.success) || (parsedTo && !parsedTo.success)) {
+    return NextResponse.json({ error: 'Invalid calendar date range' }, { status: 400 });
+  }
+  if (from && to && new Date(from) > new Date(to)) {
+    return NextResponse.json({ error: 'Calendar range start must precede its end' }, { status: 400 });
+  }
 
   const where: any = { userId: session.user.id };
   if (from || to) {
@@ -53,7 +64,15 @@ export async function POST(request: Request) {
     const body = await request.json();
     const data = createEventSchema.parse(body);
 
+    if (data.endAt && new Date(data.endAt) <= new Date(data.startAt)) {
+      return NextResponse.json(
+        { error: 'Event end must be after its start' },
+        { status: 400 }
+      );
+    }
+
     const { tagIds, ...eventData } = data;
+    await validateOwnedRelationships(session.user.id, { tagIds });
 
     const event = await prisma.calendarEvent.create({
       data: {
@@ -72,6 +91,9 @@ export async function POST(request: Request) {
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: 'Validation failed', details: error.issues }, { status: 400 });
+    }
+    if (error instanceof InvalidRelationshipError) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
     }
     console.error('Failed to create calendar event:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

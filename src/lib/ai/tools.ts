@@ -1,6 +1,7 @@
 import { z } from 'zod/v4';
+import { dateOnlyToUtc, isoDateOrDateTimeSchema, isoDateSchema, isoDateTimeSchema } from '@/lib/date-validation';
 import { prisma } from '@/lib/prisma';
-import { format, addDays } from 'date-fns';
+import { format } from 'date-fns';
 
 // ─── Tool Parameter Schemas ──────────────────────────────────────────────────
 
@@ -8,7 +9,7 @@ const createTodoSchema = z.object({
   title: z.string().min(1).max(500).describe('Title of the todo'),
   description: z.string().max(2000).optional().describe('Optional description'),
   priority: z.int().min(0).max(10).default(0).describe('Priority level (0-10)'),
-  dueDate: z.string().optional().describe('Due date in ISO format (YYYY-MM-DD)'),
+  dueDate: isoDateOrDateTimeSchema.optional().describe('Due date in ISO format'),
   status: z.enum(['INBOX', 'TODO', 'IN_PROGRESS']).default('TODO').describe('Initial status'),
 });
 
@@ -20,7 +21,7 @@ const logHabitSchema = z.object({
   habitId: z.string().describe('ID of the habit to log'),
   count: z.int().min(1).default(1).describe('Number of times completed (default 1)'),
   note: z.string().max(500).optional().describe('Optional note about the habit completion'),
-  date: z.string().optional().describe('Date in ISO format, defaults to today'),
+  date: isoDateSchema.optional().describe('Date in ISO format, defaults to today'),
 });
 
 const createNoteSchema = z.object({
@@ -37,8 +38,8 @@ const createCalendarEventSchema = z.object({
   title: z.string().min(1).max(200).describe('Title of the event'),
   description: z.string().max(5000).optional().describe('Optional description'),
   location: z.string().max(500).optional().describe('Optional location'),
-  startAt: z.string().describe('Start time in ISO format'),
-  endAt: z.string().optional().describe('End time in ISO format'),
+  startAt: isoDateTimeSchema.describe('Start time in ISO format'),
+  endAt: isoDateTimeSchema.optional().describe('End time in ISO format'),
   allDay: z.boolean().default(false).describe('Whether this is an all-day event'),
 });
 
@@ -48,7 +49,7 @@ const searchNotesSchema = z.object({
 });
 
 const getHabitsStatusSchema = z.object({
-  date: z.string().optional().describe('Date in ISO format, defaults to today'),
+  date: isoDateSchema.optional().describe('Date in ISO format, defaults to today'),
 });
 
 const getTodosSchema = z.object({
@@ -59,7 +60,7 @@ const getTodosSchema = z.object({
 
 const setReminderSchema = z.object({
   message: z.string().min(1).max(500).describe('Reminder message'),
-  remindAt: z.string().describe('When to remind, in ISO format'),
+  remindAt: isoDateTimeSchema.describe('When to remind, in ISO format'),
 });
 
 // ─── Tool Definitions (for LLM) ─────────────────────────────────────────────
@@ -279,7 +280,9 @@ export const toolExecutors: Record<
       return { success: false, data: null, error: parsed.error.issues.map((i) => i.message).join(', ') };
     }
     const params = parsed.data;
-    const date = params.date ? new Date(params.date) : new Date();
+    const date = params.date
+      ? dateOnlyToUtc(params.date)
+      : dateOnlyToUtc(new Date().toISOString().slice(0, 10));
 
     // Verify habit belongs to user
     const habit = await prisma.habit.findFirst({
@@ -345,6 +348,9 @@ export const toolExecutors: Record<
       return { success: false, data: null, error: parsed.error.issues.map((i) => i.message).join(', ') };
     }
     const params = parsed.data;
+    if (params.endAt && new Date(params.endAt) <= new Date(params.startAt)) {
+      return { success: false, data: null, error: 'Event end must be after its start' };
+    }
     const event = await prisma.calendarEvent.create({
       data: {
         userId,

@@ -19,7 +19,6 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetch("/api/settings")
@@ -32,9 +31,8 @@ export default function SettingsPage() {
         setPreferredAiProvider(data.preferredAiProvider || "anthropic");
         setHasAnthropicKey(Boolean(data.hasAnthropicKey));
         setHasOpenaiKey(Boolean(data.hasOpenaiKey));
-        setLoading(false);
       })
-      .catch(() => setLoading(false));
+      .catch(() => {});
   }, []);
 
   const handleSave = async () => {

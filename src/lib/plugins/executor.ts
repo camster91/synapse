@@ -12,15 +12,30 @@ import { prisma } from "@/lib/prisma";
 
 const RATE_LIMIT_WINDOW_MS = 60_000; // 1 minute
 const RATE_LIMIT_MAX_CALLS = 100;
+const RATE_LIMIT_MAX_BUCKETS = 10_000;
 
 const rateLimitBuckets = new Map<
   string,
   { calls: number; windowStart: number }
 >();
 
-function checkRateLimit(pluginName: string): void {
-  const now = Date.now();
-  const key = pluginName;
+export function checkPluginRateLimit(
+  userId: string,
+  pluginName: string,
+  now = Date.now()
+): void {
+  for (const [bucketKey, value] of rateLimitBuckets) {
+    if (now - value.windowStart > RATE_LIMIT_WINDOW_MS) {
+      rateLimitBuckets.delete(bucketKey);
+    }
+  }
+  while (rateLimitBuckets.size >= RATE_LIMIT_MAX_BUCKETS) {
+    const oldest = rateLimitBuckets.keys().next().value;
+    if (oldest === undefined) break;
+    rateLimitBuckets.delete(oldest);
+  }
+
+  const key = `${userId}:${pluginName}`;
   const bucket = rateLimitBuckets.get(key);
 
   if (!bucket || now - bucket.windowStart > RATE_LIMIT_WINDOW_MS) {
@@ -70,7 +85,7 @@ function buildScopedDb(
       findMany: requirePerm("read:habits", () =>
         prisma.habitLog.findMany(userFilter)
       ),
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
       create: requirePerm("write:habits", (data: unknown) =>
         prisma.habitLog.create({ data: { ...(data as any), userId } })
       ),
@@ -79,7 +94,7 @@ function buildScopedDb(
       findMany: requirePerm("read:todos", () =>
         prisma.todo.findMany(userFilter)
       ),
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
       create: requirePerm("write:todos", (data: unknown) =>
         prisma.todo.create({ data: { ...(data as any), userId } })
       ),
@@ -92,7 +107,7 @@ function buildScopedDb(
       findMany: requirePerm("read:notes", () =>
         prisma.note.findMany(userFilter)
       ),
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
       create: requirePerm("write:notes", (data: unknown) =>
         prisma.note.create({ data: { ...(data as any), userId } })
       ),
@@ -105,7 +120,7 @@ function buildScopedDb(
       findMany: requirePerm("read:journal", () =>
         prisma.journal.findMany(userFilter)
       ),
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
       create: requirePerm("write:journal", (data: unknown) =>
         prisma.journal.create({ data: { ...(data as any), userId } })
       ),
@@ -114,7 +129,7 @@ function buildScopedDb(
       findMany: requirePerm("read:calendar", () =>
         prisma.calendarEvent.findMany(userFilter)
       ),
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
       create: requirePerm("write:calendar", (data: unknown) =>
         prisma.calendarEvent.create({ data: { ...(data as any), userId } })
       ),
@@ -132,7 +147,7 @@ function buildScopedDb(
       findMany: requirePerm("read:inbox", () =>
         prisma.inboxItem.findMany(userFilter)
       ),
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
       create: requirePerm("write:inbox", (data: unknown) =>
         prisma.inboxItem.create({ data: { ...(data as any), userId } })
       ),
@@ -193,7 +208,7 @@ export async function executeHook<T extends HookName>(
 
   // 3. Rate limit
   try {
-    checkRateLimit(pluginName);
+    checkPluginRateLimit(userId, pluginName);
   } catch (err) {
     return { success: false, error: (err as Error).message };
   }

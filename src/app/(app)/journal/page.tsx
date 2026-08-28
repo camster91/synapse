@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { BookOpen } from "lucide-react";
 
 export default function JournalPage() {
   const [entries, setEntries] = useState<
@@ -13,7 +12,7 @@ export default function JournalPage() {
   const [todayHighlights, setTodayHighlights] = useState("");
   const [saving, setSaving] = useState(false);
 
-  const today = new Date().toISOString().split("T")[0];
+  const [today] = useState(() => new Date().toISOString().split("T")[0]);
 
   useEffect(() => {
     fetch("/api/journal")
@@ -30,7 +29,7 @@ export default function JournalPage() {
         }
       })
       .catch(() => {});
-  }, []);
+  }, [today]);
 
   const saveEntry = async () => {
     setSaving(true);

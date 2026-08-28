@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Inbox, Check, Trash2, FileText, ListTodo } from "lucide-react";
+import { Check, Trash2, FileText, ListTodo } from "lucide-react";
 import EmptyState from "@/components/EmptyState";
 
 interface InboxItem {

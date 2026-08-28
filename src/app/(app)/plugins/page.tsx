@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
 import {
   Puzzle,
   Settings,
@@ -45,7 +44,6 @@ interface UserPluginInfo {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function PluginsPage() {
-  const router = useRouter();
   const [allPlugins, setAllPlugins] = useState<PluginManifest[]>([]);
   const [userPlugins, setUserPlugins] = useState<UserPluginInfo[]>([]);
   const [loading, setLoading] = useState(true);

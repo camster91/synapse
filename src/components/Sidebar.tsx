@@ -171,6 +171,8 @@ export default function Sidebar({
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center flex-shrink-0 overflow-hidden">
               {userAvatar ? (
+                // External avatar hosts are user/provider controlled, so Next Image cannot safely enumerate them.
+                // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={userAvatar}
                   alt={userName}
@@ -193,6 +195,8 @@ export default function Sidebar({
           <div className="flex justify-center">
             <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center overflow-hidden">
               {userAvatar ? (
+                // External avatar hosts are user/provider controlled, so Next Image cannot safely enumerate them.
+                // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={userAvatar}
                   alt={userName}

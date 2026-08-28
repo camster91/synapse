@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, Filter, ChevronDown, ChevronRight, Flag, Calendar } from "lucide-react";
+import { Plus, Filter } from "lucide-react";
 import TodoCard from "@/components/TodoCard";
 import Modal from "@/components/Modal";
 import EmptyState from "@/components/EmptyState";

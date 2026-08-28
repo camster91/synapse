@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, Search, Grid3X3, List, FileText } from "lucide-react";
+import { Plus, Search, Grid3X3, List } from "lucide-react";
 import Link from "next/link";
 import Modal from "@/components/Modal";
 import EmptyState from "@/components/EmptyState";

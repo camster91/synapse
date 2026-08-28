@@ -40,9 +40,9 @@ export async function POST(request: Request) {
         author: manifest.author ?? null,
         icon: manifest.icon ?? null,
         homepage: manifest.homepage ?? null,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
         permissions: manifest.permissions as any,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
         configSchema: (manifest.configSchema ?? {}) as any,
       },
       create: {
@@ -53,9 +53,9 @@ export async function POST(request: Request) {
         author: manifest.author ?? null,
         icon: manifest.icon ?? null,
         homepage: manifest.homepage ?? null,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
         permissions: manifest.permissions as any,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
         configSchema: (manifest.configSchema ?? {}) as any,
       },
     });

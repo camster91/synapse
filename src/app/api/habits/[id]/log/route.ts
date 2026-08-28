@@ -4,10 +4,12 @@ import { prisma } from '@/lib/prisma';
 import { addXp } from '@/lib/xp';
 import { sendPushNotification } from '@/lib/push';
 import { fireHookForUser } from '@/lib/plugins/executor';
+import { calculateActivityStreak } from '@/lib/streak';
+import { dateOnlyToUtc, isoDateSchema } from '@/lib/date-validation';
 import { z } from 'zod/v4';
 
 const logHabitSchema = z.object({
-  date: z.string().optional(), // ISO date string, defaults to today
+  date: isoDateSchema.optional(),
   count: z.int().min(1).default(1),
   note: z.string().max(500).optional(),
 });
@@ -36,9 +38,9 @@ export async function POST(
       return NextResponse.json({ error: 'Habit not found' }, { status: 404 });
     }
 
-    const date = data.date ? new Date(data.date) : new Date();
-    // Normalize to start of day
-    date.setHours(0, 0, 0, 0);
+    const date = data.date
+      ? dateOnlyToUtc(data.date)
+      : dateOnlyToUtc(new Date().toISOString().slice(0, 10));
 
     const log = await prisma.habitLog.upsert({
       where: { habitId_date: { habitId, date } },
@@ -57,40 +59,26 @@ export async function POST(
 
     // Recalculate streak
     try {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      let streakCount = 0;
-      let checkDate = new Date(today);
-
-      // eslint-disable-next-line no-constant-condition
-      while (true) {
-        const nextDay = new Date(checkDate);
-        nextDay.setDate(nextDay.getDate() + 1);
-
-        const logsOnDay = await prisma.habitLog.findFirst({
-          where: {
-            userId: session.user.id,
-            date: { gte: checkDate, lt: nextDay },
-          },
-        });
-
-        if (logsOnDay) {
-          streakCount++;
-          checkDate.setDate(checkDate.getDate() - 1);
-        } else {
-          break;
-        }
-      }
+      const [activity, user] = await Promise.all([
+        prisma.habitLog.findMany({
+          where: { userId: session.user.id, date: { lte: new Date() } },
+          select: { date: true },
+          orderBy: { date: 'desc' },
+        }),
+        prisma.user.findUnique({
+          where: { id: session.user.id },
+          select: { longestStreak: true, timezone: true },
+        }),
+      ]);
+      const streakCount = calculateActivityStreak(
+        activity.map(({ date }) => date),
+        user?.timezone ?? 'UTC'
+      );
 
       const updateData: { streakDays: number; lastActiveAt: Date; longestStreak?: number } = {
         streakDays: streakCount,
         lastActiveAt: new Date(),
       };
-
-      const user = await prisma.user.findUnique({
-        where: { id: session.user.id },
-        select: { longestStreak: true },
-      });
 
       if (streakCount > (user?.longestStreak ?? 0)) {
         updateData.longestStreak = streakCount;

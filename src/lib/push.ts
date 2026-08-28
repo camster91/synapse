@@ -1,4 +1,3 @@
-import { webcrypto } from "node:crypto";
 import { prisma } from "@/lib/prisma";
 
 // ─── VAPID Key Generation ──────────────────────────────────────────────────
@@ -27,14 +26,7 @@ export function getVapidKeys() {
     "[push] VAPID_PUBLIC_KEY/VAPID_PRIVATE_KEY not set. Push notifications will not persist across restarts."
   );
 
-  // We still need valid keys — generate them
-  const keyPair = webcrypto.subtle.generateKey(
-    { name: "ECDH", namedCurve: "P-256" },
-    true,
-    ["deriveBits"]
-  );
-
-  // For now, return placeholder and generate async on first use
+  // For now, return placeholders; production must supply persistent keys.
   // Production must use env vars
   _vapidKeys = {
     publicKey: publicKey || "",

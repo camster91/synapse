@@ -5,17 +5,21 @@ Your second brain — habit tracker, todo, planner, notes, calendar, journal, an
 ## Quick Start
 
 ```bash
-# 1. Start PostgreSQL
+# 1. Install dependencies
+npm ci
+
+# 2. Start PostgreSQL
 docker compose up -d
 
-# 2. Copy env file and configure
-Copy-Item .env.example .env # PowerShell
+# 3. Copy env file and configure (macOS/Linux)
+cp .env.example .env
+# PowerShell: Copy-Item .env.example .env
 # Edit .env with your database URL, auth secret, and 32-byte encryption key
 
-# 3. Set up database (migrate + seed)
+# 4. Set up database (generate, migrate, and seed)
 npm run setup
 
-# 4. Start dev server
+# 5. Start dev server
 npm run dev
 ```
 
@@ -25,7 +29,7 @@ Open [http://localhost:3000](http://localhost:3000)
 
 - **Framework**: Next.js 16 (App Router)
 - **Database**: PostgreSQL + Prisma ORM
-- **Auth**: NextAuth.js v5
+- **Auth**: NextAuth.js v4
 - **Styling**: Tailwind CSS v4
 - **AI**: Multi-provider (Anthropic, OpenAI, Ollama)
 - **Plugins**: Custom plugin system with permissions
@@ -39,6 +43,20 @@ npm run db:seed        # Seed achievements & plugins
 npm run db:studio      # Open Prisma Studio GUI
 npm run db:reset       # Reset database
 ```
+
+## Validation
+
+```bash
+npm test               # Contract and regression tests
+npm run typecheck      # TypeScript validation
+npm run lint           # ESLint with zero warnings allowed
+npm run build          # Production Next.js build
+```
+
+Production Compose files fail closed when required secrets are absent. Before a
+real deployment, configure persistent VAPID keys if push notifications are used,
+then smoke-test the built application and database together in the target
+environment.
 
 ## Project Structure
 
@@ -89,4 +107,4 @@ synapse/
 - **Inbox** — Quick capture for thoughts before organizing
 - **AI Chat** — Natural language interaction with your data via LLM
 - **Gamification** — XP, levels, achievements, streaks
-- **Plugins** — Installable modules for finance, relationships, reading, etc.
+- **Plugins** — Permissioned installable modules; bundled examples cover finance and relationship CRM workflows

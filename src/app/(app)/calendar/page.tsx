@@ -17,7 +17,6 @@ interface CalendarEvent {
 
 export default function CalendarPage() {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
-  const [loading, setLoading] = useState(true);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [showAdd, setShowAdd] = useState(false);
   const [showEvent, setShowEvent] = useState<CalendarEvent | null>(null);
@@ -30,11 +29,10 @@ export default function CalendarPage() {
   useEffect(() => {
     const start = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
     const end = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
-    fetch(`/api/calendar?start=${start.toISOString()}&end=${end.toISOString()}`)
+    fetch(`/api/calendar?from=${start.toISOString()}&to=${end.toISOString()}`)
       .then((r) => r.json())
       .then((data) => setEvents(Array.isArray(data) ? data : (data.events || [])))
-      .catch(() => {})
-      .finally(() => setLoading(false));
+      .catch(() => {});
   }, [currentDate]);
 
   const addEvent = async () => {
@@ -44,8 +42,8 @@ export default function CalendarPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         title: newTitle,
-        startAt: newStart,
-        endAt: newEnd || undefined,
+        startAt: new Date(newStart).toISOString(),
+        endAt: newEnd ? new Date(newEnd).toISOString() : undefined,
         allDay: newAllDay,
         location: newLocation || undefined,
       }),
@@ -115,6 +113,8 @@ export default function CalendarPage() {
         {/* Month Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-border">
           <button
+            type="button"
+            aria-label="Previous month"
             onClick={() => setCurrentDate(new Date(year, month - 1, 1))}
             className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
           >
@@ -124,6 +124,8 @@ export default function CalendarPage() {
             {currentDate.toLocaleString("default", { month: "long", year: "numeric" })}
           </h2>
           <button
+            type="button"
+            aria-label="Next month"
             onClick={() => setCurrentDate(new Date(year, month + 1, 1))}
             className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
           >
@@ -146,9 +148,11 @@ export default function CalendarPage() {
             const isToday = day === today.getDate() && month === today.getMonth() && year === today.getFullYear();
 
             return (
-              <div
+              <button
+                type="button"
+                aria-label={`${new Date(year, month, day).toLocaleDateString()}: ${dayEvents.length} event${dayEvents.length === 1 ? "" : "s"}`}
                 key={i}
-                className="min-h-24 p-1 border-b border-r border-border hover:bg-muted/20 transition-colors cursor-pointer"
+                className="min-h-24 p-1 border-b border-r border-border hover:bg-muted/20 transition-colors cursor-pointer text-left"
                 onClick={() => {
                   if (dayEvents.length > 0) setShowEvent(dayEvents[0]);
                 }}
@@ -169,7 +173,7 @@ export default function CalendarPage() {
                     <div className="text-xs text-muted-foreground px-1">+{dayEvents.length - 2} more</div>
                   )}
                 </div>
-              </div>
+              </button>
             );
           })}
         </div>

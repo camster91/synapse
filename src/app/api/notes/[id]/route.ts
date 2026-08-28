@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { InvalidRelationshipError, validateOwnedRelationships } from '@/lib/ownership';
+import { stageFilesForDeletion } from '@/lib/upload';
 import { z } from 'zod/v4';
 
 const updateNoteSchema = z.object({
@@ -70,6 +72,11 @@ export async function PUT(
     const data = updateNoteSchema.parse(body);
 
     const { tagIds, ...noteData } = data;
+    await validateOwnedRelationships(session.user.id, {
+      tagIds,
+      noteParentId: noteData.parentId,
+      selfId: id,
+    });
 
     const updateData: any = { ...noteData };
     if (data.isPublished && !data.archived) {
@@ -129,6 +136,9 @@ export async function PUT(
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: 'Validation failed', details: error.issues }, { status: 400 });
     }
+    if (error instanceof InvalidRelationshipError) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
     if ((error as any)?.code === 'P2025') {
       return NextResponse.json({ error: 'Note not found' }, { status: 404 });
     }
@@ -149,7 +159,18 @@ export async function DELETE(
   const { id } = await params;
 
   try {
-    await prisma.note.delete({ where: { id, userId: session.user.id } });
+    const attachments = await prisma.attachment.findMany({
+      where: { noteId: id, userId: session.user.id },
+      select: { url: true },
+    });
+    const stagedFiles = await stageFilesForDeletion(attachments.map(({ url }) => url));
+    try {
+      await prisma.note.delete({ where: { id, userId: session.user.id } });
+    } catch (error) {
+      await stagedFiles.rollback();
+      throw error;
+    }
+    await stagedFiles.commit();
     return NextResponse.json({ success: true });
   } catch (error) {
     if ((error as any)?.code === 'P2025') {

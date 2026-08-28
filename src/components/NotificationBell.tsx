@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Bell, BellOff, Check, X } from "lucide-react";
+import { Bell, BellOff, Check } from "lucide-react";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 
 interface Notification {

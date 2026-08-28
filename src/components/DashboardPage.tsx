@@ -4,11 +4,8 @@ import { useState, useEffect } from "react";
 import {
   Target,
   CheckSquare,
-  Calendar,
-  Trophy,
   Flame,
   Zap,
-  BookOpen,
   ArrowRight,
 } from "lucide-react";
 import XpBar from "@/components/XpBar";

@@ -112,7 +112,7 @@ export async function PUT(request: Request) {
     }
 
     // Update the UserPlugin config
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
     const userPlugin = await prisma.userPlugin.update({
       where: {
         userId_pluginId: {

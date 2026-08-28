@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, Flame, Check } from "lucide-react";
+import { Plus } from "lucide-react";
 import HabitCard from "@/components/HabitCard";
 import Modal from "@/components/Modal";
 import EmptyState from "@/components/EmptyState";

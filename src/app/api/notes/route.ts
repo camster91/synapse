@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { fireHookForUser } from '@/lib/plugins/executor';
+import { InvalidRelationshipError, validateOwnedRelationships } from '@/lib/ownership';
 import { z } from 'zod/v4';
 
 function slugify(title: string): string {
@@ -69,6 +70,10 @@ export async function POST(request: Request) {
     const data = createNoteSchema.parse(body);
 
     const { tagIds, ...noteData } = data;
+    await validateOwnedRelationships(session.user.id, {
+      tagIds,
+      noteParentId: noteData.parentId,
+    });
     const slug = data.slug ?? slugify(data.title);
 
     // Ensure slug uniqueness
@@ -101,6 +106,9 @@ export async function POST(request: Request) {
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: 'Validation failed', details: error.issues }, { status: 400 });
+    }
+    if (error instanceof InvalidRelationshipError) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
     }
     console.error('Failed to create note:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
