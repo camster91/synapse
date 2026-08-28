@@ -35,7 +35,7 @@ services:
       db:
         condition: service_healthy
     command: >
-      sh -c "npx prisma migrate deploy && node server.js"
+      sh -c "npx prisma migrate deploy && npm run uploads:reconcile && node server.js"
 
 volumes:
   synapse_pgdata:

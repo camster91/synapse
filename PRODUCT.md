@@ -211,7 +211,7 @@ No baselines exist. Instrument only with documented consent and minimal data.
 | Medium | AI quality, privacy, latency, and cost unmeasured | Keep mutations disabled; item 5 | Engineering/product |
 | Resolved | Raw browser-push delivery permitted tenant-controlled outbound requests | Unsafe sender removed; in-app notifications remain until standards-compliant Web Push exists | Engineering |
 | Resolved | Uploads lacked aggregate tenant/storage quotas | Atomic 512 MB account reservations, migration backfill, and deletion release verified | Engineering |
-| Medium | Staged-file unlink failures can retain private trash files | Add durable reconciliation and operator visibility | Engineering |
+| Resolved | Interrupted upload/file deletion could retain untracked bytes | Production startup now removes orphan/trash residue and rebuilds quota accounting after migrations | Engineering |
 | Medium | MIT license copyright placeholders | Confirm holder/year before edit | Product owner |
 
 ## Release record and work log
@@ -247,3 +247,8 @@ No baselines exist. Instrument only with documented consent and minimal data.
   across direct and parent-record deletion. The migration and concurrent boundary
   behavior were verified against isolated PostgreSQL; 65 tests, typecheck, and
   zero-warning lint pass.
+- 2026-08-28: production startup now fails closed on database access, reconciles
+  untracked upload and private-trash residue, and rebuilds quota accounting from
+  authoritative attachment rows before serving traffic. The command passed against
+  isolated PostgreSQL; 68 tests, typecheck, zero-warning lint, and production build
+  pass.

@@ -22,7 +22,7 @@ services:
     volumes:
       - uploads:/app/uploads
     command: >
-      sh -c "npx prisma migrate deploy && node server.js"
+      sh -c "npx prisma migrate deploy && npm run uploads:reconcile && node server.js"
 
   db:
     image: postgres:16-alpine
