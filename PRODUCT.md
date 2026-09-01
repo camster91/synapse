@@ -435,3 +435,10 @@ External issue comments or closure require owner approval.
 - 2026-09-01: returning-user authentication now preserves the originally requested
   protected deep link after sign-in while rejecting external, protocol-relative,
   public, and authentication-loop callback destinations.
+- 2026-09-01: Settings no longer presents email as editable while silently omitting
+  it from Save. Email is truthfully read-only for the beta, initial settings failures
+  are visible, and Save stays unavailable until authenticated settings load.
+- 2026-09-01: development no longer registers the production service worker or keeps
+  stale Synapse caches, which had replayed obsolete Turbopack chunks and caused real
+  hydration failures during journey QA. Registration has one production owner, and
+  Settings theme state now initializes identically on the server and client.

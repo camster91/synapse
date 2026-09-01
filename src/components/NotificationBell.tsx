@@ -21,12 +21,6 @@ export function NotificationBell() {
 
   // Fetch notifications
   useEffect(() => {
-    if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("/sw.js").catch((error) => {
-        console.warn("[pwa] Service worker registration failed:", error);
-      });
-    }
-
     loadNotifications();
     const interval = setInterval(loadNotifications, 60000);
     return () => clearInterval(interval);

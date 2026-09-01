@@ -15,19 +15,22 @@ export default function SettingsPage() {
   const [hasOpenaiKey, setHasOpenaiKey] = useState(false);
   const [ollamaAvailable, setOllamaAvailable] = useState(false);
   const [productAnalyticsConsent, setProductAnalyticsConsent] = useState(false);
-  const [darkMode, setDarkMode] = useState(
-    typeof window !== "undefined" ? document.documentElement.classList.contains("dark") : false
-  );
+  const [darkMode, setDarkMode] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
   const [deletePassword, setDeletePassword] = useState("");
   const [deleting, setDeleting] = useState(false);
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
 
   useEffect(() => {
+    setDarkMode(document.documentElement.classList.contains("dark"));
     fetch("/api/settings")
-      .then((r) => r.json())
+      .then(async (r) => {
+        if (!r.ok) throw new Error("Settings request failed");
+        return r.json();
+      })
       .then((data) => {
         setName(data.name || "");
         setEmail(data.email || "");
@@ -41,8 +44,11 @@ export default function SettingsPage() {
         setHasOpenaiKey(Boolean(data.hasOpenaiKey));
         setOllamaAvailable(Boolean(data.ollamaAvailable));
         setProductAnalyticsConsent(Boolean(data.productAnalyticsConsent));
+        setSettingsLoaded(true);
       })
-      .catch(() => {});
+      .catch(() => {
+        setError("Unable to load settings. Refresh the page and try again.");
+      });
   }, []);
 
   const handleSave = async () => {
@@ -188,10 +194,12 @@ export default function SettingsPage() {
                 <input
                   type="email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  readOnly
+                  aria-readonly="true"
                   placeholder="you@example.com"
-                  className="w-full px-3 py-2 bg-background border border-input rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                  className="w-full min-h-11 px-3 py-2 bg-muted/40 border border-input rounded-lg text-sm text-muted-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                 />
+                <p className="mt-1 text-xs text-muted-foreground">Email changes are not available in this beta.</p>
               </div>
               <div>
                 <label className="block text-sm font-medium text-foreground mb-1">Timezone</label>
@@ -336,8 +344,8 @@ export default function SettingsPage() {
             {error && <p className="text-sm text-destructive">{error}</p>}
             <button
               onClick={handleSave}
-              disabled={saving}
-              className="px-6 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
+              disabled={saving || !settingsLoaded}
+              className="min-h-11 px-6 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
             >
               {saving ? "Saving..." : saved ? "Saved!" : "Save Changes"}
             </button>
