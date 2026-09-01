@@ -432,3 +432,6 @@ External issue comments or closure require owner approval.
   submission guards, accessible busy states, 44 px controls, stable customer-safe
   provider errors, and explicit network recovery. Rendered account submission still
   awaits browser action-time approval.
+- 2026-09-01: returning-user authentication now preserves the originally requested
+  protected deep link after sign-in while rejecting external, protocol-relative,
+  public, and authentication-loop callback destinations.

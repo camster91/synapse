@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { postAuthenticationPath } from "@/lib/routes";
+import { safePostAuthenticationPath } from "@/lib/routes";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -33,7 +33,8 @@ export default function LoginPage() {
       }
 
       if (result?.ok) {
-        router.push(postAuthenticationPath());
+        const callbackUrl = new URLSearchParams(window.location.search).get("callbackUrl");
+        router.push(safePostAuthenticationPath(callbackUrl, window.location.origin));
         return;
       }
 

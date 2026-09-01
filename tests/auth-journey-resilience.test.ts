@@ -24,5 +24,6 @@ test("login recovers from provider and network failures without duplicate submis
   assert.match(login, /catch \{\s+setError\("Unable to sign in\. Check your connection and try again\."\)/);
   assert.match(login, /finally \{\s+setSubmitting\(false\)/);
   assert.doesNotMatch(login, /: result\.error/);
+  assert.match(login, /safePostAuthenticationPath\(callbackUrl, window\.location\.origin\)/);
   assert.match(login, /min-h-11/);
 });
