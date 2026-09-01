@@ -37,6 +37,8 @@ export default function GoalsPage() {
   const [newLevel, setNewLevel] = useState("QUARTERLY");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [loadError, setLoadError] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
 
   const loadGoals = useCallback(async () => {
     setLoading(true);
@@ -56,17 +58,24 @@ export default function GoalsPage() {
   useEffect(() => { void loadGoals(); }, [loadGoals]);
 
   const addGoal = async () => {
-    if (!newTitle.trim()) return;
-    const res = await fetch("/api/goals", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title: newTitle, level: newLevel }),
-    });
-    if (res.ok) {
+    if (!newTitle.trim() || creating) return;
+    setCreating(true);
+    setCreateError(null);
+    try {
+      const res = await fetch("/api/goals", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: newTitle, level: newLevel }),
+      });
+      if (!res.ok) throw new Error("Goal creation failed");
       const data = await res.json();
       setGoals([...goals, data]);
       setNewTitle("");
       setShowAdd(false);
+    } catch {
+      setCreateError("Unable to create goal. Your draft has been preserved.");
+    } finally {
+      setCreating(false);
     }
   };
 
@@ -241,6 +250,7 @@ export default function GoalsPage() {
             </div>
           </div>
           <div className="flex justify-end gap-2 pt-2">
+            {createError && <p role="alert" className="mr-auto text-sm text-destructive">{createError}</p>}
             <button
               onClick={() => setShowAdd(false)}
               className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
@@ -249,10 +259,10 @@ export default function GoalsPage() {
             </button>
             <button
               onClick={addGoal}
-              disabled={!newTitle.trim()}
+              disabled={!newTitle.trim() || creating}
               className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              Create Goal
+              {creating ? "Creating..." : "Create Goal"}
             </button>
           </div>
         </div>

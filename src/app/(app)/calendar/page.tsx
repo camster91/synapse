@@ -20,6 +20,8 @@ export default function CalendarPage() {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [showAdd, setShowAdd] = useState(false);
   const [showEvent, setShowEvent] = useState<CalendarEvent | null>(null);
@@ -51,19 +53,22 @@ export default function CalendarPage() {
   }, [loadEvents]);
 
   const addEvent = async () => {
-    if (!newTitle.trim()) return;
-    const res = await fetch("/api/calendar", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        title: newTitle,
-        startAt: new Date(newStart).toISOString(),
-        endAt: newEnd ? new Date(newEnd).toISOString() : undefined,
-        allDay: newAllDay,
-        location: newLocation || undefined,
-      }),
-    });
-    if (res.ok) {
+    if (!newTitle.trim() || creating) return;
+    setCreating(true);
+    setCreateError(null);
+    try {
+      const res = await fetch("/api/calendar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: newTitle,
+          startAt: new Date(newStart).toISOString(),
+          endAt: newEnd ? new Date(newEnd).toISOString() : undefined,
+          allDay: newAllDay,
+          location: newLocation || undefined,
+        }),
+      });
+      if (!res.ok) throw new Error("Event creation failed");
       const data = await res.json();
       setEvents([...events, data]);
       setNewTitle("");
@@ -72,6 +77,10 @@ export default function CalendarPage() {
       setNewLocation("");
       setNewAllDay(false);
       setShowAdd(false);
+    } catch {
+      setCreateError("Unable to create event. Your draft has been preserved.");
+    } finally {
+      setCreating(false);
     }
   };
 
@@ -254,6 +263,7 @@ export default function CalendarPage() {
             All day event
           </label>
           <div className="flex justify-end gap-2 pt-2">
+            {createError && <p role="alert" className="mr-auto text-sm text-destructive">{createError}</p>}
             <button
               onClick={() => setShowAdd(false)}
               className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
@@ -262,10 +272,10 @@ export default function CalendarPage() {
             </button>
             <button
               onClick={addEvent}
-              disabled={!newTitle.trim()}
+              disabled={!newTitle.trim() || creating}
               className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              Create Event
+              {creating ? "Creating..." : "Create Event"}
             </button>
           </div>
         </div>

@@ -38,6 +38,8 @@ export default function TodosPage() {
   const [newStatus, setNewStatus] = useState<TodoStatus>("INBOX");
   const [filterPriority, setFilterPriority] = useState<number | null>(null);
   const [loadError, setLoadError] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
 
   const loadTodos = useCallback(async () => {
     setLoading(true);
@@ -57,24 +59,31 @@ export default function TodosPage() {
   useEffect(() => { void loadTodos(); }, [loadTodos]);
 
   const addTodo = async () => {
-    if (!newTitle.trim()) return;
-    const res = await fetch("/api/todos", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        title: newTitle,
-        description: newDesc || undefined,
-        priority: newPriority,
-        status: newStatus,
-      }),
-    });
-    if (res.ok) {
+    if (!newTitle.trim() || creating) return;
+    setCreating(true);
+    setCreateError(null);
+    try {
+      const res = await fetch("/api/todos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: newTitle,
+          description: newDesc || undefined,
+          priority: newPriority,
+          status: newStatus,
+        }),
+      });
+      if (!res.ok) throw new Error("Todo creation failed");
       const data = await res.json();
       setTodos([...todos, data]);
       setNewTitle("");
       setNewDesc("");
       setNewPriority(0);
       setShowAdd(false);
+    } catch {
+      setCreateError("Unable to create todo. Your draft has been preserved.");
+    } finally {
+      setCreating(false);
     }
   };
 
@@ -254,6 +263,7 @@ export default function TodosPage() {
             </div>
           </div>
           <div className="flex justify-end gap-2 pt-2">
+            {createError && <p role="alert" className="mr-auto text-sm text-destructive">{createError}</p>}
             <button
               onClick={() => setShowAdd(false)}
               className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
@@ -262,10 +272,10 @@ export default function TodosPage() {
             </button>
             <button
               onClick={addTodo}
-              disabled={!newTitle.trim()}
+              disabled={!newTitle.trim() || creating}
               className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              Create Todo
+              {creating ? "Creating..." : "Create Todo"}
             </button>
           </div>
         </div>

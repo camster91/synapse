@@ -119,7 +119,7 @@ candidate, the open issue register, local validation, and hosted checks.
 
 ## Verified baseline
 
-- `npm test`: 121/121 passing.
+- `npm test`: 126/126 passing.
 - `npm run typecheck`: passing after `npm run db:generate`.
 - `npm run lint`: passing with zero warnings and a zero-warning gate.
 - `npm run build`: clean production build passing locally.

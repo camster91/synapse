@@ -27,6 +27,8 @@ export default function HabitsPage() {
   const [newDesc, setNewDesc] = useState("");
   const [newFrequency, setNewFrequency] = useState("DAILY");
   const [loadError, setLoadError] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
 
   const loadHabits = useCallback(async () => {
     setLoading(true);
@@ -46,18 +48,25 @@ export default function HabitsPage() {
   useEffect(() => { void loadHabits(); }, [loadHabits]);
 
   const addHabit = async () => {
-    if (!newName.trim()) return;
-    const res = await fetch("/api/habits", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: newName, description: newDesc || undefined, frequency: newFrequency }),
-    });
-    if (res.ok) {
+    if (!newName.trim() || creating) return;
+    setCreating(true);
+    setCreateError(null);
+    try {
+      const res = await fetch("/api/habits", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newName, description: newDesc || undefined, frequency: newFrequency }),
+      });
+      if (!res.ok) throw new Error("Habit creation failed");
       const data = await res.json();
       setHabits([...habits, { ...data, logs: data.logs || [] }]);
       setNewName("");
       setNewDesc("");
       setShowAdd(false);
+    } catch {
+      setCreateError("Unable to create habit. Your draft has been preserved.");
+    } finally {
+      setCreating(false);
     }
   };
 
@@ -222,6 +231,7 @@ export default function HabitsPage() {
             </div>
           </div>
           <div className="flex justify-end gap-2 pt-2">
+            {createError && <p role="alert" className="mr-auto text-sm text-destructive">{createError}</p>}
             <button
               onClick={() => setShowAdd(false)}
               className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
@@ -230,10 +240,10 @@ export default function HabitsPage() {
             </button>
             <button
               onClick={addHabit}
-              disabled={!newName.trim()}
+              disabled={!newName.trim() || creating}
               className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              Create Habit
+              {creating ? "Creating..." : "Create Habit"}
             </button>
           </div>
         </div>
