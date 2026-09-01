@@ -183,6 +183,9 @@ AI acceptance, and production reliability still require scoped instrumentation.
    - Registration now enters a focused goal/habit/priority-task setup with an explicit
      skip path; records are created atomically and Today receives the first priority.
      Public landing access and product copy now match implemented behavior.
+   - Customer-facing metadata, install manifest, README, registration, landing,
+     empty-state, and AI framing consistently use the focused private goals-to-today
+     daily operating system position; generic “second brain” copy is removed.
    - Evidence: activation contracts, typecheck, zero-warning lint, and production build
      pass. A disposable PostgreSQL database migrated and seeded successfully; desktop
      and 390 px public views render without clipping, and registration fields resolve
@@ -389,3 +392,7 @@ External issue comments or closure require owner approval.
   cannot obtain package/attestation write permission, log into GHCR, push images,
   create attestations, or overwrite `latest`; main/version-tag publication remains
   an explicitly triggered, separately permissioned release path.
+- 2026-09-01: customer-facing positioning was reconciled across browser metadata,
+  install manifest, README, registration, landing, dashboard empty state, and AI
+  framing. Generic “second brain” language is replaced by the narrower private
+  goals-to-today daily operating system promise and protected by a contract test.

@@ -65,7 +65,7 @@ export default function RegisterPage() {
             S
           </div>
           <h1 className="text-2xl font-bold text-foreground">Create your account</h1>
-          <p className="text-sm text-muted-foreground mt-1">Start building your second brain</p>
+          <p className="text-sm text-muted-foreground mt-1">Connect your goals to today in one private workspace</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">

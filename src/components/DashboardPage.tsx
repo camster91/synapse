@@ -260,7 +260,7 @@ export default function DashboardPage() {
         </div>
         <h2 className="text-lg font-semibold text-foreground">Welcome to Synapse</h2>
         <p className="text-sm text-muted-foreground max-w-sm">
-          Start capturing thoughts, tracking habits, and building your second brain.
+          Start with one goal, one priority, and one repeatable practice for today.
         </p>
       </div>
     );

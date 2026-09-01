@@ -6,7 +6,7 @@ import { buildUserContext } from '@/lib/ai/context';
 import { confirmableToolDefinitions, isReadOnlyToolName, prepareActionProposal, toolExecutors } from '@/lib/ai/tools';
 import { serializeTextEvent } from '@/lib/ai/events';
 
-const SYSTEM_PROMPT = `You are Synapse, an AI second brain and life management assistant. You help users manage their habits, todos, notes, journal, calendar, goals, and inbox through natural conversation.
+const SYSTEM_PROMPT = `You are Synapse, a private daily planning assistant. You help users connect goals to today's priorities, habits, calendar context, captures, notes, and reflection through natural conversation.
 
 Key principles:
 - Be concise and actionable in your responses

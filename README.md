@@ -1,6 +1,8 @@
 # Synapse
 
-Your second brain — habit tracker, todo, planner, notes, calendar, journal, and AI chat in one app.
+A private daily operating system that connects goals to today across priorities,
+habits, calendar context, captures, and reflection—with portable data and optional
+bring-your-own AI.
 
 ## Quick Start
 

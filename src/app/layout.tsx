@@ -4,8 +4,8 @@ import { Providers } from "@/components/Providers";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Synapse — Your Second Brain",
-  description: "Life management, habits, goals, and AI-powered productivity",
+  title: "Synapse — Private Daily Operating System",
+  description: "Connect goals to today in one private, focused daily loop",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
