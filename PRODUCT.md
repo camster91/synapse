@@ -510,3 +510,9 @@ target and artifact immediately before changing external state.
 - 2026-09-01: a consolidated owner decision queue now separates repository
   governance, production rehearsal, legal/data policy, support, pilot, pricing, and
   exact-SHA release approval. It explicitly grants no external authorization.
+- 2026-09-01: rendered QA exposed the install prompt advertising notifications even
+  though browser push is intentionally unavailable. The prompt now promises only
+  truthful quicker home-screen access, exposes a named region and dismiss control,
+  blocks duplicate native prompts, always closes after the native choice, cleans its
+  delayed-show timer, explains native prompt failures without leaving a dead install
+  action, and is covered by the push-safety contract.
