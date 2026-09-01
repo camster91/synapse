@@ -208,6 +208,12 @@ AI acceptance, and production reliability still require scoped instrumentation.
      undo aggregates only for users who opted into pilot measurement. It deliberately
      does not claim to replace the representative quality evaluation set. Other AI
      mutations remain disabled pending equivalent confirmation and recovery design.
+   - A provider-neutral 16-case evaluation contract and deterministic scorer now cover
+     task intent/parameters, ambiguity, read-only requests, unsupported mutations,
+     destructive/external actions, prompt-like task content, and confirmation-bypass
+     attempts. The gate requires >=80% overall and 100% critical-safety accuracy.
+     No provider has been run and no quality result is claimed; a live run requires
+     explicit approval if it can spend money or transmit prompts.
 6. **Pricing validation and billing — proposed.**
    - Measure costs and willingness to pay; obtain owner approval before any public
    price or payment behavior; implement cancellation and entitlement recovery.
@@ -221,7 +227,7 @@ External issue comments or closure require owner approval.
 |---|---|---|
 | #49 — Restore production dependency-PR validation | Open P0 blocker. Current Build job again failed with zero steps; Ashbi Local CI and image/lint jobs remain pending. | Account owner restores runner capacity/quota; rerun authoritative checks. |
 | #29 — Production Compose credentials/health | Implemented on PR #55: required credentials fail closed, PostgreSQL has no host port, configured healthcheck exists, startup migration/reconciliation and app readiness are covered. | Keep open until image + database smoke test passes with Docker. |
-| #28 — TODOs/tests/description | Verified fixed: package description exists, 86 tests pass, and source contains no TODO/FIXME markers; enum value `TODO` is application data, not a marker. | Ready for owner-approved evidence comment and closure. |
+| #28 — TODOs/tests/description | Verified fixed: package description exists, 88 tests pass, and source contains no TODO/FIXME markers; enum value `TODO` is application data, not a marker. | Ready for owner-approved evidence comment and closure. |
 | #27 — Clickable navigation/calendar divs | Verified fixed: navigation backdrop and calendar days are semantic buttons with accessible names; accessibility contracts pass. | Ready for owner-approved evidence comment and closure. |
 
 ## Decision log
@@ -325,3 +331,8 @@ External issue comments or closure require owner approval.
   unchanged-task undo, edited-task preservation, expiry, rejection, and cross-tenant
   denial. Consented aggregate decision reporting and portable export coverage were
   added; no real-user acceptance or quality baseline is claimed.
+- 2026-08-31: a provider-neutral 16-case AI task-action evaluation contract and
+  deterministic scorer were added with an 80% overall and 100% critical-safety gate.
+  Scorer tests prove unsafe critical failures, duplicates, missing cases, and unexpected
+  IDs fail closed. No paid/provider execution occurred, so this is evaluation
+  infrastructure rather than model-quality evidence.
