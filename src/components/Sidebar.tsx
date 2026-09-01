@@ -81,6 +81,8 @@ export default function Sidebar({
         </div>
         {/* Close button on mobile */}
         <button
+          type="button"
+          aria-label="Close navigation menu"
           onClick={onMobileClose}
           className="lg:hidden p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
         >
@@ -214,6 +216,9 @@ export default function Sidebar({
 
       {/* Collapse Toggle (desktop only) */}
       <button
+        type="button"
+        aria-label={collapsed ? "Expand navigation" : "Collapse navigation"}
+        aria-expanded={!collapsed}
         onClick={() => setCollapsed(!collapsed)}
         className="hidden lg:flex items-center justify-center h-8 border-t border-sidebar-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
       >

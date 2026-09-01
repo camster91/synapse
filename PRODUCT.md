@@ -39,7 +39,7 @@ Last reconciled: 2026-09-01 against branch
   smoke testing remains blocked.
 - Credentials auth, tenant-scoped habits, tasks, notes/backlinks, calendar, goals,
   journal, inbox, gamification, plugins, export, and read-only AI chat tools exist.
-- The current PR #55 candidate has 137 passing local tests, passing typecheck,
+- The current PR #55 candidate has 139 passing local tests, passing typecheck,
   zero-warning lint, and a passing
   production build. Hosted Build, Lint, Ashbi Local CI, GitGuardian, and the
   read-only dual-architecture image validation all pass.
@@ -216,7 +216,7 @@ AI acceptance, and production reliability still require scoped instrumentation.
      context, and recent inbox captures. Users can complete tasks/habits, deliberately
      move work to tomorrow, triage captures, and close the day with a reflection in
      place; failures restore optimistic state or preserve the reflection draft.
-   - Evidence: the current 137-test suite, typecheck, zero-warning lint, and
+   - Evidence: the current 139-test suite, typecheck, zero-warning lint, and
      production build pass. Rendered task, habit, inbox-triage, and deliberate
      rescheduling journeys passed; timezone and reflection journey QA remains.
 4. **Production-like pilot readiness — partially implemented; external decisions remain.**
@@ -516,3 +516,7 @@ target and artifact immediately before changing external state.
   blocks duplicate native prompts, always closes after the native choice, cleans its
   delayed-show timer, explains native prompt failures without leaving a dead install
   action, and is covered by the push-safety contract.
+- 2026-09-01: mobile search no longer uses a blocking browser prompt; it opens the
+  same labeled field and global result dialog as desktop with a local close action.
+  The mobile navigation close and desktop collapse controls now expose their action
+  and expanded state to assistive technology.

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { usePathname } from "next/navigation";
-import { Search, Menu, LogOut } from "lucide-react";
+import { Search, Menu, LogOut, X } from "lucide-react";
 import QuickAdd from "./QuickAdd";
 import { NotificationBell } from "./NotificationBell";
 
@@ -40,6 +40,7 @@ export default function Header({
 }: HeaderProps) {
   const pathname = usePathname();
   const [searchFocused, setSearchFocused] = useState(false);
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
 
   const title =
     pageTitles[pathname] ||
@@ -51,7 +52,7 @@ export default function Header({
   };
 
   return (
-    <header className="h-14 border-b border-border bg-card flex items-center justify-between px-4 gap-4 flex-shrink-0">
+    <header className="relative h-14 border-b border-border bg-card flex items-center justify-between px-4 gap-4 flex-shrink-0">
       {/* Mobile menu + Page Title */}
       <div className="flex items-center gap-2 min-w-0">
         <button
@@ -69,15 +70,16 @@ export default function Header({
       {/* Search Bar - hidden on mobile, shown on sm+ */}
       <form
         onSubmit={handleSearch}
-        className={`hidden sm:flex flex-1 max-w-md mx-auto transition-all duration-200 ${
+        className={`${mobileSearchOpen ? "absolute inset-x-2 top-2 z-20 flex bg-card" : "hidden"} sm:static sm:flex flex-1 max-w-md mx-auto transition-all duration-200 ${
           searchFocused ? "max-w-lg" : ""
         }`}
       >
         <div className="relative w-full">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-        <input
-          id="global-search-trigger"
-          aria-haspopup="dialog"
+          <label htmlFor="global-search-trigger" className="sr-only">Search everything</label>
+          <input
+            id="global-search-trigger"
+            aria-haspopup="dialog"
             type="text"
             value={searchQuery}
             onChange={(e) => {
@@ -85,9 +87,21 @@ export default function Header({
             }}
             onFocus={() => setSearchFocused(true)}
             onBlur={() => setSearchFocused(false)}
+            autoFocus={mobileSearchOpen}
             placeholder="Search everything..."
-            className="w-full pl-9 pr-4 py-1.5 bg-background border border-input rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring transition-all"
+            className="w-full pl-9 pr-10 sm:pr-4 py-1.5 bg-background border border-input rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring transition-all"
           />
+          <button
+            type="button"
+            aria-label="Close search field"
+            onClick={() => {
+              setMobileSearchOpen(false);
+              onSearch?.("");
+            }}
+            className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-muted-foreground hover:text-foreground sm:hidden"
+          >
+            <X className="h-4 w-4" />
+          </button>
         </div>
       </form>
 
@@ -105,12 +119,10 @@ export default function Header({
         </button>
         {/* Mobile search toggle */}
         <button
+          type="button"
           className="sm:hidden p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
           aria-label="Search"
-          onClick={() => {
-            const q = prompt("Search:");
-            if (q) onSearch?.(q);
-          }}
+          onClick={() => setMobileSearchOpen(true)}
         >
           <Search className="w-5 h-5" />
         </button>
