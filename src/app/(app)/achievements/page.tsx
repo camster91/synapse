@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Trophy } from "lucide-react";
 import EmptyState from "@/components/EmptyState";
+import ResourceLoadError from "@/components/ResourceLoadError";
 
 interface Achievement {
   key: string;
@@ -18,14 +19,26 @@ interface Achievement {
 export default function AchievementsPage() {
   const [achievements, setAchievements] = useState<Achievement[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+
+  const loadAchievements = useCallback(async () => {
+    setLoading(true);
+    setLoadError(false);
+    try {
+      const response = await fetch("/api/gamification/achievements");
+      if (!response.ok) throw new Error("Achievements request failed");
+      const data = await response.json();
+      setAchievements(Array.isArray(data) ? data : (data.achievements || []));
+    } catch {
+      setLoadError(true);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    fetch("/api/gamification/achievements")
-      .then((r) => r.json())
-      .then((data) => setAchievements(Array.isArray(data) ? data : (data.achievements || [])))
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, []);
+    void loadAchievements();
+  }, [loadAchievements]);
 
   const categories = [...new Set(achievements.map((a) => a.category))];
   const earnedCount = achievements.filter((a) => a.earned).length;
@@ -42,6 +55,8 @@ export default function AchievementsPage() {
       </div>
     );
   }
+
+  if (loadError) return <ResourceLoadError resource="achievements" onRetry={loadAchievements} />;
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">

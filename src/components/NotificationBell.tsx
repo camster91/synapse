@@ -17,6 +17,9 @@ export function NotificationBell() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [actionError, setActionError] = useState("");
   const panelRef = useRef<HTMLDivElement>(null);
 
   // Fetch notifications
@@ -27,16 +30,18 @@ export function NotificationBell() {
   }, []);
 
   async function loadNotifications() {
+    setLoadError(false);
     try {
       const res = await fetch("/api/notifications");
-      if (res.ok) {
-        const data = await res.json();
-        const list = Array.isArray(data) ? data : (data.notifications || []);
-        setNotifications(list);
-        setUnreadCount(data.unreadCount ?? list.filter((n: Notification) => !n.read).length);
-      }
+      if (!res.ok) throw new Error("Notifications request failed");
+      const data = await res.json();
+      const list = Array.isArray(data) ? data : (data.notifications || []);
+      setNotifications(list);
+      setUnreadCount(data.unreadCount ?? list.filter((n: Notification) => !n.read).length);
     } catch {
-      // Will retry on next interval
+      setLoadError(true);
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -52,21 +57,33 @@ export function NotificationBell() {
   }, [open]);
 
   async function markAllRead() {
-    await fetch("/api/notifications", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ markAll: true }),
-    });
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
-    setUnreadCount(0);
+    setActionError("");
+    try {
+      const response = await fetch("/api/notifications", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ markAll: true }),
+      });
+      if (!response.ok) throw new Error("Mark all read failed");
+      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+      setUnreadCount(0);
+    } catch {
+      setActionError("Notifications could not be updated. Please try again.");
+    }
   }
 
   async function markRead(id: string) {
-    await fetch(`/api/notifications/${id}`, { method: "PUT" });
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, read: true } : n))
-    );
-    setUnreadCount((c) => Math.max(0, c - 1));
+    setActionError("");
+    try {
+      const response = await fetch(`/api/notifications/${id}`, { method: "PUT" });
+      if (!response.ok) throw new Error("Mark read failed");
+      setNotifications((prev) =>
+        prev.map((n) => (n.id === id ? { ...n, read: true } : n))
+      );
+      setUnreadCount((c) => Math.max(0, c - 1));
+    } catch {
+      setActionError("That notification could not be updated. Please try again.");
+    }
   }
 
   const typeColor: Record<string, string> = {
@@ -108,7 +125,16 @@ export function NotificationBell() {
           </div>
 
           <div className="max-h-64 overflow-y-auto">
-            {notifications.length === 0 ? (
+            {loadError ? (
+              <div role="alert" className="p-4 text-center">
+                <p className="text-sm text-muted-foreground">Unable to load notifications.</p>
+                <button type="button" onClick={loadNotifications} className="mt-2 min-h-11 px-3 text-sm font-medium text-primary hover:underline">
+                  Try again
+                </button>
+              </div>
+            ) : loading ? (
+              <p className="p-4 text-sm text-muted-foreground text-center">Loading notifications…</p>
+            ) : notifications.length === 0 ? (
               <p className="p-4 text-sm text-muted-foreground text-center">
                 No notifications yet
               </p>
@@ -159,6 +185,7 @@ export function NotificationBell() {
               ))
             )}
           </div>
+          {actionError && <p role="alert" className="border-t border-border p-3 text-xs text-destructive">{actionError}</p>}
         </div>
       )}
     </div>

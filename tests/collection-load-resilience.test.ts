@@ -36,6 +36,31 @@ test("journal cannot overwrite an entry before its source data loads", () => {
   assert.match(page, /disabled=\{saving \|\| loading\}/);
 });
 
+test("achievements failure cannot masquerade as zero progress", () => {
+  const page = readFileSync("src/app/(app)/achievements/page.tsx", "utf8");
+  assert.match(page, /if \(!response\.ok\) throw new Error\("Achievements request failed"\)/);
+  assert.match(page, /ResourceLoadError resource="achievements"/);
+  assert.doesNotMatch(page, /\.catch\(\(\) => \{\}\)/);
+});
+
+test("notifications distinguish failed loading and failed mutations from emptiness", () => {
+  const bell = readFileSync("src/components/NotificationBell.tsx", "utf8");
+  assert.match(bell, /Unable to load notifications/);
+  assert.match(bell, /onClick=\{loadNotifications\}/);
+  assert.match(bell, /if \(!response\.ok\) throw new Error\("Mark read failed"\)/);
+  assert.match(bell, /role="alert"/);
+});
+
+test("plugin reads and mutations fail visibly without claiming success", () => {
+  const page = readFileSync("src/app/(app)/plugins/page.tsx", "utf8");
+  assert.match(page, /ResourceLoadError resource="plugins"/);
+  assert.match(page, /if \(!allRes\.ok \|\| !userRes\.ok\) throw new Error/);
+  assert.match(page, /Nothing was changed/);
+  assert.match(page, /previous state was preserved/);
+  assert.match(page, /previous settings were preserved/);
+  assert.match(page, /role="alert"/);
+});
+
 test("collection recovery explains data safety and provides an accessible retry", () => {
   assert.match(errorState, /role="alert"/);
   assert.match(errorState, /Your data has not been replaced or removed/);
