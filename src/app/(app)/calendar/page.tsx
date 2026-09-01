@@ -213,8 +213,9 @@ export default function CalendarPage() {
       <Modal isOpen={showAdd} onClose={() => setShowAdd(false)} title="New Event">
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-foreground mb-1">Title</label>
+            <label htmlFor="new-event-title" className="block text-sm font-medium text-foreground mb-1">Title</label>
             <input
+              id="new-event-title"
               type="text"
               value={newTitle}
               onChange={(e) => setNewTitle(e.target.value)}
@@ -225,8 +226,9 @@ export default function CalendarPage() {
           </div>
           <div className="flex gap-3">
             <div className="flex-1">
-              <label className="block text-sm font-medium text-foreground mb-1">Start</label>
+              <label htmlFor="new-event-start" className="block text-sm font-medium text-foreground mb-1">Start</label>
               <input
+                id="new-event-start"
                 type="datetime-local"
                 value={newStart}
                 onChange={(e) => setNewStart(e.target.value)}
@@ -234,8 +236,9 @@ export default function CalendarPage() {
               />
             </div>
             <div className="flex-1">
-              <label className="block text-sm font-medium text-foreground mb-1">End</label>
+              <label htmlFor="new-event-end" className="block text-sm font-medium text-foreground mb-1">End</label>
               <input
+                id="new-event-end"
                 type="datetime-local"
                 value={newEnd}
                 onChange={(e) => setNewEnd(e.target.value)}
@@ -244,8 +247,9 @@ export default function CalendarPage() {
             </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-foreground mb-1">Location (optional)</label>
+            <label htmlFor="new-event-location" className="block text-sm font-medium text-foreground mb-1">Location (optional)</label>
             <input
+              id="new-event-location"
               type="text"
               value={newLocation}
               onChange={(e) => setNewLocation(e.target.value)}

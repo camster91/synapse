@@ -215,8 +215,9 @@ export default function TodosPage() {
       <Modal isOpen={showAdd} onClose={() => setShowAdd(false)} title="New Todo">
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-foreground mb-1">Title</label>
+            <label htmlFor="new-todo-title" className="block text-sm font-medium text-foreground mb-1">Title</label>
             <input
+              id="new-todo-title"
               type="text"
               value={newTitle}
               onChange={(e) => setNewTitle(e.target.value)}
@@ -226,8 +227,9 @@ export default function TodosPage() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-foreground mb-1">Description (optional)</label>
+            <label htmlFor="new-todo-description" className="block text-sm font-medium text-foreground mb-1">Description (optional)</label>
             <textarea
+              id="new-todo-description"
               value={newDesc}
               onChange={(e) => setNewDesc(e.target.value)}
               placeholder="Add details..."
@@ -237,8 +239,9 @@ export default function TodosPage() {
           </div>
           <div className="flex gap-4">
             <div className="flex-1">
-              <label className="block text-sm font-medium text-foreground mb-1">Priority</label>
+              <label htmlFor="new-todo-priority" className="block text-sm font-medium text-foreground mb-1">Priority</label>
               <select
+                id="new-todo-priority"
                 value={newPriority}
                 onChange={(e) => setNewPriority(Number(e.target.value))}
                 className="w-full px-3 py-2 bg-background border border-input rounded-lg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
@@ -250,8 +253,9 @@ export default function TodosPage() {
               </select>
             </div>
             <div className="flex-1">
-              <label className="block text-sm font-medium text-foreground mb-1">Status</label>
+              <label htmlFor="new-todo-status" className="block text-sm font-medium text-foreground mb-1">Status</label>
               <select
+                id="new-todo-status"
                 value={newStatus}
                 onChange={(e) => setNewStatus(e.target.value as TodoStatus)}
                 className="w-full px-3 py-2 bg-background border border-input rounded-lg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"

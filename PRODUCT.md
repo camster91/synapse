@@ -39,7 +39,7 @@ Last reconciled: 2026-09-01 against branch
   smoke testing remains blocked.
 - Credentials auth, tenant-scoped habits, tasks, notes/backlinks, calendar, goals,
   journal, inbox, gamification, plugins, export, and read-only AI chat tools exist.
-- The current PR #55 candidate has 132 passing local tests, passing typecheck,
+- The current PR #55 candidate has 136 passing local tests, passing typecheck,
   zero-warning lint, and a passing
   production build. Hosted Build, Lint, Ashbi Local CI, GitGuardian, and the
   read-only dual-architecture image validation all pass.
@@ -216,7 +216,7 @@ AI acceptance, and production reliability still require scoped instrumentation.
      context, and recent inbox captures. Users can complete tasks/habits, deliberately
      move work to tomorrow, triage captures, and close the day with a reflection in
      place; failures restore optimistic state or preserve the reflection draft.
-   - Evidence: the current 132-test suite, typecheck, zero-warning lint, and
+   - Evidence: the current 136-test suite, typecheck, zero-warning lint, and
      production build pass. Rendered task, habit, inbox-triage, and deliberate
      rescheduling journeys passed; timezone and reflection journey QA remains.
 4. **Production-like pilot readiness — partially implemented; external decisions remain.**
@@ -482,3 +482,12 @@ External issue comments or closure require owner approval.
   unprocessed count, blocks duplicate requests, and restores failed drafts visibly.
   Authenticated rendered QA also passed for inbox archive triage and deliberate
   move-to-tomorrow rescheduling without a recovery error.
+- 2026-09-01: primary Todo, Habit, Goal, Note, and Calendar creation forms now
+  programmatically associate visible labels with their controls. Habit frequency
+  and Goal timeframe use semantic groups and expose the selected option state.
+  Authenticated rendered QA resolved every labeled field exactly once and confirmed
+  the default Daily and Year choices through their pressed state.
+- 2026-09-01: the global-search modal now keeps forward and reverse Tab navigation
+  inside the dialog and restores focus to the invoking control after close. Rendered
+  keyboard QA confirmed trapped input, exposed an autofocus-timing flaw in the first
+  restoration attempt, and then proved Escape returned focus before the next query.

@@ -220,8 +220,9 @@ export default function GoalsPage() {
       <Modal isOpen={showAdd} onClose={() => setShowAdd(false)} title="New Goal">
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-foreground mb-1">What do you want to achieve?</label>
+            <label htmlFor="new-goal-title" className="block text-sm font-medium text-foreground mb-1">What do you want to achieve?</label>
             <input
+              id="new-goal-title"
               type="text"
               value={newTitle}
               onChange={(e) => setNewTitle(e.target.value)}
@@ -231,13 +232,15 @@ export default function GoalsPage() {
               autoFocus
             />
           </div>
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-1">Timeframe</label>
+          <fieldset>
+            <legend className="block text-sm font-medium text-foreground mb-1">Timeframe</legend>
             <div className="flex gap-2">
               {LEVEL_ORDER.map((level) => (
                 <button
+                  type="button"
                   key={level}
                   onClick={() => setNewLevel(level)}
+                  aria-pressed={newLevel === level}
                   className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                     newLevel === level
                       ? "bg-primary text-primary-foreground"
@@ -248,7 +251,7 @@ export default function GoalsPage() {
                 </button>
               ))}
             </div>
-          </div>
+          </fieldset>
           <div className="flex justify-end gap-2 pt-2">
             {createError && <p role="alert" className="mr-auto text-sm text-destructive">{createError}</p>}
             <button

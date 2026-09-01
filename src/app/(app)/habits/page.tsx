@@ -192,8 +192,9 @@ export default function HabitsPage() {
       <Modal isOpen={showAdd} onClose={() => setShowAdd(false)} title="New Habit">
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-foreground mb-1">Name</label>
+            <label htmlFor="new-habit-name" className="block text-sm font-medium text-foreground mb-1">Name</label>
             <input
+              id="new-habit-name"
               type="text"
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
@@ -203,8 +204,9 @@ export default function HabitsPage() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-foreground mb-1">Description (optional)</label>
+            <label htmlFor="new-habit-description" className="block text-sm font-medium text-foreground mb-1">Description (optional)</label>
             <input
+              id="new-habit-description"
               type="text"
               value={newDesc}
               onChange={(e) => setNewDesc(e.target.value)}
@@ -212,13 +214,15 @@ export default function HabitsPage() {
               className="w-full px-3 py-2 bg-background border border-input rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
             />
           </div>
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-1">Frequency</label>
+          <fieldset>
+            <legend className="block text-sm font-medium text-foreground mb-1">Frequency</legend>
             <div className="flex gap-2">
               {["DAILY", "WEEKLY"].map((f) => (
                 <button
+                  type="button"
                   key={f}
                   onClick={() => setNewFrequency(f)}
+                  aria-pressed={newFrequency === f}
                   className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                     newFrequency === f
                       ? "bg-primary text-primary-foreground"
@@ -229,7 +233,7 @@ export default function HabitsPage() {
                 </button>
               ))}
             </div>
-          </div>
+          </fieldset>
           <div className="flex justify-end gap-2 pt-2">
             {createError && <p role="alert" className="mr-auto text-sm text-destructive">{createError}</p>}
             <button

@@ -202,8 +202,9 @@ export default function NotesPage() {
       <Modal isOpen={showAdd} onClose={() => setShowAdd(false)} title="New Note">
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-foreground mb-1">Title</label>
+            <label htmlFor="new-note-title" className="block text-sm font-medium text-foreground mb-1">Title</label>
             <input
+              id="new-note-title"
               type="text"
               value={newTitle}
               onChange={(e) => setNewTitle(e.target.value)}
