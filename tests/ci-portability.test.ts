@@ -28,3 +28,12 @@ test("GitHub workflows use action runtimes supported by the hosted runner", () =
   assert.match(lint, /actions\/setup-node@v5/);
   assert.match(image, /actions\/checkout@v5/);
 });
+
+test("pull-request image checks cannot publish release artifacts", () => {
+  assert.match(image, /if: github\.event_name != 'pull_request'\s+uses: docker\/login-action@v3/);
+  assert.match(image, /push: \$\{\{ github\.event_name != 'pull_request' \}\}/);
+  assert.match(image, /provenance: \$\{\{ github\.event_name != 'pull_request' \}\}/);
+  assert.match(image, /sbom: \$\{\{ github\.event_name != 'pull_request' \}\}/);
+  assert.match(image, /Image validated without publication/);
+  assert.doesNotMatch(image, /push: true/);
+});
