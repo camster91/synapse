@@ -66,6 +66,8 @@ export default function DashboardPage() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [reflection, setReflection] = useState("");
   const [savingReflection, setSavingReflection] = useState(false);
+  const [capturing, setCapturing] = useState(false);
+  const [captureError, setCaptureError] = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -89,8 +91,10 @@ export default function DashboardPage() {
   }, []);
 
   const handleQuickCapture = async () => {
-    if (!quickCapture.trim()) return;
+    if (!quickCapture.trim() || !data || capturing) return;
     const prevCapture = quickCapture;
+    setCapturing(true);
+    setCaptureError(null);
     setQuickCapture("");
     try {
       const res = await fetch("/api/inbox", {
@@ -99,9 +103,17 @@ export default function DashboardPage() {
         body: JSON.stringify({ content: prevCapture.trim() }),
       });
       if (!res.ok) throw new Error("Failed to capture");
+      const capturedItem = await res.json();
+      setData({
+        ...data,
+        inboxItems: [capturedItem, ...data.inboxItems],
+        inboxUnprocessed: data.inboxUnprocessed + 1,
+      });
     } catch {
       setQuickCapture(prevCapture);
-      alert("Failed to capture. Please try again.");
+      setCaptureError("We could not save that capture. Your draft has been restored.");
+    } finally {
+      setCapturing(false);
     }
   };
 
@@ -279,18 +291,19 @@ export default function DashboardPage() {
           type="text"
           value={quickCapture}
           onChange={(e) => setQuickCapture(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && handleQuickCapture()}
+          onKeyDown={(e) => e.key === "Enter" && void handleQuickCapture()}
           placeholder="Capture a thought, task, or idea..."
           className="flex-1 px-4 py-3 bg-card border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring transition-all"
         />
         <button
           onClick={handleQuickCapture}
-          disabled={!quickCapture.trim()}
+          disabled={!quickCapture.trim() || capturing}
           className="px-6 py-3 bg-primary text-primary-foreground rounded-xl text-sm font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
-          Capture
+          {capturing ? "Capturing..." : "Capture"}
         </button>
       </div>
+      {captureError && <p role="alert" className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">{captureError}</p>}
 
       {/* Welcome */}
       <div>

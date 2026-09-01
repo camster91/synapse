@@ -39,7 +39,7 @@ Last reconciled: 2026-09-01 against branch
   smoke testing remains blocked.
 - Credentials auth, tenant-scoped habits, tasks, notes/backlinks, calendar, goals,
   journal, inbox, gamification, plugins, export, and read-only AI chat tools exist.
-- The current PR #55 candidate has 131 passing local tests, passing typecheck,
+- The current PR #55 candidate has 132 passing local tests, passing typecheck,
   zero-warning lint, and a passing
   production build. Hosted Build, Lint, Ashbi Local CI, GitGuardian, and the
   read-only dual-architecture image validation all pass.
@@ -216,9 +216,9 @@ AI acceptance, and production reliability still require scoped instrumentation.
      context, and recent inbox captures. Users can complete tasks/habits, deliberately
      move work to tomorrow, triage captures, and close the day with a reflection in
      place; failures restore optimistic state or preserve the reflection draft.
-   - Evidence: the current 131-test suite, typecheck, zero-warning lint, and
-     production build pass. Rendered task and habit completion passed; broader
-     timezone, inbox-triage, rescheduling, and reflection journey QA remains.
+   - Evidence: the current 132-test suite, typecheck, zero-warning lint, and
+     production build pass. Rendered task, habit, inbox-triage, and deliberate
+     rescheduling journeys passed; timezone and reflection journey QA remains.
 4. **Production-like pilot readiness — partially implemented; external decisions remain.**
    - Docker image/migrations, health/authenticated smoke test, monitoring, backups,
      rollback, support path, and five-user pilot protocol. Blocked by runtime/hosting,
@@ -477,3 +477,8 @@ External issue comments or closure require owner approval.
   empty states in an Escape-dismissible dialog with navigable grouped results.
   Coverage includes Todos, Notes, Journal, Goals, Calendar, Habits, Inbox, and AI
   conversations; conversation results deep-link only after tenant membership is verified.
+- 2026-09-01: rendered Today QA exposed successful quick captures disappearing
+  from view. Today now inserts the confirmed inbox item immediately, updates the
+  unprocessed count, blocks duplicate requests, and restores failed drafts visibly.
+  Authenticated rendered QA also passed for inbox archive triage and deliberate
+  move-to-tomorrow rescheduling without a recovery error.
