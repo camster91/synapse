@@ -8,9 +8,9 @@ import { NotificationBell } from "./NotificationBell";
 
 interface HeaderProps {
   onSearch?: (query: string) => void;
-  onAddTodo?: (title: string) => void;
-  onAddNote?: (title: string) => void;
-  onAddInbox?: (content: string) => void;
+  onAddTodo?: (title: string) => Promise<void>;
+  onAddNote?: (title: string) => Promise<void>;
+  onAddInbox?: (content: string) => Promise<void>;
   onToggleSidebar?: () => void;
 }
 

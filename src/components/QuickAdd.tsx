@@ -10,9 +10,9 @@ import {
 } from "lucide-react";
 
 interface QuickAddProps {
-  onAddTodo?: (title: string) => void;
-  onAddNote?: (title: string) => void;
-  onAddInbox?: (content: string) => void;
+  onAddTodo?: (title: string) => Promise<void>;
+  onAddNote?: (title: string) => Promise<void>;
+  onAddInbox?: (content: string) => Promise<void>;
 }
 
 type QuickAddType = "todo" | "note" | "inbox";
@@ -27,6 +27,8 @@ export default function QuickAdd({ onAddTodo, onAddNote, onAddInbox }: QuickAddP
   const [isOpen, setIsOpen] = useState(false);
   const [inputValue, setInputValue] = useState("");
   const [activeType, setActiveType] = useState<QuickAddType>("inbox");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -40,22 +42,30 @@ export default function QuickAdd({ onAddTodo, onAddNote, onAddInbox }: QuickAddP
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const handleSubmit = () => {
-    if (!inputValue.trim()) return;
+  const handleSubmit = async () => {
+    if (!inputValue.trim() || submitting) return;
 
-    switch (activeType) {
-      case "todo":
-        onAddTodo?.(inputValue.trim());
-        break;
-      case "note":
-        onAddNote?.(inputValue.trim());
-        break;
-      case "inbox":
-        onAddInbox?.(inputValue.trim());
-        break;
+    setSubmitting(true);
+    setError(null);
+    try {
+      switch (activeType) {
+        case "todo":
+          await onAddTodo?.(inputValue.trim());
+          break;
+        case "note":
+          await onAddNote?.(inputValue.trim());
+          break;
+        case "inbox":
+          await onAddInbox?.(inputValue.trim());
+          break;
+      }
+      setInputValue("");
+      setIsOpen(false);
+    } catch {
+      setError(`Unable to create ${activeType}. Your text has been preserved.`);
+    } finally {
+      setSubmitting(false);
     }
-    setInputValue("");
-    setIsOpen(false);
   };
 
   const activeOption = addOptions.find((o) => o.type === activeType)!;
@@ -101,19 +111,20 @@ export default function QuickAdd({ onAddTodo, onAddNote, onAddInbox }: QuickAddP
                 type="text"
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
+                onKeyDown={(e) => e.key === "Enter" && void handleSubmit()}
                 placeholder={`${activeOption.label}...`}
                 className="flex-1 px-3 py-2 bg-background border border-input rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                 autoFocus
               />
               <button
                 onClick={handleSubmit}
-                disabled={!inputValue.trim()}
+                disabled={!inputValue.trim() || submitting}
                 className="px-3 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                Add
+                {submitting ? "Adding..." : "Add"}
               </button>
             </div>
+            {error && <p role="alert" className="mt-2 text-xs text-destructive">{error}</p>}
           </div>
         </div>
       )}

@@ -39,7 +39,7 @@ Last reconciled: 2026-09-01 against branch
   smoke testing remains blocked.
 - Credentials auth, tenant-scoped habits, tasks, notes/backlinks, calendar, goals,
   journal, inbox, gamification, plugins, export, and read-only AI chat tools exist.
-- The current PR #55 candidate has 119 passing local tests, passing typecheck,
+- The current PR #55 candidate has 121 passing local tests, passing typecheck,
   zero-warning lint, and a passing
   production build. Hosted Build, Lint, Ashbi Local CI, GitGuardian, and the
   read-only dual-architecture image validation all pass.
@@ -462,3 +462,7 @@ External issue comments or closure require owner approval.
 - 2026-09-01: Chat now distinguishes failed conversation-list and history/action
   requests from an empty conversation, supports retry, ignores superseded loads,
   and removes a conversation from the UI only after the server confirms deletion.
+- 2026-09-01: global Quick Add now awaits Todo, Note, and Inbox creation instead
+  of clearing the draft optimistically. Failed requests preserve the entered text,
+  explain the failure accessibly, and keep duplicate submissions disabled while a
+  request is pending.

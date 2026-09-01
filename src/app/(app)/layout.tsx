@@ -40,27 +40,30 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }, []);
 
   const handleAddTodo = async (title: string) => {
-    await fetch("/api/todos", {
+    const response = await fetch("/api/todos", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ title, status: "INBOX" }),
     });
+    if (!response.ok) throw new Error("Todo creation failed");
   };
 
   const handleAddNote = async (title: string) => {
-    await fetch("/api/notes", {
+    const response = await fetch("/api/notes", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ title, content: "" }),
     });
+    if (!response.ok) throw new Error("Note creation failed");
   };
 
   const handleAddInbox = async (content: string) => {
-    await fetch("/api/inbox", {
+    const response = await fetch("/api/inbox", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ content }),
     });
+    if (!response.ok) throw new Error("Inbox creation failed");
   };
 
   return (
