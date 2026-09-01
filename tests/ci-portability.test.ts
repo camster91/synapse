@@ -44,4 +44,7 @@ test("pull-request image checks cannot publish release artifacts", () => {
   assert.match(publicationJob, /docker\/login-action@v3/);
   assert.match(publicationJob, /push: true/);
   assert.match(image, /concurrency:\s+group: build-\$\{\{ github\.ref \}\}\s+cancel-in-progress: true/);
+  assert.equal((image.match(/cache-from: type=gha,scope=synapse-image/g) ?? []).length, 2);
+  assert.equal((image.match(/cache-to: type=gha,mode=max,scope=synapse-image/g) ?? []).length, 2);
+  assert.doesNotMatch(image, /\.buildx-cache|type=local/);
 });
