@@ -215,9 +215,10 @@ AI acceptance, and production reliability still require scoped instrumentation.
      disclose them, and `npm run metrics:pilot` returns aggregates only. Synthetic
      PostgreSQL verification proved migration, daily deduplication, target rules,
      empty-state reporting, and deletion; it is not customer evidence.
-   - Pull-request image validation is build-only: it does not authenticate to GHCR,
-     publish an image, create attestations, or mutate release-like tags. Only an
-     explicit main/version-tag event retains image publication behavior.
+   - Pull-request image validation is a separate read-only job: it cannot receive
+     package/attestation write permission, authenticate to GHCR, publish an image,
+     create attestations, or mutate release-like tags. Only an explicit main/version-
+     tag event can enter the separately permissioned publication job.
 5. **AI evaluation and confirmation — task-creation slice implemented; broader evaluation pending.**
    - Representative evaluation set, privacy disclosure, cost/latency tracking,
      explicit mutation confirmation, correction/undo, outage behavior.
@@ -382,7 +383,8 @@ External issue comments or closure require owner approval.
 - 2026-09-01: exact-SHA hosted Build passed after the economics checkpoint and
   exposed deprecated Node 20 action runtimes. Hosted workflows now use the Node 24-
   based checkout/setup action majors, with a contract preventing regression.
-- 2026-09-01: PR image validation was separated from release mutation. Pull requests
-  still exercise the multi-architecture Docker build, but cannot log into GHCR, push
-  images, create attestations, or overwrite `latest`; main/version-tag publication
-  remains an explicitly triggered release path.
+- 2026-09-01: PR image validation was separated into a read-only job from release
+  mutation. Pull requests still exercise the multi-architecture Docker build, but
+  cannot obtain package/attestation write permission, log into GHCR, push images,
+  create attestations, or overwrite `latest`; main/version-tag publication remains
+  an explicitly triggered, separately permissioned release path.

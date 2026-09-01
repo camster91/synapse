@@ -30,10 +30,17 @@ test("GitHub workflows use action runtimes supported by the hosted runner", () =
 });
 
 test("pull-request image checks cannot publish release artifacts", () => {
-  assert.match(image, /if: github\.event_name != 'pull_request'\s+uses: docker\/login-action@v3/);
-  assert.match(image, /push: \$\{\{ github\.event_name != 'pull_request' \}\}/);
-  assert.match(image, /provenance: \$\{\{ github\.event_name != 'pull_request' \}\}/);
-  assert.match(image, /sbom: \$\{\{ github\.event_name != 'pull_request' \}\}/);
-  assert.match(image, /Image validated without publication/);
-  assert.doesNotMatch(image, /push: true/);
+  const [validationJob, publicationJob] = image.split("\n  publish:");
+
+  assert.match(validationJob, /if: github\.event_name == 'pull_request'/);
+  assert.match(validationJob, /permissions:\s+contents: read/);
+  assert.match(validationJob, /push: false/);
+  assert.match(validationJob, /provenance: false/);
+  assert.match(validationJob, /sbom: false/);
+  assert.doesNotMatch(validationJob, /packages: write|docker\/login-action|push: true/);
+
+  assert.match(publicationJob, /if: github\.event_name != 'pull_request'/);
+  assert.match(publicationJob, /packages: write/);
+  assert.match(publicationJob, /docker\/login-action@v3/);
+  assert.match(publicationJob, /push: true/);
 });
