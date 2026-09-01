@@ -230,9 +230,42 @@ export const toolDefinitions: ToolDef[] = [
  * explicit confirmation card. Read-only tools are safe to execute immediately.
  */
 const READ_ONLY_TOOL_NAMES = new Set(["search_notes", "get_habits_status", "get_todos"]);
+export function isReadOnlyToolName(toolName: string): boolean {
+  return READ_ONLY_TOOL_NAMES.has(toolName);
+}
 export const readOnlyToolDefinitions = toolDefinitions.filter((tool) =>
   READ_ONLY_TOOL_NAMES.has(tool.name)
 );
+
+const CONFIRMABLE_TOOL_NAMES = new Set(["create_todo"]);
+export const confirmableToolDefinitions = toolDefinitions.filter(
+  (tool) => READ_ONLY_TOOL_NAMES.has(tool.name) || CONFIRMABLE_TOOL_NAMES.has(tool.name)
+);
+
+export function prepareActionProposal(toolName: string, rawParams: unknown) {
+  if (toolName !== "create_todo") {
+    return { success: false as const, error: "This action is not available for confirmation" };
+  }
+  const parsed = createTodoSchema.safeParse(rawParams);
+  if (!parsed.success) {
+    return {
+      success: false as const,
+      error: parsed.error.issues.map((issue) => issue.message).join(", "),
+    };
+  }
+  return {
+    success: true as const,
+    arguments: parsed.data,
+    summary: `Create task: ${parsed.data.title}`,
+    details: {
+      title: parsed.data.title,
+      description: parsed.data.description ?? null,
+      priority: parsed.data.priority,
+      dueDate: parsed.data.dueDate ?? null,
+      status: parsed.data.status,
+    },
+  };
+}
 
 // ─── Tool Executors ──────────────────────────────────────────────────────────
 

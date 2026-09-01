@@ -56,6 +56,7 @@ model User {
   notifications Notification[]
   pushSubscriptions PushSubscription[]
   productEvents ProductEvent[]
+  aiActionProposals AiActionProposal[]
 
   @@map("users")
 }
@@ -526,8 +527,40 @@ model AiConversation {
 
   user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   messages    AiMessage[]
+  actionProposals AiActionProposal[]
 
   @@map("ai_conversations")
+}
+
+enum AiActionStatus {
+  PENDING
+  APPLIED
+  REJECTED
+  UNDONE
+  EXPIRED
+}
+
+model AiActionProposal {
+  id             String         @id @default(cuid())
+  userId         String
+  conversationId String
+  toolName       String
+  arguments      Json
+  summary        String
+  status         AiActionStatus @default(PENDING)
+  result         Json?
+  expiresAt      DateTime
+  appliedAt      DateTime?
+  undoExpiresAt  DateTime?
+  undoneAt       DateTime?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  conversation AiConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status, createdAt])
+  @@map("ai_action_proposals")
 }
 
 model AiMessage {

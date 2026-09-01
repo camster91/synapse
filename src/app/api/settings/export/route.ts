@@ -76,7 +76,7 @@ export async function GET() {
       prisma.xpTransaction.findMany({ where: { userId } }),
       prisma.aiConversation.findMany({
         where: { userId },
-        include: { messages: true },
+        include: { messages: true, actionProposals: true },
       }),
       prisma.attachment.findMany({ where: { userId } }),
       prisma.userPlugin.findMany({

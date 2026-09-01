@@ -3,7 +3,7 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { getDefaultModel, getProviderForUser, type ChatMessage } from '@/lib/ai/provider';
 import { buildUserContext } from '@/lib/ai/context';
-import { readOnlyToolDefinitions, toolExecutors } from '@/lib/ai/tools';
+import { confirmableToolDefinitions, isReadOnlyToolName, prepareActionProposal, toolExecutors } from '@/lib/ai/tools';
 import { serializeTextEvent } from '@/lib/ai/events';
 
 const SYSTEM_PROMPT = `You are Synapse, an AI second brain and life management assistant. You help users manage their habits, todos, notes, journal, calendar, goals, and inbox through natural conversation.
@@ -11,12 +11,13 @@ const SYSTEM_PROMPT = `You are Synapse, an AI second brain and life management a
 Key principles:
 - Be concise and actionable in your responses
 - Read data with the available tools when it helps answer the user
-- For any change to tasks, habits, notes, calendar, or inbox, describe the proposed change and ask for confirmation; do not claim it was completed
+- Task creation may be proposed through the create_todo tool, but it is never applied until the user confirms the review card
+- Other changes to tasks, habits, notes, calendar, or inbox are unavailable; describe them as suggestions without claiming completion
 - Reference the user's current data when relevant
 - When in doubt, ask for clarification rather than assuming
 - Keep responses focused and avoid unnecessary verbosity
 
-You have access to tools that let you create todos, log habits, create notes, add inbox items, create calendar events, search notes, check habits status, get todos, and set reminders. Use them whenever the user's request calls for action.`;
+You can read notes, habits, and todos. You can propose creating a task for explicit confirmation. Never claim a proposed action has already happened.`;
 
 const MAX_TOOL_ITERATIONS = 5;
 
@@ -115,7 +116,7 @@ export async function POST(request: Request) {
           while (iteration < MAX_TOOL_ITERATIONS) {
             const result = await provider.chat(currentMessages, {
               systemPrompt: fullSystemPrompt,
-              tools: readOnlyToolDefinitions,
+              tools: confirmableToolDefinitions,
             });
 
             if (result.usage) {
@@ -138,6 +139,7 @@ export async function POST(request: Request) {
 
             // We have tool calls — execute them
             const toolResults: { id: string; name: string; result: string }[] = [];
+            let proposalCreated = false;
 
             for (const toolCall of result.toolCalls) {
               const toolName = toolCall.function.name;
@@ -152,7 +154,43 @@ export async function POST(request: Request) {
               controller.enqueue(encoder.encode(`data: ${toolStartChunk}\n\n`));
 
               let toolResult: string;
-              if (executor) {
+              if (toolName === 'create_todo') {
+                try {
+                  const prepared = prepareActionProposal(
+                    toolName,
+                    JSON.parse(toolCall.function.arguments)
+                  );
+                  if (!prepared.success) {
+                    toolResult = JSON.stringify({ success: false, error: prepared.error });
+                  } else {
+                    const proposal = await prisma.aiActionProposal.create({
+                      data: {
+                        userId,
+                        conversationId: conversationIdResolved!,
+                        toolName,
+                        arguments: prepared.arguments,
+                        summary: prepared.summary,
+                        expiresAt: new Date(Date.now() + 30 * 60 * 1000),
+                      },
+                    });
+                    proposalCreated = true;
+                    toolResult = JSON.stringify({ success: true, pendingConfirmation: true });
+                    const proposalChunk = JSON.stringify({
+                      type: 'action_proposal',
+                      action: {
+                        id: proposal.id,
+                        summary: proposal.summary,
+                        details: prepared.details,
+                        status: proposal.status,
+                        expiresAt: proposal.expiresAt,
+                      },
+                    });
+                    controller.enqueue(encoder.encode(`data: ${proposalChunk}\n\n`));
+                  }
+                } catch {
+                  toolResult = JSON.stringify({ success: false, error: 'Invalid task proposal' });
+                }
+              } else if (isReadOnlyToolName(toolName) && executor) {
                 try {
                   const params = JSON.parse(toolCall.function.arguments);
                   const execResult = await executor(userId, params);
@@ -184,6 +222,16 @@ export async function POST(request: Request) {
                 result: JSON.parse(toolResult),
               });
               controller.enqueue(encoder.encode(`data: ${toolEndChunk}\n\n`));
+            }
+
+            if (proposalCreated) {
+              const proposalMessage = result.content?.trim() ||
+                'Review the proposed task below. Nothing will change unless you confirm it.';
+              assistantContent += proposalMessage;
+              controller.enqueue(
+                encoder.encode(`data: ${serializeTextEvent(proposalMessage)}\n\n`)
+              );
+              break;
             }
 
             // Add assistant message with tool calls to conversation

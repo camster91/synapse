@@ -194,9 +194,20 @@ AI acceptance, and production reliability still require scoped instrumentation.
      disclose them, and `npm run metrics:pilot` returns aggregates only. Synthetic
      PostgreSQL verification proved migration, daily deduplication, target rules,
      empty-state reporting, and deletion; it is not customer evidence.
-5. **AI evaluation and confirmation — proposed.**
+5. **AI evaluation and confirmation — task-creation slice implemented; broader evaluation pending.**
    - Representative evaluation set, privacy disclosure, cost/latency tracking,
      explicit mutation confirmation, correction/undo, outage behavior.
+   - Task creation is now the only confirmable AI mutation exposed to chat. The
+     model can persist a normalized proposal, but only an authenticated, tenant-
+     scoped confirmation route can create the task. Review cards show all stored
+     parameters; proposals expire after 30 minutes; duplicate decisions are claimed
+     once; rejection changes nothing; and a 10-minute undo deletes only an unchanged
+     AI-created task. Edited tasks fail closed instead of losing user work. Proposal
+     and decision history is durable and included in portable export.
+   - `npm run metrics:ai-actions` reports confirmation, rejection, expiration, and
+     undo aggregates only for users who opted into pilot measurement. It deliberately
+     does not claim to replace the representative quality evaluation set. Other AI
+     mutations remain disabled pending equivalent confirmation and recovery design.
 6. **Pricing validation and billing — proposed.**
    - Measure costs and willingness to pay; obtain owner approval before any public
    price or payment behavior; implement cancellation and entitlement recovery.
@@ -210,7 +221,7 @@ External issue comments or closure require owner approval.
 |---|---|---|
 | #49 — Restore production dependency-PR validation | Open P0 blocker. Current Build job again failed with zero steps; Ashbi Local CI and image/lint jobs remain pending. | Account owner restores runner capacity/quota; rerun authoritative checks. |
 | #29 — Production Compose credentials/health | Implemented on PR #55: required credentials fail closed, PostgreSQL has no host port, configured healthcheck exists, startup migration/reconciliation and app readiness are covered. | Keep open until image + database smoke test passes with Docker. |
-| #28 — TODOs/tests/description | Verified fixed: package description exists, 81 tests pass, and source contains no TODO/FIXME markers; enum value `TODO` is application data, not a marker. | Ready for owner-approved evidence comment and closure. |
+| #28 — TODOs/tests/description | Verified fixed: package description exists, 86 tests pass, and source contains no TODO/FIXME markers; enum value `TODO` is application data, not a marker. | Ready for owner-approved evidence comment and closure. |
 | #27 — Clickable navigation/calendar divs | Verified fixed: navigation backdrop and calendar days are semantic buttons with accessible names; accessibility contracts pass. | Ready for owner-approved evidence comment and closure. |
 
 ## Decision log
@@ -220,10 +231,12 @@ External issue comments or closure require owner approval.
   Alternatives: generic second brain, AI work suite, task manager, team workspace.
   Reversal condition: target-user interviews show a different urgent job and actual
   switching intent. Owner: product owner; state: proposed/researched, not approved.
-- **2026-08-28 — Keep AI mutations read-only until confirmation exists.**
-  Evidence: mutation executors exist, but no safe confirmation/undo UX or evaluation.
-  Reversal condition: confirmation, authorization, evaluation, and recovery pass.
-  State: implemented safety constraint.
+- **2026-08-31 — Enable only confirmed AI task creation.**
+  Evidence: durable tenant-scoped proposals, complete parameter review, single-claim
+  confirmation, expiry, reject, and edit-safe undo passed authenticated runtime checks.
+  Other mutation executors remain unreachable from chat. Reversal condition: disable
+  the slice if representative evaluation or pilot acceptance misses its target.
+  State: implemented for task creation; broader actions and evaluation remain pending.
 
 ## Risk and blocker register
 
@@ -238,7 +251,7 @@ External issue comments or closure require owner approval.
 | High | No legal identity, privacy, or terms | Owner/legal approval required | Product owner |
 | Medium | Landing promise needs customer comprehension and conversion evidence | Public copy is implementation-truthful; validate in pilot | Product |
 | Medium | Pilot metrics have no real-customer baseline; daily-plan success and external alerts remain absent | Opt-in aggregate activation/engagement/export metrics and local health/error signals verified; obtain pilot consent and operator-owned collection/alerts before relying on targets | Product owner + operator |
-| Medium | AI quality, privacy, latency, and cost unmeasured | Keep mutations disabled; item 5 | Engineering/product |
+| Medium | AI task creation has confirmation/undo and consented decision metrics, but quality, latency, cost, and broader actions remain unmeasured | Keep every other mutation disabled; build and pass the representative evaluation set before expansion | Engineering/product |
 | Resolved | Raw browser-push delivery permitted tenant-controlled outbound requests | Unsafe sender removed; in-app notifications remain until standards-compliant Web Push exists | Engineering |
 | Resolved | Uploads lacked aggregate tenant/storage quotas | Atomic 512 MB account reservations, migration backfill, and deletion release verified | Engineering |
 | Resolved | Interrupted upload/file deletion could retain untracked bytes | Production startup now removes orphan/trash residue and rebuilds quota accounting after migrations | Engineering |
@@ -305,3 +318,10 @@ External issue comments or closure require owner approval.
   retention rules, opt-out cleanup, and empty-state output; the synthetic fixture was
   removed. All 81 tests, Prisma validation/generation, typecheck, zero-warning lint,
   and production build pass. No customer baseline is claimed.
+- 2026-08-31: AI-proposed task creation gained durable 30-minute review cards,
+  complete parameter disclosure, tenant-scoped single-claim confirm/reject decisions,
+  and a 10-minute undo that refuses to delete a subsequently edited task. Authenticated
+  runtime checks against isolated PostgreSQL proved success, duplicate-confirm denial,
+  unchanged-task undo, edited-task preservation, expiry, rejection, and cross-tenant
+  denial. Consented aggregate decision reporting and portable export coverage were
+  added; no real-user acceptance or quality baseline is claimed.
