@@ -43,4 +43,5 @@ test("pull-request image checks cannot publish release artifacts", () => {
   assert.match(publicationJob, /packages: write/);
   assert.match(publicationJob, /docker\/login-action@v3/);
   assert.match(publicationJob, /push: true/);
+  assert.match(image, /concurrency:\s+group: build-\$\{\{ github\.ref \}\}\s+cancel-in-progress: true/);
 });

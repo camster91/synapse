@@ -218,7 +218,8 @@ AI acceptance, and production reliability still require scoped instrumentation.
    - Pull-request image validation is a separate read-only job: it cannot receive
      package/attestation write permission, authenticate to GHCR, publish an image,
      create attestations, or mutate release-like tags. Only an explicit main/version-
-     tag event can enter the separately permissioned publication job.
+     tag event can enter the separately permissioned publication job. Superseded
+     same-ref image runs are cancelled so the latest candidate owns the gate.
 5. **AI evaluation and confirmation — task-creation slice implemented; broader evaluation pending.**
    - Representative evaluation set, privacy disclosure, cost/latency tracking,
      explicit mutation confirmation, correction/undo, outage behavior.
