@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { recordProductEvent } from "@/lib/product-metrics";
+import { dateOnlyToUtc } from "@/lib/date-validation";
+import { addDaysToDayKey, localDayBounds, safeTimeZone } from "@/lib/timezone";
 
 export async function GET() {
   const session = await auth();
@@ -12,20 +14,27 @@ export async function GET() {
   const userId = session.user.id;
 
   try {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-
-    const threeDaysAgo = new Date(today);
-    threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        xp: true,
+        level: true,
+        streakDays: true,
+        name: true,
+        timezone: true,
+      },
+    });
+    const timezone = safeTimeZone(user?.timezone ?? "UTC");
+    const { dayKey, start: today, end: tomorrow } = localDayBounds(new Date(), timezone);
+    const habitToday = dateOnlyToUtc(dayKey);
+    const habitTomorrow = dateOnlyToUtc(addDaysToDayKey(dayKey, 1));
+    const threeDaysAgo = dateOnlyToUtc(addDaysToDayKey(dayKey, -3));
 
     // Run all queries in parallel
     const [
       habitsWithLogs,
       activeTodos,
       todayEvents,
-      user,
       recentJournal,
       unprocessedInboxCount,
       activeGoals,
@@ -37,7 +46,7 @@ export async function GET() {
         include: {
           logs: {
             where: {
-              date: { gte: today, lt: tomorrow },
+              date: { gte: habitToday, lt: habitTomorrow },
             },
           },
         },
@@ -51,7 +60,7 @@ export async function GET() {
           status: { in: ["INBOX", "TODO", "IN_PROGRESS"] },
           OR: [
             { scheduledAt: { gte: today, lt: tomorrow } },
-            { dueDate: { lt: tomorrow } },
+            { dueDate: { lt: habitTomorrow } },
             { scheduledAt: null, dueDate: null, priority: { gte: 3 } },
           ],
         },
@@ -70,18 +79,6 @@ export async function GET() {
           startAt: { gte: today, lt: tomorrow },
         },
         orderBy: { startAt: "asc" },
-      }),
-
-      // User gamification data
-      prisma.user.findUnique({
-        where: { id: userId },
-        select: {
-          xp: true,
-          level: true,
-          streakDays: true,
-          name: true,
-          timezone: true,
-        },
       }),
 
       // Recent journal entry (last 3 days)
@@ -122,7 +119,7 @@ export async function GET() {
     await recordProductEvent({
       userId,
       name: "TODAY_OPENED",
-      timezone: user?.timezone ?? "UTC",
+      timezone,
     });
 
     return NextResponse.json({
@@ -138,6 +135,7 @@ export async function GET() {
         level: user?.level ?? 1,
         streakDays: user?.streakDays ?? 0,
         name: user?.name ?? null,
+        timezone,
       },
       recentJournal,
       unprocessedInbox: unprocessedInboxCount,

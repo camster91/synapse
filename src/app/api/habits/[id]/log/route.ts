@@ -6,6 +6,7 @@ import { sendPushNotification } from '@/lib/push';
 import { fireHookForUser } from '@/lib/plugins/executor';
 import { calculateActivityStreak } from '@/lib/streak';
 import { dateOnlyToUtc, isoDateSchema } from '@/lib/date-validation';
+import { localDayKey } from '@/lib/timezone';
 import { z } from 'zod/v4';
 
 const logHabitSchema = z.object({
@@ -29,10 +30,16 @@ export async function POST(
     const body = await request.json();
     const data = logHabitSchema.parse(body);
 
-    // Verify habit belongs to user
-    const habit = await prisma.habit.findFirst({
-      where: { id: habitId, userId: session.user.id },
-    });
+    // Verify habit ownership and resolve the account's current local day together.
+    const [habit, user] = await Promise.all([
+      prisma.habit.findFirst({
+        where: { id: habitId, userId: session.user.id },
+      }),
+      prisma.user.findUnique({
+        where: { id: session.user.id },
+        select: { longestStreak: true, timezone: true },
+      }),
+    ]);
 
     if (!habit) {
       return NextResponse.json({ error: 'Habit not found' }, { status: 404 });
@@ -40,7 +47,7 @@ export async function POST(
 
     const date = data.date
       ? dateOnlyToUtc(data.date)
-      : dateOnlyToUtc(new Date().toISOString().slice(0, 10));
+      : dateOnlyToUtc(localDayKey(new Date(), user?.timezone ?? 'UTC'));
 
     const log = await prisma.habitLog.upsert({
       where: { habitId_date: { habitId, date } },
@@ -59,17 +66,14 @@ export async function POST(
 
     // Recalculate streak
     try {
-      const [activity, user] = await Promise.all([
-        prisma.habitLog.findMany({
-          where: { userId: session.user.id, date: { lte: new Date() } },
-          select: { date: true },
-          orderBy: { date: 'desc' },
-        }),
-        prisma.user.findUnique({
-          where: { id: session.user.id },
-          select: { longestStreak: true, timezone: true },
-        }),
-      ]);
+      const activity = await prisma.habitLog.findMany({
+        where: {
+          userId: session.user.id,
+          date: { lte: dateOnlyToUtc(localDayKey(new Date(), user?.timezone ?? 'UTC')) },
+        },
+        select: { date: true },
+        orderBy: { date: 'desc' },
+      });
       const streakCount = calculateActivityStreak(
         activity.map(({ date }) => date),
         user?.timezone ?? 'UTC'

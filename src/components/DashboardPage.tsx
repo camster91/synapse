@@ -14,6 +14,7 @@ import {
   Archive,
 } from "lucide-react";
 import XpBar from "@/components/XpBar";
+import { addDaysToDayKey, localDayKey, safeTimeZone, zonedDateTimeToUtc } from "@/lib/timezone";
 
 interface DashboardHabit {
   id: string;
@@ -34,6 +35,7 @@ interface DashboardData {
   journal?: { content: string; mood: number | null; date: string } | null;
   inboxUnprocessed: number;
   userName?: string;
+  timezone: string;
 }
 
 function normalizeDashboard(raw: Record<string, unknown>): DashboardData {
@@ -55,6 +57,7 @@ function normalizeDashboard(raw: Record<string, unknown>): DashboardData {
     journal: (raw.recentJournal ?? raw.journal ?? null) as DashboardData["journal"],
     inboxUnprocessed: (raw.unprocessedInbox as number) ?? (raw.inboxUnprocessed as number) ?? 0,
     userName: (user.name as string) ?? (raw.userName as string) ?? undefined,
+    timezone: safeTimeZone((user.timezone as string) ?? "UTC"),
   };
 }
 
@@ -167,9 +170,8 @@ export default function DashboardPage() {
   const moveTodoToTomorrow = async (todoId: string) => {
     if (!data) return;
     const previous = data;
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    tomorrow.setHours(9, 0, 0, 0);
+    const tomorrowDay = addDaysToDayKey(localDayKey(new Date(), data.timezone), 1);
+    const tomorrow = zonedDateTimeToUtc(tomorrowDay, { hour: 9 }, data.timezone);
     setActionError(null);
     setData({ ...data, todos: data.todos.filter((todo) => todo.id !== todoId) });
     try {
@@ -211,7 +213,7 @@ export default function DashboardPage() {
     if (!data || !reflection.trim()) return;
     setSavingReflection(true);
     setActionError(null);
-    const date = new Date().toISOString().slice(0, 10);
+    const date = localDayKey(new Date(), data.timezone);
     try {
       const response = await fetch("/api/journal", {
         method: "POST",
@@ -311,7 +313,7 @@ export default function DashboardPage() {
           Welcome back{data.userName ? `, ${data.userName}` : ""}
         </h1>
         <p className="text-sm text-muted-foreground mt-1">
-          {new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
+          {new Date().toLocaleDateString("en-US", { timeZone: data.timezone, weekday: "long", month: "long", day: "numeric" })}
         </p>
       </div>
 
@@ -405,7 +407,7 @@ export default function DashboardPage() {
                   </div>
                   {todo.dueDate && (
                     <span className="text-xs text-muted-foreground">
-                      {new Date(todo.dueDate).toLocaleDateString()}
+                      {new Date(todo.dueDate).toLocaleDateString(undefined, { timeZone: "UTC" })}
                     </span>
                   )}
                   <button type="button" onClick={() => void moveTodoToTomorrow(todo.id)} className="ml-auto flex items-center gap-1 rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-muted hover:text-foreground" aria-label={`Move ${todo.title} to tomorrow`}>
@@ -485,7 +487,7 @@ export default function DashboardPage() {
                     <div className="min-w-0">
                       <p className="text-sm text-foreground truncate">{event.title}</p>
                       <p className="text-xs text-muted-foreground">
-                        {new Date(event.startAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
+                        {new Date(event.startAt).toLocaleTimeString([], { timeZone: data.timezone, hour: "numeric", minute: "2-digit" })}
                       </p>
                     </div>
                   </div>
@@ -508,7 +510,7 @@ export default function DashboardPage() {
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
                   <span className="text-lg">{data.journal.mood !== null ? moodEmojis[data.journal.mood - 1] : "✍️"}</span>
-                  <span className="text-xs text-muted-foreground">{new Date(data.journal.date).toLocaleDateString()}</span>
+                  <span className="text-xs text-muted-foreground">{new Date(data.journal.date).toLocaleDateString(undefined, { timeZone: "UTC" })}</span>
                 </div>
                 <p className="text-sm text-foreground/80 line-clamp-3">{data.journal.content.slice(0, 150)}</p>
               </div>

@@ -39,7 +39,7 @@ Last reconciled: 2026-09-01 against branch
   smoke testing remains blocked.
 - Credentials auth, tenant-scoped habits, tasks, notes/backlinks, calendar, goals,
   journal, inbox, gamification, plugins, export, and read-only AI chat tools exist.
-- The current PR #55 candidate has 139 passing local tests, passing typecheck,
+- The current PR #55 candidate has 142 passing local tests, passing typecheck,
   zero-warning lint, and a passing
   production build. Hosted Build, Lint, Ashbi Local CI, GitGuardian, and the
   read-only dual-architecture image validation all pass.
@@ -216,9 +216,11 @@ AI acceptance, and production reliability still require scoped instrumentation.
      context, and recent inbox captures. Users can complete tasks/habits, deliberately
      move work to tomorrow, triage captures, and close the day with a reflection in
      place; failures restore optimistic state or preserve the reflection draft.
-   - Evidence: the current 139-test suite, typecheck, zero-warning lint, and
+   - Evidence: the current 142-test suite, typecheck, zero-warning lint, and
      production build pass. Rendered task, habit, inbox-triage, deliberate
-     rescheduling, and reflection journeys passed; timezone journey QA remains.
+     rescheduling, and reflection journeys passed. Account-timezone day boundaries,
+     DST transitions, local habit logging, display, and 9:00 tomorrow scheduling are
+     covered deterministically; rendered boundary QA remains.
 4. **Production-like pilot readiness — partially implemented; external decisions remain.**
    - Docker image/migrations, health/authenticated smoke test, monitoring, backups,
      rollback, support path, and five-user pilot protocol. Blocked by runtime/hosting,
@@ -523,3 +525,7 @@ target and artifact immediately before changing external state.
 - 2026-09-01: authenticated Today reflection QA saved a close-the-day entry, showed
   the confirmed content in the Journal card, removed the editor, and exposed no
   recovery error. The disposable local account retains that QA journal entry.
+- 2026-09-01: Today now derives task/event bounds, date-only habit and journal days,
+  displayed dates/times, reflection dates, and move-to-tomorrow scheduling from the
+  account timezone. DST start/end tests prove 23- and 25-hour day boundaries, and
+  habit logging no longer defaults to the server's UTC date.

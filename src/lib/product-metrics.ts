@@ -1,20 +1,8 @@
 import type { ProductEventName } from "@/generated/prisma/enums";
 import { prisma } from "@/lib/prisma";
+import { localDayKey } from "@/lib/timezone";
 
-export function localDayKey(date: Date, timezone: string): string {
-  try {
-    const parts = new Intl.DateTimeFormat("en-CA", {
-      timeZone: timezone,
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    }).formatToParts(date);
-    const value = Object.fromEntries(parts.map((part) => [part.type, part.value]));
-    return `${value.year}-${value.month}-${value.day}`;
-  } catch {
-    return date.toISOString().slice(0, 10);
-  }
-}
+export { localDayKey } from "@/lib/timezone";
 
 type EventContext = {
   userId: string;
