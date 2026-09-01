@@ -376,3 +376,6 @@ External issue comments or closure require owner approval.
   published Canadian card rate from editable infrastructure and support allowances,
   shows sensitivity at 5/25/100 accounts, and preserves the explicit public-pricing
   approval boundary. No vendor, spend, currency policy, or customer price is approved.
+- 2026-09-01: exact-SHA hosted Build passed after the economics checkpoint and
+  exposed deprecated Node 20 action runtimes. Hosted workflows now use the Node 24-
+  based checkout/setup action majors, with a contract preventing regression.
