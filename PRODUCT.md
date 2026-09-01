@@ -217,8 +217,8 @@ AI acceptance, and production reliability still require scoped instrumentation.
      move work to tomorrow, triage captures, and close the day with a reflection in
      place; failures restore optimistic state or preserve the reflection draft.
    - Evidence: the current 139-test suite, typecheck, zero-warning lint, and
-     production build pass. Rendered task, habit, inbox-triage, and deliberate
-     rescheduling journeys passed; timezone and reflection journey QA remains.
+     production build pass. Rendered task, habit, inbox-triage, deliberate
+     rescheduling, and reflection journeys passed; timezone journey QA remains.
 4. **Production-like pilot readiness — partially implemented; external decisions remain.**
    - Docker image/migrations, health/authenticated smoke test, monitoring, backups,
      rollback, support path, and five-user pilot protocol. Blocked by runtime/hosting,
@@ -520,3 +520,6 @@ target and artifact immediately before changing external state.
   same labeled field and global result dialog as desktop with a local close action.
   The mobile navigation close and desktop collapse controls now expose their action
   and expanded state to assistive technology.
+- 2026-09-01: authenticated Today reflection QA saved a close-the-day entry, showed
+  the confirmed content in the Journal card, removed the editor, and exposed no
+  recovery error. The disposable local account retains that QA journal entry.
