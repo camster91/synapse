@@ -28,6 +28,28 @@ npm run backup
 
 Never pass real credentials in tickets, chat, screenshots, or committed files.
 
+## Authenticated lifecycle smoke
+
+The lifecycle smoke creates one randomly credentialed synthetic account, signs in,
+creates a goal/habit/priority through onboarding, validates a portable export, proves
+wrong-password deletion fails without data loss, deletes with the correct credential,
+and proves the deleted credential cannot sign in again. When `DATABASE_URL` is
+provided, it also verifies zero remaining user and representative owned rows.
+
+Run it against a disposable local database first:
+
+```bash
+LIFECYCLE_SMOKE_BASE_URL='http://127.0.0.1:3000' \
+LIFECYCLE_SMOKE_CONFIRM='create-and-delete-disposable-account' \
+DATABASE_URL='postgresql://…/synapse_disposable' \
+npm run smoke:lifecycle
+```
+
+The command refuses remote targets by default. A remote run creates and deletes an
+account in that deployment and therefore requires explicit release/operator approval
+immediately beforehand plus `LIFECYCLE_SMOKE_ALLOW_REMOTE=true`. Never point the
+database assertion at a different deployment from the HTTP target.
+
 ## Restore drill
 
 The drill is deliberately destructive to its target database. Use a newly created,

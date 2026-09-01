@@ -197,8 +197,13 @@ AI acceptance, and production reliability still require scoped instrumentation.
      Credential-verified account deletion removes cascaded records and stages uploaded
      files recoverably; individual attachment deletion now uses the same recovery model.
    - Evidence: lifecycle contracts plus existing file rollback tests, typecheck,
-     zero-warning lint, and production build pass. Database-backed export/deletion,
-     restore, owner-approved policies, and backup drill remain release gates.
+     zero-warning lint, and production build pass. An authenticated disposable
+     PostgreSQL/API run proved anonymous export denial, goal/habit/task onboarding,
+     a complete credential-free portable archive, wrong-password deletion denial
+     with preservation, credential-confirmed deletion, zero remaining owned rows,
+     and failed reauthentication. `npm run smoke:lifecycle` makes the destructive
+     synthetic lifecycle repeatable behind explicit local/remote safety gates.
+     Rendered browser completion, restore, and owner-approved policies remain gates.
 3. **Daily plan vertical loop — implemented; automated/build verified, runtime journey pending.**
    - Connect inbox triage, top priorities, habits, real calendar events, deliberate
      rescheduling, and end-of-day reflection in one Today workflow.
@@ -288,7 +293,7 @@ External issue comments or closure require owner approval.
 | Severity | Risk | Mitigation/state | Owner |
 |---|---|---|---|
 | Critical | No production backup/restore evidence | Local database-plus-upload backup and representative restore drill pass; encrypted off-site schedule, retention, alerts, and production-like RPO/RTO proof remain blocked on owner/operator decisions | Product owner + operator |
-| High | Export/deletion lack authenticated runtime and restore-drill evidence | Roadmap item 2 | Engineering |
+| High | Export/deletion lack rendered browser and production-like host evidence | Authenticated PostgreSQL/API lifecycle and local restore drill pass; complete browser QA and approved-host rehearsal remain | Engineering/operator |
 | High | Onboarding lacks authenticated browser completion evidence | Roadmap item 1 in progress | Engineering/product |
 | High | Hosted Build/Lint now pass, but the current image run and external Ashbi Local CI remain pending without repository-visible Ashbi diagnostics | GitHub issue #49; verify image and diagnose external runner separately | Account owner + engineering |
 | High | Five default-branch dependency alerts | Patched versions verified on PR branch; default branch remains exposed until approved merge | Product owner + engineering |
@@ -398,3 +403,8 @@ External issue comments or closure require owner approval.
   install manifest, README, registration, landing, dashboard empty state, and AI
   framing. Generic “second brain” language is replaced by the narrower private
   goals-to-today daily operating system promise and protected by a contract test.
+- 2026-09-01: an authenticated disposable lifecycle proved registration, session
+  ownership, goal/habit/task onboarding, credential-free export, wrong-password
+  deletion preservation, correct-password cascade deletion, zero owned rows, and
+  failed reauthentication. The guarded `smoke:lifecycle` command preserves this as
+  a repeatable release gate; no production or customer data was used.
