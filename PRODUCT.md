@@ -186,6 +186,9 @@ AI acceptance, and production reliability still require scoped instrumentation.
    - Customer-facing metadata, install manifest, README, registration, landing,
      empty-state, and AI framing consistently use the focused private goals-to-today
      daily operating system position; generic “second brain” copy is removed.
+   - Registration and login expose accessible pending states, disable duplicate
+     submission, use touch-friendly controls, and recover from provider/network
+     failures without leaking raw authentication errors.
    - Evidence: activation contracts, typecheck, zero-warning lint, and production build
      pass. A disposable PostgreSQL database migrated and seeded successfully; desktop
      and 390 px public views render without clipping, and registration fields resolve
@@ -408,3 +411,7 @@ External issue comments or closure require owner approval.
   deletion preservation, correct-password cascade deletion, zero owned rows, and
   failed reauthentication. The guarded `smoke:lifecycle` command preserves this as
   a repeatable release gate; no production or customer data was used.
+- 2026-09-01: registration/login activation states were hardened with duplicate-
+  submission guards, accessible busy states, 44 px controls, stable customer-safe
+  provider errors, and explicit network recovery. Rendered account submission still
+  awaits browser action-time approval.

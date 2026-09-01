@@ -10,26 +10,38 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submitting) return;
     setError("");
+    setSubmitting(true);
 
-    const result = await signIn("credentials", {
-      email,
-      password,
-      redirect: false,
-    });
+    try {
+      const result = await signIn("credentials", {
+        email,
+        password,
+        redirect: false,
+      });
 
-    if (result?.error) {
-      setError(result.error === "CredentialsSignin"
-        ? "Invalid email or password"
-        : result.error);
-      return;
-    }
+      if (result?.error) {
+        setError(result.error === "CredentialsSignin"
+          ? "Invalid email or password"
+          : "Sign in is temporarily unavailable. Please try again.");
+        return;
+      }
 
-    if (result?.ok) {
-      router.push(postAuthenticationPath());
+      if (result?.ok) {
+        router.push(postAuthenticationPath());
+        return;
+      }
+
+      setError("Sign in is temporarily unavailable. Please try again.");
+    } catch {
+      setError("Unable to sign in. Check your connection and try again.");
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -44,7 +56,7 @@ export default function LoginPage() {
           <p className="text-sm text-muted-foreground mt-1">Sign in to your Synapse account</p>
         </div>
 
-        <form onSubmit={handleLogin} className="space-y-4">
+        <form onSubmit={handleLogin} aria-busy={submitting} className="space-y-4">
           {error && (
             <div role="alert" aria-live="polite" className="p-3 text-sm text-destructive bg-destructive/10 rounded-lg">
               {error}
@@ -63,7 +75,8 @@ export default function LoginPage() {
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com"
               required
-              className="w-full px-3 py-2 bg-background border border-input rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              disabled={submitting}
+              className="w-full min-h-11 px-3 py-2 bg-background border border-input rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-60"
             />
           </div>
 
@@ -78,15 +91,17 @@ export default function LoginPage() {
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Enter your password"
               required
-              className="w-full px-3 py-2 bg-background border border-input rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              disabled={submitting}
+              className="w-full min-h-11 px-3 py-2 bg-background border border-input rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-60"
             />
           </div>
 
           <button
             type="submit"
-            className="w-full px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors"
+            disabled={submitting}
+            className="w-full min-h-11 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors disabled:cursor-not-allowed disabled:opacity-60"
           >
-            Sign in
+            {submitting ? "Signing in…" : "Sign in"}
           </button>
         </form>
 
