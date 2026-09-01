@@ -34,13 +34,15 @@ Last reconciled: 2026-09-01 against branch
 - Private GitHub repository; no homepage or verified production deployment is
   connected to the repository.
 - Next.js web/PWA with PostgreSQL and Prisma; production Compose and a standalone
-  image exist. Current host has no Docker runtime, so image/database smoke testing
-  is blocked.
+  image exist. The exact PR #55 candidate builds successfully for `linux/amd64`
+  and `linux/arm64`. Current host has no Docker runtime, so image/database runtime
+  smoke testing remains blocked.
 - Credentials auth, tenant-scoped habits, tasks, notes/backlinks, calendar, goals,
   journal, inbox, gamification, plugins, export, and read-only AI chat tools exist.
-- PR #55 has 70 passing local tests, passing typecheck, zero-warning lint, and a
-  passing production build. GitGuardian passes; Ashbi Local CI is queued and issue
-  #49 tracks runner availability.
+- PR #55 exact SHA `ac9c90d2c34a5d052b1e3959fd5ee6f1b75f255e`
+  has 110 passing local tests, passing typecheck, zero-warning lint, and a passing
+  production build. Hosted Build, Lint, Ashbi Local CI, GitGuardian, and the
+  read-only dual-architecture image validation all pass.
 - The five current Dependabot alerts on the default branch are resolved in this PR
   branch: `deepmerge-ts` 8.0.0, `nanoid` 3.3.18, `find-my-way` 9.7.0,
   `valibot` 1.4.2, and `@babel/core` 7.29.7. Both full and production-only
@@ -50,9 +52,10 @@ Last reconciled: 2026-09-01 against branch
   account deletion now exist in code and automated coverage. The disposable local
   PostgreSQL environment successfully generated Prisma client code, applied the
   initial migration, seeded reference data, and served the public application.
-- Public desktop/mobile rendering and registration field semantics are browser
-  verified. Authenticated onboarding, export, and deletion remain browser-verification
-  gates pending approval to submit disposable local credentials in the browser.
+- Public desktop/mobile rendering, registration, authenticated onboarding, the
+  Today task/habit loop, portable export, sign-out, and safe protected deep-link
+  return are browser verified with a disposable local account. Rendered account
+  deletion remains pending explicit irreversible-action approval.
 - No billing, product analytics, external log destination/alerts, support path,
   automated off-site backup, terms, or privacy notice exists. Local liveness,
   database/filesystem readiness, privacy-minimal structured error logs, backup
@@ -91,8 +94,8 @@ Last reconciled: 2026-09-01 against branch
 |---|---|---|---|
 | Repository and GitHub | Available; authenticated | Approval required to merge if it releases | PR work can continue |
 | Local Node build/test | Available | None | Verified |
-| Docker runtime | Unavailable | Install/provide runtime or CI runner | Blocks image and migration smoke test |
-| GitHub-hosted runners | Unavailable before checkout | Account runner/quota/billing owner | Blocks authoritative PR checks |
+| Docker runtime | Unavailable locally; hosted image build available | Install/provide isolated runtime | Blocks image-plus-database runtime smoke test |
+| GitHub-hosted runners | Available | Keep required checks and runner capacity healthy | Exact-SHA checks pass |
 | Production hosting/domain | Unknown | Owner selection and credentials | Blocks release |
 | Analytics/monitoring/logs | Local health and structured signals implemented; collection/alerts absent | Operator destination and ownership; vendor spend needs approval | Blocks launch evidence |
 | Billing | Absent | Pricing and payment approval | Blocks paid launch, not pilot |
@@ -174,7 +177,7 @@ AI acceptance, and production reliability still require scoped instrumentation.
 
 ## Authoritative roadmap
 
-1. **Activation and truthful promise — implemented; public runtime verified, authenticated journey pending.**
+1. **Activation and truthful promise — implemented and rendered-journey verified.**
    - Outcome: new user completes a focused setup and reaches a useful Today plan.
    - Acceptance: onboarding routes from registration; creates or skips one goal,
      habit, and priority task; ends on Today with a visible next action; empty,
@@ -191,9 +194,8 @@ AI acceptance, and production reliability still require scoped instrumentation.
      failures without leaking raw authentication errors.
    - Evidence: activation contracts, typecheck, zero-warning lint, and production build
      pass. A disposable PostgreSQL database migrated and seeded successfully; desktop
-     and 390 px public views render without clipping, and registration fields resolve
-     by accessible label. Account submission and the authenticated continuation remain
-     pending action-time browser approval.
+     and 390 px public views render without clipping. Rendered registration, guided
+     onboarding, Today task/habit completion, and portable export passed.
 2. **Data lifecycle and trust — implemented in code; runtime and policy evidence pending.**
    - Portable JSON export includes profile, content, attachment records and embedded
      bytes, plugins, notifications, and an explicit credential-exclusion manifest.
@@ -207,16 +209,17 @@ AI acceptance, and production reliability still require scoped instrumentation.
      and failed reauthentication. `npm run smoke:lifecycle` makes the destructive
      synthetic lifecycle repeatable behind explicit local/remote safety gates.
      Rendered browser completion, restore, and owner-approved policies remain gates.
-3. **Daily plan vertical loop — implemented; automated/build verified, runtime journey pending.**
+3. **Daily plan vertical loop — implemented; core rendered journey verified.**
    - Connect inbox triage, top priorities, habits, real calendar events, deliberate
      rescheduling, and end-of-day reflection in one Today workflow.
    - Today returns focused goal-linked priorities, daily habits, active goals, schedule
      context, and recent inbox captures. Users can complete tasks/habits, deliberately
      move work to tomorrow, triage captures, and close the day with a reflection in
      place; failures restore optimistic state or preserve the reflection draft.
-   - Evidence: 53 tests, typecheck, zero-warning lint, and production build pass.
-     Timezone-backed runtime tests and database/browser verification remain.
-4. **Production-like pilot readiness — partially implemented; blocked.**
+   - Evidence: the current 110-test suite, typecheck, zero-warning lint, and
+     production build pass. Rendered task and habit completion passed; broader
+     timezone, inbox-triage, rescheduling, and reflection journey QA remains.
+4. **Production-like pilot readiness — partially implemented; external decisions remain.**
    - Docker image/migrations, health/authenticated smoke test, monitoring, backups,
      rollback, support path, and five-user pilot protocol. Blocked by runtime/hosting,
      runner, legal/support decisions, and customer access.
@@ -266,14 +269,14 @@ AI acceptance, and production reliability still require scoped instrumentation.
 
 ## GitHub issue register
 
-Reconciled 2026-09-01 against the repository issues and commit `0b573ce`.
+Reconciled 2026-09-01 against the repository issues and commit `ac9c90d`.
 External issue comments or closure require owner approval.
 
 | Issue | Evidence-backed disposition | Next action |
 |---|---|---|
-| #49 — Restore production dependency-PR validation | Hosted runner capacity and the repository CI contract are restored: corrected Build, Lint, and GitGuardian checks pass on PR #55. The image rerun and external Ashbi Local CI remain pending; Ashbi provides no repository-visible diagnostics. | Keep open until the image finishes and the external Ashbi runner passes or is separately diagnosed. |
+| #49 — Restore production dependency-PR validation | Exact-SHA Build, Lint, Ashbi Local CI, GitGuardian, and read-only dual-architecture image validation pass on PR #55. PR #48 is closed and superseded. | Keep open for required-check/branch-protection confirmation and qualified candidate review. |
 | #29 — Production Compose credentials/health | Implemented on PR #55: required credentials fail closed, PostgreSQL has no host port, configured healthcheck exists, startup migration/reconciliation and app readiness are covered. | Keep open until image + database smoke test passes with Docker. |
-| #28 — TODOs/tests/description | Closed completed on 2026-09-01 with exact-SHA evidence: package description exists, 99 tests pass, 33 test files exist, and source contains no TODO/FIXME markers; enum value `TODO` is application data, not a marker. | No further action. |
+| #28 — TODOs/tests/description | Closed completed on 2026-09-01 with exact-SHA evidence: package description exists, 110 tests pass, and source contains no TODO/FIXME markers; enum value `TODO` is application data, not a marker. | No further action. |
 | #27 — Clickable navigation/calendar divs | Closed completed on 2026-09-01 with exact-SHA evidence: navigation backdrop and calendar days are semantic buttons with accessible names; accessibility contracts pass. | No further action. |
 
 ## Decision log
@@ -300,9 +303,9 @@ External issue comments or closure require owner approval.
 | Severity | Risk | Mitigation/state | Owner |
 |---|---|---|---|
 | Critical | No production backup/restore evidence | Local database-plus-upload backup and representative restore drill pass; encrypted off-site schedule, retention, alerts, and production-like RPO/RTO proof remain blocked on owner/operator decisions | Product owner + operator |
-| High | Export/deletion lack rendered browser and production-like host evidence | Authenticated PostgreSQL/API lifecycle and local restore drill pass; complete browser QA and approved-host rehearsal remain | Engineering/operator |
-| High | Onboarding lacks authenticated browser completion evidence | Roadmap item 1 in progress | Engineering/product |
-| High | Hosted Build/Lint now pass, but the current image run and external Ashbi Local CI remain pending without repository-visible Ashbi diagnostics | GitHub issue #49; verify image and diagnose external runner separately | Account owner + engineering |
+| High | Deletion lacks rendered browser and production-like host evidence | Authenticated PostgreSQL/API lifecycle and local restore drill pass; browser deletion awaits explicit approval and approved-host rehearsal remains | Engineering/operator |
+| Resolved | Onboarding lacked authenticated browser completion evidence | Disposable rendered registration, onboarding, Today, and export journey passed | Engineering/product |
+| Medium | Exact-SHA technical checks pass, but required-check policy and qualified review remain unverified | GitHub issue #49 | Account owner + engineering |
 | High | Five default-branch dependency alerts | Patched versions verified on PR branch; default branch remains exposed until approved merge | Product owner + engineering |
 | High | Image/migrations untested together | GitHub issue #29 | Operator |
 | High | No legal identity, privacy, or terms | Owner/legal approval required | Product owner |
@@ -445,3 +448,6 @@ External issue comments or closure require owner approval.
 - 2026-09-01: Todos, Habits, and Goals no longer turn failed API loads into deceptive
   empty states. Each core planning collection now distinguishes loading, failure, and
   genuine emptiness, explains that data was not removed, and offers an accessible retry.
+- 2026-09-01: exact SHA `ac9c90d2c34a5d052b1e3959fd5ee6f1b75f255e`
+  passed hosted Build, Lint, Ashbi Local CI, GitGuardian, and a read-only cold-cache
+  `linux/amd64,linux/arm64` image build in 26m58s. No image was published.

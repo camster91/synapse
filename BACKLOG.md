@@ -3,9 +3,9 @@
 Technical implementation record. Product priority, market status, launch claims,
 risks, and acceptance criteria are authoritative in `PRODUCT.md`.
 
-Canonical issue ordering as of 2026-08-28. This reconciles the current `main`
-branch, all 15 GitHub issues, the three open pull requests, local validation,
-and the repository review findings.
+Canonical issue ordering reconciled 2026-09-01 against PR #55 exact SHA
+`ac9c90d2c34a5d052b1e3959fd5ee6f1b75f255e`, the open issue register,
+local validation, and hosted checks.
 
 ## Priority model
 
@@ -18,28 +18,30 @@ and the repository review findings.
 
 ### P0 — Release blockers
 
-1. **Enforce tenant ownership for every relationship ID. — Implemented locally, awaiting commit/PR.**
+1. **Enforce tenant ownership for every relationship ID. — Implemented on PR #55.**
    - Affected inputs: todo `goalId`, todo/note/goal `parentId`, and every `tagIds` input in todo, note, goal, and calendar create/update routes.
    - Risk: an authenticated user can connect another user's record by ID and expose relation metadata or corrupt tenant boundaries.
    - Implemented: shared user-scoped validation now covers all eight create/update routes, rejects foreign/missing relationships, and prevents self/ancestor cycles.
    - Verification: 11/11 tests, typecheck, and lint pass; production build completes with the pre-existing standalone trace-copy warning.
 
-2. **Finish production database hardening (GitHub #29). — Implemented locally, awaiting commit/PR and deployment smoke test.**
+2. **Finish production database hardening (GitHub #29). — Implemented on PR #55; deployment smoke pending.**
    - Implemented: production and VPS Compose fail closed on required credentials and application secrets; the production database host port was removed; the healthcheck uses configured database identity.
    - Verification: 15/15 tests pass; Compose rejects missing settings and accepts a complete non-production validation configuration.
    - Remaining deployment gate: start the built image and database together in an isolated environment and pass health/authenticated smoke tests.
 
-3. **Make pull-request validation authoritative (GitHub #49). — Repository Actions enabled; runner availability remains blocked externally.**
-   - Implemented externally: GitHub Actions was enabled for the repository and CI was dispatched on PR #54's exact head.
-   - Verified blocker: the GitHub job fails before checkout with `runner_id: 0`, no assigned runner, no steps, and no logs. This requires an account-level GitHub-hosted runner/quota or billing change.
-   - Done when: frozen install, Prisma generation, typecheck, lint, tests, production build, and migration compatibility run on every PR; required checks are branch-protected and pass on the selected dependency PR.
+3. **Make pull-request validation authoritative (GitHub #49). — Technical checks restored; governance pending.**
+   - Exact-SHA evidence: Build, Lint, Ashbi Local CI, GitGuardian, and the read-only
+     dual-architecture image build pass on PR #55.
+   - Remaining: confirm required-check/branch-protection enforcement and obtain a
+     qualified review of the selected candidate.
 
 ### P1 — Must fix before beta
 
-4. **Make the production build hermetic and verify the standalone image. — Build fixed locally; image smoke test pending.**
+4. **Make the production build hermetic and verify the standalone image. — Image build verified; runtime smoke pending.**
    - Implemented: removed `next/font/google` in favor of a system font stack and removed the duplicate authenticated `/` route by mounting the shared dashboard only at `/today`.
    - Verification: a clean production build succeeds without network font access or the prior standalone manifest-copy warning; 17/17 tests, typecheck, and lint pass.
-   - Remaining deployment gate: build/start the Docker image and pass health plus authenticated smoke tests.
+   - Hosted evidence: the exact candidate builds for `linux/amd64` and `linux/arm64`.
+   - Remaining deployment gate: start the image with PostgreSQL and pass health plus authenticated smoke tests.
 
 5. **Add abuse controls to credential authentication. — Implemented locally, awaiting commit/PR.**
    - Implemented: account throttles always cover login and registration; IP throttles activate only with explicit `TRUST_PROXY=true`; forwarded headers are otherwise ignored; buckets are bounded and expire.
@@ -97,7 +99,7 @@ and the repository review findings.
 
 | Item | Current disposition | Action |
 |---|---|---|
-| #49 PR application validation | Open, valid | Keep; P0 item 3 |
+| #49 PR application validation | Open; exact-SHA technical checks pass | Keep for policy enforcement and qualified review; P0 item 3 |
 | #29 production Compose | Open, partially stale | Update scope; P0 item 2 |
 | #28 TODO/tests/description | Closed completed with exact-SHA evidence on 2026-09-01 | Retain metadata cleanup in P3 item 15 |
 | #27 accessibility | Closed completed with exact-SHA evidence on 2026-09-01 | Retain regression coverage in P2 item 8 |
@@ -112,21 +114,22 @@ and the repository review findings.
 | #3 old fast-uri advisory | Closed, obsolete | Leave closed; current version is beyond the stated fix |
 | #2 old Next.js advisory | Closed, fixed | Leave closed |
 | #1 ship/archive decision | Closed, resolved by active development | Leave closed |
-| PR #54 comprehensive dependencies | Open, preferred | Fix build gate, validate, then merge |
-| PR #53 valibot/Prisma | Open, overlaps #54 | Close as superseded if #54 proceeds |
-| PR #52 find-my-way/Prisma | Open, overlaps #54 | Close as superseded if #54 proceeds |
+| PR #55 integrated hardening | Open, selected candidate | Review after all required evidence; release/merge needs explicit approval |
+| PR #56 production dependencies | Open, newer Dependabot proposal | Triage against PR #55 after candidate reconciliation |
+| PR #57 development dependencies | Open, newer Dependabot proposal | Triage against PR #55 after candidate reconciliation |
 
 ## Verified baseline
 
-- `npm test`: 40/40 passing.
+- `npm test`: 110/110 passing.
 - `npm run typecheck`: passing after `npm run db:generate`.
 - `npm run lint`: passing with zero warnings and a zero-warning gate.
 - `npm run build`: clean production build passing locally.
-- `npm audit`: 3 high advisories remain in the Prisma CLI dependency chain; npm's automatic proposal is a breaking Prisma downgrade.
-- GitHub inventory: 5 open issues, 10 closed issues, 3 open PRs, and 36 closed PRs.
+- `npm audit`: zero vulnerabilities on the selected candidate.
+- Hosted exact-SHA Build, Lint, Ashbi Local CI, GitGuardian, and read-only
+  `linux/amd64,linux/arm64` image validation pass.
 
 ## Execution order
 
-Work items 1-4 first. Then validate and merge the selected dependency upgrade,
-complete P1, and only then move into P2/P3. Do not merge #52-#54 independently
-or in parallel; select one dependency path and close the superseded branches.
+Complete the remaining runtime smoke and validation-governance gates in items 2-4.
+Then triage newer dependency PRs #56-#57 against the selected integrated candidate.
+Do not merge or release without explicit approval.
