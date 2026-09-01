@@ -23,6 +23,8 @@ export default function SettingsPage() {
   const [deletePassword, setDeletePassword] = useState("");
   const [deleting, setDeleting] = useState(false);
   const [settingsLoaded, setSettingsLoaded] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
 
   useEffect(() => {
     setDarkMode(document.documentElement.classList.contains("dark"));
@@ -96,18 +98,25 @@ export default function SettingsPage() {
   };
 
   const handleExportData = async () => {
-    setError(null);
-    const res = await fetch("/api/settings/export");
-    if (res.ok) {
+    if (exporting) return;
+    setExporting(true);
+    setExportError(null);
+    try {
+      const res = await fetch("/api/settings/export");
+      if (!res.ok) throw new Error("Export request failed");
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
       a.download = "synapse-export.json";
+      document.body.appendChild(a);
       a.click();
-      URL.revokeObjectURL(url);
-    } else {
-      setError("Data export failed. Please try again.");
+      a.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 0);
+    } catch {
+      setExportError("Data export failed. No archive was downloaded; please try again.");
+    } finally {
+      setExporting(false);
     }
   };
 
@@ -297,11 +306,13 @@ export default function SettingsPage() {
             </p>
             <button
               onClick={handleExportData}
+              disabled={exporting}
               className="flex items-center gap-2 px-4 py-2 border border-border rounded-lg text-sm text-foreground hover:bg-muted transition-colors"
             >
               <Download className="w-4 h-4" />
-              Export Data
+              {exporting ? "Preparing export..." : "Export Data"}
             </button>
+            {exportError && <p role="alert" className="mt-2 text-sm text-destructive">{exportError}</p>}
             <label className="mt-5 flex items-start gap-3 rounded-lg border border-border bg-muted/30 p-3">
               <input
                 type="checkbox"
