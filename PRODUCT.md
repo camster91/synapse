@@ -402,6 +402,17 @@ External issue comments or closure require owner approval.
   cannot obtain package/attestation write permission, log into GHCR, push images,
   create attestations, or overwrite `latest`; main/version-tag publication remains
   an explicitly triggered, separately permissioned release path.
+- 2026-09-01: rendered registration QA exposed a pre-hydration native-form fallback
+  that could place credentials in a GET URL before client JavaScript attached. Both
+  authentication forms now fail closed to POST at the HTML layer while retaining
+  their client-side handlers; a source contract prevents regression. The disposable
+  credential was invalidated and no account was created by the failed attempt.
+- 2026-09-01: the same rendered QA proved the static CSP prevented Next.js hydration
+  and left every client interaction inert. Security policy generation moved to the
+  Next.js 16 `src/proxy.ts` convention with a fresh per-request nonce propagated to
+  server rendering and the response; protected-route authorization remains enforced
+  there. Registration, onboarding, Today task/habit completion, and portable export
+  then passed in the disposable browser journey.
 - 2026-09-01: customer-facing positioning was reconciled across browser metadata,
   install manifest, README, registration, landing, dashboard empty state, and AI
   framing. Generic “second brain” language is replaced by the narrower private

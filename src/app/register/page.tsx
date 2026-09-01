@@ -73,7 +73,7 @@ export default function RegisterPage() {
           <p className="text-sm text-muted-foreground mt-1">Connect your goals to today in one private workspace</p>
         </div>
 
-        <form onSubmit={handleSubmit} aria-busy={submitting} className="space-y-4">
+        <form method="post" onSubmit={handleSubmit} aria-busy={submitting} className="space-y-4">
           {error && (
             <div role="alert" aria-live="polite" className="p-3 text-sm text-destructive bg-destructive/10 rounded-lg">
               {error}

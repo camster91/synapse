@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import Script from "next/script";
 import { Providers } from "@/components/Providers";
 import "./globals.css";
@@ -17,15 +18,17 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
+
   return (
     <html lang="en" className="h-full antialiased" suppressHydrationWarning>
       <head>
-        <Script src="/theme-init.js" strategy="beforeInteractive" />
+        <Script nonce={nonce} src="/theme-init.js" strategy="beforeInteractive" />
       </head>
       <body className="min-h-full flex flex-col font-sans">
         <Providers>{children}</Providers>

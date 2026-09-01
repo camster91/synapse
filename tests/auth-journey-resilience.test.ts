@@ -6,6 +6,7 @@ const registration = readFileSync("src/app/register/page.tsx", "utf8");
 const login = readFileSync("src/app/login/page.tsx", "utf8");
 
 test("registration prevents duplicate creation and exposes an accessible pending state", () => {
+  assert.match(registration, /<form method="post"/);
   assert.match(registration, /if \(submitting\) return/);
   assert.match(registration, /aria-busy=\{submitting\}/);
   assert.match(registration, /disabled=\{submitting\}/);
@@ -15,6 +16,7 @@ test("registration prevents duplicate creation and exposes an accessible pending
 });
 
 test("login recovers from provider and network failures without duplicate submission", () => {
+  assert.match(login, /<form method="post"/);
   assert.match(login, /if \(submitting\) return/);
   assert.match(login, /aria-busy=\{submitting\}/);
   assert.match(login, /disabled=\{submitting\}/);

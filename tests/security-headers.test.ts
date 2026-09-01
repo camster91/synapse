@@ -4,6 +4,7 @@ import test from "node:test";
 
 const config = readFileSync("next.config.ts", "utf8");
 const layout = readFileSync("src/app/layout.tsx", "utf8");
+const middleware = readFileSync("src/proxy.ts", "utf8");
 
 test("all application routes receive explicit browser security headers", () => {
   for (const header of [
@@ -14,19 +15,21 @@ test("all application routes receive explicit browser security headers", () => {
     "X-Frame-Options",
     "Permissions-Policy",
   ]) {
-    assert.match(config, new RegExp(header));
+    assert.match(`${config}\n${middleware}`, new RegExp(header));
   }
-  assert.match(config, /source: "\/:path\*"/);
+  assert.match(middleware, /Content-Security-Policy/);
 });
 
 test("CSP blocks framing, plugins, and broad inline script execution", () => {
-  assert.match(config, /object-src 'none'/);
-  assert.match(config, /frame-ancestors 'none'/);
-  assert.match(config, /script-src 'self'/);
-  assert.doesNotMatch(config, /script-src[^\n]*unsafe-inline/);
+  assert.match(middleware, /object-src 'none'/);
+  assert.match(middleware, /frame-ancestors 'none'/);
+  assert.match(middleware, /script-src 'self' 'nonce-\$\{nonce\}' 'strict-dynamic'/);
+  assert.doesNotMatch(middleware, /script-src[^\n]*unsafe-inline/);
+  assert.match(middleware, /requestHeaders\.set\("x-nonce", nonce\)/);
 });
 
 test("theme bootstrap is external so it works with the script policy", () => {
-  assert.match(layout, /<Script src="\/theme-init\.js" strategy="beforeInteractive" \/>/);
+  assert.match(layout, /<Script nonce=\{nonce\} src="\/theme-init\.js" strategy="beforeInteractive" \/>/);
+  assert.match(layout, /\(await headers\(\)\)\.get\("x-nonce"\)/);
   assert.doesNotMatch(layout, /dangerouslySetInnerHTML/);
 });

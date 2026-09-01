@@ -56,7 +56,7 @@ export default function LoginPage() {
           <p className="text-sm text-muted-foreground mt-1">Sign in to your Synapse account</p>
         </div>
 
-        <form onSubmit={handleLogin} aria-busy={submitting} className="space-y-4">
+        <form method="post" onSubmit={handleLogin} aria-busy={submitting} className="space-y-4">
           {error && (
             <div role="alert" aria-live="polite" className="p-3 text-sm text-destructive bg-destructive/10 rounded-lg">
               {error}

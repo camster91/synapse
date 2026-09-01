@@ -5,7 +5,7 @@ import { postAuthenticationPath, postRegistrationPath } from "../src/lib/routes"
 
 const registration = readFileSync("src/app/register/page.tsx", "utf8");
 const onboardingApi = readFileSync("src/app/api/onboarding/route.ts", "utf8");
-const middleware = readFileSync("middleware.ts", "utf8");
+const middleware = readFileSync("src/proxy.ts", "utf8");
 const landing = readFileSync("src/app/page.tsx", "utf8");
 
 test("new accounts enter onboarding before the authenticated dashboard", () => {
@@ -24,9 +24,9 @@ test("onboarding atomically creates first-value records and supports a skip path
 });
 
 test("the landing page is public while product pages remain protected", () => {
-  assert.doesNotMatch(middleware, /\(\?!api\/auth/);
-  assert.match(middleware, /"\/today\/:path\*"/);
-  assert.match(middleware, /"\/onboarding\/:path\*"/);
+  assert.match(middleware, /"\/today"/);
+  assert.match(middleware, /"\/onboarding"/);
+  assert.match(middleware, /!isProtectedPath\(req\.nextUrl\.pathname\) \|\| Boolean\(token\)/);
 });
 
 test("landing copy does not claim unimplemented time blocking or AI mutations", () => {
