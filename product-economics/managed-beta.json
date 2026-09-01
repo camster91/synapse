@@ -1,0 +1,39 @@
+{
+  "name": "Managed individual beta hypothesis",
+  "currency": "CAD",
+  "monthlyPrice": 15,
+  "annualMonthlyEquivalent": 12,
+  "annualShare": 0.5,
+  "paymentPercent": 0.029,
+  "paymentFixedPerCharge": 0.3,
+  "variableInfrastructurePerAccount": 0.25,
+  "supportReservePerAccount": 1.5,
+  "fixedMonthlyOperatingCost": 40,
+  "targetContributionMarginPercent": 75,
+  "accountScenarios": [5, 25, 100],
+  "assumptions": [
+    "Prices are internal hypotheses, exclude sales tax, and are not approved or customer-visible.",
+    "Annual subscribers are charged once per year, so the fixed payment fee is amortized over 12 months.",
+    "AI inference is customer-funded through bring-your-own keys and contributes zero operator inference cost.",
+    "Fixed operating cost is an editable planning allowance, not a vendor quote or spending approval.",
+    "The support reserve is not measured labor cost; pilot time tracking must replace it.",
+    "Refunds, disputes, foreign exchange, tax tooling, legal work, founder salary, and customer acquisition are excluded."
+  ],
+  "sources": [
+    {
+      "label": "Stripe Canada standard domestic-card pricing",
+      "url": "https://stripe.com/en-ca/pricing",
+      "usedFor": "2.9% plus CA$0.30 per successful domestic-card transaction"
+    },
+    {
+      "label": "DigitalOcean Droplet pricing",
+      "url": "https://www.digitalocean.com/pricing/droplets",
+      "usedFor": "External reasonableness check only; no vendor or plan selected"
+    },
+    {
+      "label": "Backblaze B2 pricing",
+      "url": "https://www.backblaze.com/cloud-storage/pricing",
+      "usedFor": "External reasonableness check only; no backup vendor selected"
+    }
+  ]
+}

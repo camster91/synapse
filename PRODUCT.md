@@ -4,9 +4,8 @@ Authoritative product, market, roadmap, risk, and release record. Technical
 implementation detail remains in `BACKLOG.md`; when the two disagree, this file
 controls product priority and launch claims.
 
-Last reconciled: 2026-08-28 against branch
-`codex/integrated-backlog-hardening`, commit `adf6aa6`, PR #55, and the current
-security-remediation working tree.
+Last reconciled: 2026-09-01 against branch
+`codex/integrated-backlog-hardening`, PR #55, and the current working tree.
 
 ## Product charter
 
@@ -133,6 +132,28 @@ interviews/pilot behavior rather than more vendor pages.
   with a 14-day no-card trial; AI uses customer keys initially. Pricing requires
   customer interviews, cost measurement, license correction, and owner approval.
 
+### Managed-beta economics hypothesis (modeled 2026-09-01)
+
+`npm run economics:managed-beta` calculates the internal hypothesis from the
+versioned model in `product-economics/managed-beta.json`. The current scenario uses
+CA$15 monthly, CA$12 annual-equivalent, a 50/50 plan mix, Stripe Canada's published
+2.9% + CA$0.30 domestic-card fee, CA$0.25 variable infrastructure, a CA$1.50
+support reserve, and CA$40 fixed monthly operations. It yields CA$13.50 weighted
+monthly revenue, CA$11.20 contribution per account, 82.93% contribution margin,
+and modeled fixed-cost break-even at four paid accounts.
+
+These are planning outputs, not validated economics. Hosting, backup, monitoring,
+and support are editable allowances rather than selected-vendor quotes; taxes,
+refunds, disputes, foreign exchange, legal work, founder salary, and acquisition
+cost are excluded. The model assumes BYOK AI creates no operator inference cost.
+No price, vendor, purchase, or billing behavior is approved by this calculation.
+
+Decision rule: do not request paid-launch approval until pilot time/cost evidence
+replaces the allowances, currency and tax treatment are decided, and sensitivity
+testing still shows at least 75% contribution margin. If measured support plus
+variable service cost exceeds CA$2.82 per account at the modeled mix, the current
+price misses that target and must be changed or the service made less costly.
+
 ## Metrics and decision rules
 
 No real-customer baselines exist. Activation, Today engagement, and export success
@@ -215,8 +236,11 @@ AI acceptance, and production reliability still require scoped instrumentation.
      No provider has been run and no quality result is claimed; a live run requires
      explicit approval if it can spend money or transmit prompts.
 6. **Pricing validation and billing — proposed.**
-   - Measure costs and willingness to pay; obtain owner approval before any public
-   price or payment behavior; implement cancellation and entitlement recovery.
+   - A reproducible internal managed-beta model now separates sourced payment rates
+     from explicit infrastructure/support allowances and fails closed on invalid
+     inputs. Measure real pilot support and service costs, validate willingness to
+     pay, decide currency/tax handling, then obtain owner approval before any public
+     price or payment behavior; implement cancellation and entitlement recovery.
 
 ## GitHub issue register
 
@@ -243,6 +267,11 @@ External issue comments or closure require owner approval.
   Other mutation executors remain unreachable from chat. Reversal condition: disable
   the slice if representative evaluation or pilot acceptance misses its target.
   State: implemented for task creation; broader actions and evaluation remain pending.
+- **2026-09-01 — Gate managed pricing on measured contribution margin.**
+  Evidence: first-party payment pricing plus an executable, assumption-labeled model.
+  Alternatives: copy a competitor price, launch free indefinitely, or bundle operator-
+  funded AI. Reversal condition: pilot willingness-to-pay or measured service costs
+  invalidate the package. State: modeled, not approved or customer-visible.
 
 ## Risk and blocker register
 
@@ -258,6 +287,7 @@ External issue comments or closure require owner approval.
 | Medium | Landing promise needs customer comprehension and conversion evidence | Public copy is implementation-truthful; validate in pilot | Product |
 | Medium | Pilot metrics have no real-customer baseline; daily-plan success and external alerts remain absent | Opt-in aggregate activation/engagement/export metrics and local health/error signals verified; obtain pilot consent and operator-owned collection/alerts before relying on targets | Product owner + operator |
 | Medium | AI task creation has confirmation/undo and consented decision metrics, but quality, latency, cost, and broader actions remain unmeasured | Keep every other mutation disabled; build and pass the representative evaluation set before expansion | Engineering/product |
+| Medium | Pricing economics use unmeasured hosting/support allowances and omit tax, acquisition, and founder labor | Replace allowances with pilot/vendor evidence; require >=75% contribution margin and owner approval before paid launch | Product owner |
 | Resolved | Raw browser-push delivery permitted tenant-controlled outbound requests | Unsafe sender removed; in-app notifications remain until standards-compliant Web Push exists | Engineering |
 | Resolved | Uploads lacked aggregate tenant/storage quotas | Atomic 512 MB account reservations, migration backfill, and deletion release verified | Engineering |
 | Resolved | Interrupted upload/file deletion could retain untracked bytes | Production startup now removes orphan/trash residue and rebuilds quota accounting after migrations | Engineering |
@@ -342,3 +372,7 @@ External issue comments or closure require owner approval.
   alignment with the production image, and the package declares Node >=22 to satisfy
   dependency engine requirements. All 90 tests, typecheck, and zero-warning lint pass
   locally; the corrected hosted Build and Lint reruns pass on PR #55.
+- 2026-09-01: an executable managed-beta economics model now separates Stripe's
+  published Canadian card rate from editable infrastructure and support allowances,
+  shows sensitivity at 5/25/100 accounts, and preserves the explicit public-pricing
+  approval boundary. No vendor, spend, currency policy, or customer price is approved.
