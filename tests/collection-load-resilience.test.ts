@@ -61,6 +61,16 @@ test("plugin reads and mutations fail visibly without claiming success", () => {
   assert.match(page, /role="alert"/);
 });
 
+test("chat history and deletion failures preserve truthful conversation state", () => {
+  const page = readFileSync("src/app/(app)/chat/page.tsx", "utf8");
+  assert.match(page, /if \(!response\.ok\) throw new Error\("Conversations request failed"\)/);
+  assert.match(page, /if \(!messagesResponse\.ok \|\| !actionsResponse\.ok\) throw new Error/);
+  assert.match(page, /ResourceLoadError resource="conversation history"/);
+  assert.match(page, /if \(!response\.ok\) throw new Error\("Conversation delete failed"\)/);
+  assert.match(page, /It remains available/);
+  assert.doesNotMatch(page, /\.catch\(\(\) => \{\}\)/);
+});
+
 test("collection recovery explains data safety and provides an accessible retry", () => {
   assert.match(errorState, /role="alert"/);
   assert.match(errorState, /Your data has not been replaced or removed/);

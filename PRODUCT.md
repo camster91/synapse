@@ -39,7 +39,7 @@ Last reconciled: 2026-09-01 against branch
   smoke testing remains blocked.
 - Credentials auth, tenant-scoped habits, tasks, notes/backlinks, calendar, goals,
   journal, inbox, gamification, plugins, export, and read-only AI chat tools exist.
-- The current PR #55 candidate has 118 passing local tests, passing typecheck,
+- The current PR #55 candidate has 119 passing local tests, passing typecheck,
   zero-warning lint, and a passing
   production build. Hosted Build, Lint, Ashbi Local CI, GitGuardian, and the
   read-only dual-architecture image validation all pass.
@@ -276,7 +276,7 @@ External issue comments or closure require owner approval.
 |---|---|---|
 | #49 — Restore production dependency-PR validation | Exact-SHA Build, Lint, Ashbi Local CI, GitGuardian, and read-only dual-architecture image validation pass on PR #55. PR #48 is closed and superseded. | Keep open for required-check/branch-protection confirmation and qualified candidate review. |
 | #29 — Production Compose credentials/health | Implemented on PR #55: required credentials fail closed, PostgreSQL has no host port, configured healthcheck exists, startup migration/reconciliation and app readiness are covered. | Keep open until image + database smoke test passes with Docker. |
-| #28 — TODOs/tests/description | Closed completed on 2026-09-01 with exact-SHA evidence: package description exists, 118 tests pass, and source contains no TODO/FIXME markers; enum value `TODO` is application data, not a marker. | No further action. |
+| #28 — TODOs/tests/description | Closed completed on 2026-09-01 with exact-SHA evidence: package description exists, 119 tests pass, and source contains no TODO/FIXME markers; enum value `TODO` is application data, not a marker. | No further action. |
 | #27 — Clickable navigation/calendar divs | Closed completed on 2026-09-01 with exact-SHA evidence: navigation backdrop and calendar days are semantic buttons with accessible names; accessibility contracts pass. | No further action. |
 
 ## Decision log
@@ -459,3 +459,6 @@ External issue comments or closure require owner approval.
   into false zero/empty states. Notification read actions and plugin discovery,
   installation, removal, enablement, and configuration now verify server success
   and provide customer-visible recovery that preserves prior state.
+- 2026-09-01: Chat now distinguishes failed conversation-list and history/action
+  requests from an empty conversation, supports retry, ignores superseded loads,
+  and removes a conversation from the UI only after the server confirms deletion.

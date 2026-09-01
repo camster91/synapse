@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Plus, Send, Bot, User, Loader2, Trash2, Check, X, Undo2, ShieldCheck } from "lucide-react";
+import ResourceLoadError from "@/components/ResourceLoadError";
 
 interface Message {
   id: string;
@@ -40,6 +41,10 @@ export default function ChatPage() {
   const [streamContent, setStreamContent] = useState("");
   const [actions, setActions] = useState<ActionProposal[]>([]);
   const [actionError, setActionError] = useState("");
+  const [conversationListError, setConversationListError] = useState(false);
+  const [conversationLoading, setConversationLoading] = useState(false);
+  const [conversationLoadError, setConversationLoadError] = useState(false);
+  const [conversationReloadKey, setConversationReloadKey] = useState(0);
   const [updatingAction, setUpdatingAction] = useState<string | null>(null);
   const [renderedAt] = useState(() => Date.now());
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -49,28 +54,54 @@ export default function ChatPage() {
     Boolean(action.undoExpiresAt) &&
     new Date(action.undoExpiresAt!).getTime() > renderedAt;
 
-  useEffect(() => {
-    fetch("/api/chat/conversations")
-      .then((r) => r.json())
-      .then((data) => setConversations(Array.isArray(data) ? data : (data.conversations || [])))
-      .catch(() => {});
+  const loadConversations = useCallback(async () => {
+    setConversationListError(false);
+    try {
+      const response = await fetch("/api/chat/conversations");
+      if (!response.ok) throw new Error("Conversations request failed");
+      const data = await response.json();
+      setConversations(Array.isArray(data) ? data : (data.conversations || []));
+    } catch {
+      setConversationListError(true);
+    }
   }, []);
 
   useEffect(() => {
+    void loadConversations();
+  }, [loadConversations]);
+
+  useEffect(() => {
     if (activeConvo) {
-      fetch(`/api/chat/conversations/${activeConvo}/messages`)
-        .then((r) => r.json())
-        .then((data) => setMessages(Array.isArray(data) ? data : (data.messages || [])))
-        .catch(() => {});
-      fetch(`/api/chat/actions?conversationId=${encodeURIComponent(activeConvo)}`)
-        .then((response) => response.json())
-        .then((data) => setActions(Array.isArray(data.actions) ? data.actions : []))
-        .catch(() => setActions([]));
+      let cancelled = false;
+      setConversationLoading(true);
+      setConversationLoadError(false);
+      Promise.all([
+        fetch(`/api/chat/conversations/${activeConvo}/messages`),
+        fetch(`/api/chat/actions?conversationId=${encodeURIComponent(activeConvo)}`),
+      ])
+        .then(async ([messagesResponse, actionsResponse]) => {
+          if (!messagesResponse.ok || !actionsResponse.ok) throw new Error("Conversation request failed");
+          const [messageData, actionData] = await Promise.all([messagesResponse.json(), actionsResponse.json()]);
+          if (cancelled) return;
+          setMessages(Array.isArray(messageData) ? messageData : (messageData.messages || []));
+          setActions(Array.isArray(actionData.actions) ? actionData.actions : []);
+        })
+        .catch(() => {
+          if (!cancelled) setConversationLoadError(true);
+        })
+        .finally(() => {
+          if (!cancelled) setConversationLoading(false);
+        });
+      return () => {
+        cancelled = true;
+      };
     } else {
       setMessages([]);
       setActions([]);
+      setConversationLoading(false);
+      setConversationLoadError(false);
     }
-  }, [activeConvo]);
+  }, [activeConvo, conversationReloadKey]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -126,10 +157,7 @@ export default function ChatPage() {
                   if (data.conversationId && !activeConvo) {
                     setActiveConvo(data.conversationId);
                     // Refresh conversations list to include the new one
-                    fetch("/api/chat/conversations")
-                      .then((r) => r.json())
-                      .then((d) => setConversations(Array.isArray(d) ? d : (d.conversations || [])))
-                      .catch(() => {});
+                    void loadConversations();
                   }
                 }
               } catch {
@@ -172,11 +200,17 @@ export default function ChatPage() {
   };
 
   const deleteConversation = async (id: string) => {
-    await fetch(`/api/chat/conversations/${id}`, { method: "DELETE" });
-    setConversations(conversations.filter((c) => c.id !== id));
-    if (activeConvo === id) {
-      setActiveConvo(null);
-      setMessages([]);
+    setActionError("");
+    try {
+      const response = await fetch(`/api/chat/conversations/${id}`, { method: "DELETE" });
+      if (!response.ok) throw new Error("Conversation delete failed");
+      setConversations((current) => current.filter((conversation) => conversation.id !== id));
+      if (activeConvo === id) {
+        setActiveConvo(null);
+        setMessages([]);
+      }
+    } catch {
+      setActionError("The conversation could not be deleted. It remains available.");
     }
   };
 
@@ -201,6 +235,12 @@ export default function ChatPage() {
           </button>
         </div>
         <div className="flex-1 overflow-y-auto px-2">
+          {conversationListError && (
+            <div role="alert" className="mb-2 rounded-lg border border-destructive/30 p-3 text-xs text-sidebar-foreground">
+              <p>Unable to load conversations.</p>
+              <button type="button" onClick={loadConversations} className="mt-2 min-h-11 font-medium text-primary hover:underline">Try again</button>
+            </div>
+          )}
           {conversations.map((convo) => (
             <div
               key={convo.id}
@@ -227,7 +267,13 @@ export default function ChatPage() {
       <div className="flex-1 flex flex-col bg-background">
         {/* Messages */}
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          {messages.length === 0 && !streaming && (
+          {conversationLoadError ? (
+            <ResourceLoadError resource="conversation history" onRetry={() => setConversationReloadKey((key) => key + 1)} />
+          ) : conversationLoading ? (
+            <div className="flex h-full items-center justify-center" aria-label="Loading conversation">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : messages.length === 0 && !streaming && (
             <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
               <Bot className="w-16 h-16 mb-4 opacity-30" />
               <h3 className="text-xl font-medium text-foreground">Your AI Assistant</h3>
