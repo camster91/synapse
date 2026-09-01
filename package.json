@@ -3,12 +3,15 @@
   "version": "0.1.0",
   "description": "Self-hosted life management for habits, tasks, notes, goals, calendar, journal, and AI-assisted planning.",
   "private": true,
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint --max-warnings=0",
-    "test": "tsx --test tests/**/*.test.ts",
+    "test": "tsx --test tests/*.test.ts",
     "typecheck": "tsc --noEmit",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
