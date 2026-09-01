@@ -225,7 +225,7 @@ External issue comments or closure require owner approval.
 
 | Issue | Evidence-backed disposition | Next action |
 |---|---|---|
-| #49 — Restore production dependency-PR validation | Runner capacity recovered: hosted lint and image checks pass, while Build reached unit tests and exposed a bash-incompatible recursive glob. The test command is now POSIX-shell portable and CI/runtime use supported Node releases; rerun pending. Ashbi Local CI still fails externally without repository-visible diagnostics. | Verify the next hosted Build; separately restore or diagnose the external Ashbi runner. |
+| #49 — Restore production dependency-PR validation | Hosted runner capacity and the repository CI contract are restored: corrected Build, Lint, and GitGuardian checks pass on PR #55. The image rerun and external Ashbi Local CI remain pending; Ashbi provides no repository-visible diagnostics. | Keep open until the image finishes and the external Ashbi runner passes or is separately diagnosed. |
 | #29 — Production Compose credentials/health | Implemented on PR #55: required credentials fail closed, PostgreSQL has no host port, configured healthcheck exists, startup migration/reconciliation and app readiness are covered. | Keep open until image + database smoke test passes with Docker. |
 | #28 — TODOs/tests/description | Verified fixed: package description exists, 90 tests pass, and source contains no TODO/FIXME markers; enum value `TODO` is application data, not a marker. | Ready for owner-approved evidence comment and closure. |
 | #27 — Clickable navigation/calendar divs | Verified fixed: navigation backdrop and calendar days are semantic buttons with accessible names; accessibility contracts pass. | Ready for owner-approved evidence comment and closure. |
@@ -251,7 +251,7 @@ External issue comments or closure require owner approval.
 | Critical | No production backup/restore evidence | Local database-plus-upload backup and representative restore drill pass; encrypted off-site schedule, retention, alerts, and production-like RPO/RTO proof remain blocked on owner/operator decisions | Product owner + operator |
 | High | Export/deletion lack authenticated runtime and restore-drill evidence | Roadmap item 2 | Engineering |
 | High | Onboarding lacks authenticated browser completion evidence | Roadmap item 1 in progress | Engineering/product |
-| High | Hosted CI now executes, but the corrected Build has not rerun and external Ashbi Local CI still fails without repository-visible diagnostics | GitHub issue #49; verify next hosted run and diagnose external runner separately | Account owner + engineering |
+| High | Hosted Build/Lint now pass, but the current image run and external Ashbi Local CI remain pending without repository-visible Ashbi diagnostics | GitHub issue #49; verify image and diagnose external runner separately | Account owner + engineering |
 | High | Five default-branch dependency alerts | Patched versions verified on PR branch; default branch remains exposed until approved merge | Product owner + engineering |
 | High | Image/migrations untested together | GitHub issue #29 | Operator |
 | High | No legal identity, privacy, or terms | Owner/legal approval required | Product owner |
@@ -341,4 +341,4 @@ External issue comments or closure require owner approval.
   Test discovery now uses the repository's flat portable glob, CI runs Node 24 in
   alignment with the production image, and the package declares Node >=22 to satisfy
   dependency engine requirements. All 90 tests, typecheck, and zero-warning lint pass
-  locally; the corrected hosted Build rerun remains authoritative evidence.
+  locally; the corrected hosted Build and Lint reruns pass on PR #55.
