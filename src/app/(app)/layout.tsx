@@ -5,6 +5,7 @@ import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
 import { useApp } from "@/components/Providers";
 import { PWAInstallPrompt } from "@/components/PWAInstallPrompt";
+import GlobalSearchResults from "@/components/GlobalSearchResults";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { sidebarOpen, setSidebarOpen } = useApp();
@@ -12,6 +13,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [userLevel, setUserLevel] = useState(1);
   const [userXp, setUserXp] = useState(0);
   const [unprocessedCount, setUnprocessedCount] = useState(0);
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     async function loadUserData() {
@@ -89,6 +91,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <Header
+          onSearch={setSearchQuery}
+          searchQuery={searchQuery}
           onAddTodo={handleAddTodo}
           onAddNote={handleAddNote}
           onAddInbox={handleAddInbox}
@@ -98,6 +102,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       </div>
 
       <PWAInstallPrompt />
+      {searchQuery.trim() && (
+        <GlobalSearchResults query={searchQuery} onQueryChange={setSearchQuery} onClose={() => setSearchQuery("")} />
+      )}
     </div>
   );
 }

@@ -60,7 +60,12 @@ export default function ChatPage() {
       const response = await fetch("/api/chat/conversations");
       if (!response.ok) throw new Error("Conversations request failed");
       const data = await response.json();
-      setConversations(Array.isArray(data) ? data : (data.conversations || []));
+      const loadedConversations = Array.isArray(data) ? data : (data.conversations || []);
+      setConversations(loadedConversations);
+      const requestedConversation = new URLSearchParams(window.location.search).get("conversation");
+      if (requestedConversation && loadedConversations.some((conversation: Conversation) => conversation.id === requestedConversation)) {
+        setActiveConvo(requestedConversation);
+      }
     } catch {
       setConversationListError(true);
     }

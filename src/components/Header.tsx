@@ -8,6 +8,7 @@ import { NotificationBell } from "./NotificationBell";
 
 interface HeaderProps {
   onSearch?: (query: string) => void;
+  searchQuery?: string;
   onAddTodo?: (title: string) => Promise<void>;
   onAddNote?: (title: string) => Promise<void>;
   onAddInbox?: (content: string) => Promise<void>;
@@ -31,13 +32,13 @@ const pageTitles: Record<string, string> = {
 
 export default function Header({
   onSearch,
+  searchQuery = "",
   onAddTodo,
   onAddNote,
   onAddInbox,
   onToggleSidebar,
 }: HeaderProps) {
   const pathname = usePathname();
-  const [searchQuery, setSearchQuery] = useState("");
   const [searchFocused, setSearchFocused] = useState(false);
 
   const title =
@@ -78,7 +79,6 @@ export default function Header({
             type="text"
             value={searchQuery}
             onChange={(e) => {
-              setSearchQuery(e.target.value);
               onSearch?.(e.target.value);
             }}
             onFocus={() => setSearchFocused(true)}
