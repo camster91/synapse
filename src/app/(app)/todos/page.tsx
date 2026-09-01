@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Plus, Filter } from "lucide-react";
 import TodoCard from "@/components/TodoCard";
 import Modal from "@/components/Modal";
 import EmptyState from "@/components/EmptyState";
+import ResourceLoadError from "@/components/ResourceLoadError";
 
 type TodoStatus = "INBOX" | "TODO" | "IN_PROGRESS" | "DONE" | "CANCELLED" | "SNOOZED";
 
@@ -36,14 +37,24 @@ export default function TodosPage() {
   const [newPriority, setNewPriority] = useState(0);
   const [newStatus, setNewStatus] = useState<TodoStatus>("INBOX");
   const [filterPriority, setFilterPriority] = useState<number | null>(null);
+  const [loadError, setLoadError] = useState(false);
 
-  useEffect(() => {
-    fetch("/api/todos")
-      .then((r) => r.json())
-      .then((data) => setTodos(Array.isArray(data) ? data : (data.todos || [])))
-      .catch(() => {})
-      .finally(() => setLoading(false));
+  const loadTodos = useCallback(async () => {
+    setLoading(true);
+    setLoadError(false);
+    try {
+      const response = await fetch("/api/todos");
+      if (!response.ok) throw new Error("Todos request failed");
+      const data = await response.json();
+      setTodos(Array.isArray(data) ? data : (data.todos || []));
+    } catch {
+      setLoadError(true);
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => { void loadTodos(); }, [loadTodos]);
 
   const addTodo = async () => {
     if (!newTitle.trim()) return;
@@ -109,6 +120,8 @@ export default function TodosPage() {
       </div>
     );
   }
+
+  if (loadError) return <ResourceLoadError resource="todos" onRetry={loadTodos} />;
 
   return (
     <div className="space-y-4">

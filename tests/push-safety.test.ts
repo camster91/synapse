@@ -19,8 +19,10 @@ test("the beta rejects browser push registration without persisting endpoints", 
 
 test("the notification UI does not advertise unavailable browser push", async () => {
   const bell = await readFile("src/components/NotificationBell.tsx", "utf8");
+  const providers = await readFile("src/components/Providers.tsx", "utf8");
 
   assert.doesNotMatch(bell, /usePushNotifications|Enable push|BellOff/);
   assert.match(bell, /<Bell className=/);
-  assert.match(bell, /navigator\.serviceWorker\.register\("\/sw\.js"\)/);
+  assert.doesNotMatch(bell, /navigator\.serviceWorker\.register\("\/sw\.js"\)/);
+  assert.match(providers, /register\("\/sw\.js"\)/);
 });

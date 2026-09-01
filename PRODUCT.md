@@ -442,3 +442,6 @@ External issue comments or closure require owner approval.
   stale Synapse caches, which had replayed obsolete Turbopack chunks and caused real
   hydration failures during journey QA. Registration has one production owner, and
   Settings theme state now initializes identically on the server and client.
+- 2026-09-01: Todos, Habits, and Goals no longer turn failed API loads into deceptive
+  empty states. Each core planning collection now distinguishes loading, failure, and
+  genuine emptiness, explains that data was not removed, and offers an accessible retry.

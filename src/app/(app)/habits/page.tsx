@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Plus } from "lucide-react";
 import HabitCard from "@/components/HabitCard";
 import Modal from "@/components/Modal";
 import EmptyState from "@/components/EmptyState";
+import ResourceLoadError from "@/components/ResourceLoadError";
 
 interface Habit {
   id: string;
@@ -25,14 +26,24 @@ export default function HabitsPage() {
   const [newName, setNewName] = useState("");
   const [newDesc, setNewDesc] = useState("");
   const [newFrequency, setNewFrequency] = useState("DAILY");
+  const [loadError, setLoadError] = useState(false);
 
-  useEffect(() => {
-    fetch("/api/habits")
-      .then((r) => r.json())
-      .then((data) => setHabits(Array.isArray(data) ? data : (data.habits || [])))
-      .catch(() => {})
-      .finally(() => setLoading(false));
+  const loadHabits = useCallback(async () => {
+    setLoading(true);
+    setLoadError(false);
+    try {
+      const response = await fetch("/api/habits");
+      if (!response.ok) throw new Error("Habits request failed");
+      const data = await response.json();
+      setHabits(Array.isArray(data) ? data : (data.habits || []));
+    } catch {
+      setLoadError(true);
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => { void loadHabits(); }, [loadHabits]);
 
   const addHabit = async () => {
     if (!newName.trim()) return;
@@ -116,6 +127,8 @@ export default function HabitsPage() {
       </div>
     );
   }
+
+  if (loadError) return <ResourceLoadError resource="habits" onRetry={loadHabits} />;
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">

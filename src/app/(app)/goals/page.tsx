@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Plus, ChevronDown, ChevronRight } from "lucide-react";
 import Modal from "@/components/Modal";
 import EmptyState from "@/components/EmptyState";
+import ResourceLoadError from "@/components/ResourceLoadError";
 
 interface Goal {
   id: string;
@@ -35,14 +36,24 @@ export default function GoalsPage() {
   const [newTitle, setNewTitle] = useState("");
   const [newLevel, setNewLevel] = useState("QUARTERLY");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [loadError, setLoadError] = useState(false);
 
-  useEffect(() => {
-    fetch("/api/goals")
-      .then((r) => r.json())
-      .then((data) => setGoals(Array.isArray(data) ? data : (data.goals || [])))
-      .catch(() => {})
-      .finally(() => setLoading(false));
+  const loadGoals = useCallback(async () => {
+    setLoading(true);
+    setLoadError(false);
+    try {
+      const response = await fetch("/api/goals");
+      if (!response.ok) throw new Error("Goals request failed");
+      const data = await response.json();
+      setGoals(Array.isArray(data) ? data : (data.goals || []));
+    } catch {
+      setLoadError(true);
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => { void loadGoals(); }, [loadGoals]);
 
   const addGoal = async () => {
     if (!newTitle.trim()) return;
@@ -95,6 +106,8 @@ export default function GoalsPage() {
       </div>
     );
   }
+
+  if (loadError) return <ResourceLoadError resource="goals" onRetry={loadGoals} />;
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">

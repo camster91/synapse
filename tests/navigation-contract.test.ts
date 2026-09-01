@@ -12,7 +12,7 @@ test("the Today navigation target is the authenticated dashboard route", () => {
 test("the service worker does not cache auth pages or navigations indefinitely", () => {
   const worker = readFileSync(join(process.cwd(), "public/sw.js"), "utf8");
 
-  assert.match(worker, /const CACHE_NAME = "synapse-v2"/);
+  assert.match(worker, /const CACHE_NAME = "synapse-v3"/);
   assert.doesNotMatch(worker, /PRECACHE_URLS = \["\/", "\/login"/);
   assert.match(worker, /request\.mode === "navigate"/);
 });
