@@ -262,15 +262,15 @@ AI acceptance, and production reliability still require scoped instrumentation.
 
 ## GitHub issue register
 
-Reconciled 2026-08-28 against the four open repository issues and commit `899c87d`.
+Reconciled 2026-09-01 against the repository issues and commit `0b573ce`.
 External issue comments or closure require owner approval.
 
 | Issue | Evidence-backed disposition | Next action |
 |---|---|---|
 | #49 — Restore production dependency-PR validation | Hosted runner capacity and the repository CI contract are restored: corrected Build, Lint, and GitGuardian checks pass on PR #55. The image rerun and external Ashbi Local CI remain pending; Ashbi provides no repository-visible diagnostics. | Keep open until the image finishes and the external Ashbi runner passes or is separately diagnosed. |
 | #29 — Production Compose credentials/health | Implemented on PR #55: required credentials fail closed, PostgreSQL has no host port, configured healthcheck exists, startup migration/reconciliation and app readiness are covered. | Keep open until image + database smoke test passes with Docker. |
-| #28 — TODOs/tests/description | Verified fixed: package description exists, 90 tests pass, and source contains no TODO/FIXME markers; enum value `TODO` is application data, not a marker. | Ready for owner-approved evidence comment and closure. |
-| #27 — Clickable navigation/calendar divs | Verified fixed: navigation backdrop and calendar days are semantic buttons with accessible names; accessibility contracts pass. | Ready for owner-approved evidence comment and closure. |
+| #28 — TODOs/tests/description | Closed completed on 2026-09-01 with exact-SHA evidence: package description exists, 99 tests pass, 33 test files exist, and source contains no TODO/FIXME markers; enum value `TODO` is application data, not a marker. | No further action. |
+| #27 — Clickable navigation/calendar divs | Closed completed on 2026-09-01 with exact-SHA evidence: navigation backdrop and calendar days are semantic buttons with accessible names; accessibility contracts pass. | No further action. |
 
 ## Decision log
 

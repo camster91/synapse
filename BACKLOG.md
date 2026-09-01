@@ -99,8 +99,8 @@ and the repository review findings.
 |---|---|---|
 | #49 PR application validation | Open, valid | Keep; P0 item 3 |
 | #29 production Compose | Open, partially stale | Update scope; P0 item 2 |
-| #28 TODO/tests/description | Open, mostly stale | Close and retain only metadata cleanup in P3 item 15 |
-| #27 accessibility | Open, valid | Keep as canonical; P2 item 8 |
+| #28 TODO/tests/description | Closed completed with exact-SHA evidence on 2026-09-01 | Retain metadata cleanup in P3 item 15 |
+| #27 accessibility | Closed completed with exact-SHA evidence on 2026-09-01 | Retain regression coverage in P2 item 8 |
 | #26 accessibility | Exact duplicate | Close as duplicate of #27 |
 | #10 LLM review umbrella | Closed, stale | Leave closed |
 | #9 missing `.env.example` | Closed, fixed | Leave closed |
