@@ -412,7 +412,9 @@ External issue comments or closure require owner approval.
   Next.js 16 `src/proxy.ts` convention with a fresh per-request nonce propagated to
   server rendering and the response; protected-route authorization remains enforced
   there. Registration, onboarding, Today task/habit completion, and portable export
-  then passed in the disposable browser journey.
+  then passed in the disposable browser journey. An optimized production server
+  independently returned a nonce-bearing CSP without script `unsafe-inline` and
+  redirected an anonymous `/today` request to authentication.
 - 2026-09-01: customer-facing positioning was reconciled across browser metadata,
   install manifest, README, registration, landing, dashboard empty state, and AI
   framing. Generic “second brain” language is replaced by the narrower private
