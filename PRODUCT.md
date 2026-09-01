@@ -39,7 +39,7 @@ Last reconciled: 2026-09-01 against branch
   smoke testing remains blocked.
 - Credentials auth, tenant-scoped habits, tasks, notes/backlinks, calendar, goals,
   journal, inbox, gamification, plugins, export, and read-only AI chat tools exist.
-- The current PR #55 candidate has 136 passing local tests, passing typecheck,
+- The current PR #55 candidate has 137 passing local tests, passing typecheck,
   zero-warning lint, and a passing
   production build. Hosted Build, Lint, Ashbi Local CI, GitGuardian, and the
   read-only dual-architecture image validation all pass.
@@ -216,7 +216,7 @@ AI acceptance, and production reliability still require scoped instrumentation.
      context, and recent inbox captures. Users can complete tasks/habits, deliberately
      move work to tomorrow, triage captures, and close the day with a reflection in
      place; failures restore optimistic state or preserve the reflection draft.
-   - Evidence: the current 136-test suite, typecheck, zero-warning lint, and
+   - Evidence: the current 137-test suite, typecheck, zero-warning lint, and
      production build pass. Rendered task, habit, inbox-triage, and deliberate
      rescheduling journeys passed; timezone and reflection journey QA remains.
 4. **Production-like pilot readiness — partially implemented; external decisions remain.**
@@ -317,6 +317,22 @@ External issue comments or closure require owner approval.
 | Resolved | Uploads lacked aggregate tenant/storage quotas | Atomic 512 MB account reservations, migration backfill, and deletion release verified | Engineering |
 | Resolved | Interrupted upload/file deletion could retain untracked bytes | Production startup now removes orphan/trash residue and rebuilds quota accounting after migrations | Engineering |
 | Medium | MIT license copyright placeholders | Confirm holder/year before edit | Product owner |
+
+## Owner decision queue — each approval is separate
+
+This queue prepares decisions; it does not grant permission. Approval for one row
+does not authorize any other row, and implementation must still verify the exact
+target and artifact immediately before changing external state.
+
+| Decision | Recommended next choice | Evidence required before action | Explicitly not authorized yet |
+|---|---|---|---|
+| Repository governance | Protect `main`; require the hosted Build, Lint, image-validation, GitGuardian, and Ashbi checks plus one qualified approving review | Exact check names on the candidate SHA and an identified reviewer who did not author the change | Changing rulesets, dismissing reviews, or merging PR #55 |
+| Production rehearsal | Select an owner-controlled non-public host with PostgreSQL, encrypted backup storage, rollback capacity, and a named responder | Host identity, runtime availability, secret source, backup target, alert destination, RPO/RTO targets, and rollback artifact | Provisioning, purchasing, deploying, or opening public access |
+| Legal and data policy | Confirm operating identity, jurisdiction, copyright holder/year, privacy owner, retention/deletion wording, and beta terms with qualified review | Owner-supplied identity and policy decisions appropriate to the selected host and participants | Drafts being represented as legal advice or publishing policies |
+| Support and incidents | Use one primary support route with stated hours and one urgent route for access, loss, deletion, or privacy incidents | Named channel owners, response hours, escalation destination, and pause authority | Contacting users or promising an SLA |
+| Managed pilot | Run the consent-first 14-day protocol with exactly five approved target participants after every entry gate in `PILOT.md` is proven | Participant list, consent copy, approved host, support routes, lifecycle rehearsal, and operator schedule | Recruiting, contacting, enrolling, or collecting payment |
+| Pricing research | Test the internal CA$15 monthly / CA$12 annual-equivalent hypothesis only after unaided willingness-to-pay questions | Five-participant evidence, measured support/vendor costs, tax/currency decision, and at least 75% contribution margin | Publishing a price, enabling billing, discounts, or charges |
+| Merge and release | Request a separate exact-SHA approval only after governance, host rehearsal, backup/restore, policies, support, and candidate checks are complete | PR SHA, complete required-check rollup, approving review, image digest, rollback artifact, and production checklist | Merging, tagging, publishing an image, or deploying |
 
 ## Release record and work log
 
@@ -491,3 +507,6 @@ External issue comments or closure require owner approval.
   inside the dialog and restores focus to the invoking control after close. Rendered
   keyboard QA confirmed trapped input, exposed an autofocus-timing flaw in the first
   restoration attempt, and then proved Escape returned focus before the next query.
+- 2026-09-01: a consolidated owner decision queue now separates repository
+  governance, production rehearsal, legal/data policy, support, pilot, pricing, and
+  exact-SHA release approval. It explicitly grants no external authorization.
