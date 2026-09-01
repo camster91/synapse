@@ -3,9 +3,8 @@
 Technical implementation record. Product priority, market status, launch claims,
 risks, and acceptance criteria are authoritative in `PRODUCT.md`.
 
-Canonical issue ordering reconciled 2026-09-01 against PR #55 exact SHA
-`ac9c90d2c34a5d052b1e3959fd5ee6f1b75f255e`, the open issue register,
-local validation, and hosted checks.
+Canonical issue ordering reconciled 2026-09-01 against the current PR #55
+candidate, the open issue register, local validation, and hosted checks.
 
 ## Priority model
 
@@ -120,7 +119,7 @@ local validation, and hosted checks.
 
 ## Verified baseline
 
-- `npm test`: 110/110 passing.
+- `npm test`: 115/115 passing.
 - `npm run typecheck`: passing after `npm run db:generate`.
 - `npm run lint`: passing with zero warnings and a zero-warning gate.
 - `npm run build`: clean production build passing locally.

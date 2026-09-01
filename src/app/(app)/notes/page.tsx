@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Plus, Search, Grid3X3, List } from "lucide-react";
 import Link from "next/link";
 import Modal from "@/components/Modal";
 import EmptyState from "@/components/EmptyState";
+import ResourceLoadError from "@/components/ResourceLoadError";
 
 interface Note {
   id: string;
@@ -21,18 +22,30 @@ interface Note {
 export default function NotesPage() {
   const [notes, setNotes] = useState<Note[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [search, setSearch] = useState("");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [showAdd, setShowAdd] = useState(false);
   const [newTitle, setNewTitle] = useState("");
 
-  useEffect(() => {
-    fetch("/api/notes")
-      .then((r) => r.json())
-      .then((data) => setNotes(Array.isArray(data) ? data : (data.notes || [])))
-      .catch(() => {})
-      .finally(() => setLoading(false));
+  const loadNotes = useCallback(async () => {
+    setLoading(true);
+    setLoadError(false);
+    try {
+      const response = await fetch("/api/notes");
+      if (!response.ok) throw new Error("Notes request failed");
+      const data = await response.json();
+      setNotes(Array.isArray(data) ? data : (data.notes || []));
+    } catch {
+      setLoadError(true);
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    void loadNotes();
+  }, [loadNotes]);
 
   const addNote = async () => {
     if (!newTitle.trim()) return;
@@ -63,6 +76,8 @@ export default function NotesPage() {
       </div>
     );
   }
+
+  if (loadError) return <ResourceLoadError resource="notes" onRetry={loadNotes} />;
 
   return (
     <div className="space-y-6">

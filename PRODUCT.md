@@ -39,8 +39,8 @@ Last reconciled: 2026-09-01 against branch
   smoke testing remains blocked.
 - Credentials auth, tenant-scoped habits, tasks, notes/backlinks, calendar, goals,
   journal, inbox, gamification, plugins, export, and read-only AI chat tools exist.
-- PR #55 exact SHA `ac9c90d2c34a5d052b1e3959fd5ee6f1b75f255e`
-  has 110 passing local tests, passing typecheck, zero-warning lint, and a passing
+- The current PR #55 candidate has 115 passing local tests, passing typecheck,
+  zero-warning lint, and a passing
   production build. Hosted Build, Lint, Ashbi Local CI, GitGuardian, and the
   read-only dual-architecture image validation all pass.
 - The five current Dependabot alerts on the default branch are resolved in this PR
@@ -269,14 +269,14 @@ AI acceptance, and production reliability still require scoped instrumentation.
 
 ## GitHub issue register
 
-Reconciled 2026-09-01 against the repository issues and commit `ac9c90d`.
+Reconciled 2026-09-01 against the repository issues and current PR #55 branch.
 External issue comments or closure require owner approval.
 
 | Issue | Evidence-backed disposition | Next action |
 |---|---|---|
 | #49 — Restore production dependency-PR validation | Exact-SHA Build, Lint, Ashbi Local CI, GitGuardian, and read-only dual-architecture image validation pass on PR #55. PR #48 is closed and superseded. | Keep open for required-check/branch-protection confirmation and qualified candidate review. |
 | #29 — Production Compose credentials/health | Implemented on PR #55: required credentials fail closed, PostgreSQL has no host port, configured healthcheck exists, startup migration/reconciliation and app readiness are covered. | Keep open until image + database smoke test passes with Docker. |
-| #28 — TODOs/tests/description | Closed completed on 2026-09-01 with exact-SHA evidence: package description exists, 110 tests pass, and source contains no TODO/FIXME markers; enum value `TODO` is application data, not a marker. | No further action. |
+| #28 — TODOs/tests/description | Closed completed on 2026-09-01 with exact-SHA evidence: package description exists, 115 tests pass, and source contains no TODO/FIXME markers; enum value `TODO` is application data, not a marker. | No further action. |
 | #27 — Clickable navigation/calendar divs | Closed completed on 2026-09-01 with exact-SHA evidence: navigation backdrop and calendar days are semantic buttons with accessible names; accessibility contracts pass. | No further action. |
 
 ## Decision log
@@ -451,3 +451,7 @@ External issue comments or closure require owner approval.
 - 2026-09-01: exact SHA `ac9c90d2c34a5d052b1e3959fd5ee6f1b75f255e`
   passed hosted Build, Lint, Ashbi Local CI, GitGuardian, and a read-only cold-cache
   `linux/amd64,linux/arm64` image build in 26m58s. No image was published.
+- 2026-09-01: Inbox, Notes, Calendar, and Journal now distinguish failed loads
+  from genuine empty data and provide safe retry states. Journal cannot expose a
+  blank editable form or save until the existing entry has loaded, preventing a
+  transient request failure from overwriting prior reflection data.

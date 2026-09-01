@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import ResourceLoadError from "@/components/ResourceLoadError";
 
 export default function JournalPage() {
   const [entries, setEntries] = useState<
@@ -11,25 +12,35 @@ export default function JournalPage() {
   const [todayGratitude, setTodayGratitude] = useState("");
   const [todayHighlights, setTodayHighlights] = useState("");
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
 
   const [today] = useState(() => new Date().toISOString().split("T")[0]);
 
-  useEffect(() => {
-    fetch("/api/journal")
-      .then((r) => r.json())
-      .then((data) => {
-        const journals = Array.isArray(data) ? data : (data.journals || []);
-        setEntries(journals);
-        const todayEntry = journals.find((j: { date: string }) => j.date.startsWith(today));
-        if (todayEntry) {
-          setTodayContent(todayEntry.content || "");
-          setTodayMood(todayEntry.mood);
-          setTodayGratitude(todayEntry.gratitude || "");
-          setTodayHighlights(todayEntry.highlights || "");
-        }
-      })
-      .catch(() => {});
+  const loadEntries = useCallback(async () => {
+    setLoading(true);
+    setLoadError(false);
+    try {
+      const response = await fetch("/api/journal");
+      if (!response.ok) throw new Error("Journal request failed");
+      const data = await response.json();
+      const journals = Array.isArray(data) ? data : (data.journals || []);
+      setEntries(journals);
+      const todayEntry = journals.find((j: { date: string }) => j.date.startsWith(today));
+      setTodayContent(todayEntry?.content || "");
+      setTodayMood(todayEntry?.mood ?? null);
+      setTodayGratitude(todayEntry?.gratitude || "");
+      setTodayHighlights(todayEntry?.highlights || "");
+    } catch {
+      setLoadError(true);
+    } finally {
+      setLoading(false);
+    }
   }, [today]);
+
+  useEffect(() => {
+    void loadEntries();
+  }, [loadEntries]);
 
   const saveEntry = async () => {
     setSaving(true);
@@ -55,6 +66,10 @@ export default function JournalPage() {
 
   const moodEmojis = ["😢", "😕", "😐", "🙂", "😊"];
   const moodLabels = ["Awful", "Bad", "Okay", "Good", "Great"];
+
+  if (loading) return <div className="h-[32rem] animate-pulse rounded-xl bg-muted" />;
+
+  if (loadError) return <ResourceLoadError resource="journal" onRetry={loadEntries} />;
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
@@ -130,7 +145,7 @@ export default function JournalPage() {
 
         <button
           onClick={saveEntry}
-          disabled={saving}
+          disabled={saving || loading}
           className="px-6 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
         >
           {saving ? "Saving..." : "Save Entry"}

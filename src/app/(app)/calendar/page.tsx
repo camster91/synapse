@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Plus, ChevronLeft, ChevronRight } from "lucide-react";
 import Modal from "@/components/Modal";
+import ResourceLoadError from "@/components/ResourceLoadError";
 
 interface CalendarEvent {
   id: string;
@@ -17,6 +18,8 @@ interface CalendarEvent {
 
 export default function CalendarPage() {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [showAdd, setShowAdd] = useState(false);
   const [showEvent, setShowEvent] = useState<CalendarEvent | null>(null);
@@ -26,14 +29,26 @@ export default function CalendarPage() {
   const [newAllDay, setNewAllDay] = useState(false);
   const [newLocation, setNewLocation] = useState("");
 
-  useEffect(() => {
+  const loadEvents = useCallback(async () => {
+    setLoading(true);
+    setLoadError(false);
     const start = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
     const end = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
-    fetch(`/api/calendar?from=${start.toISOString()}&to=${end.toISOString()}`)
-      .then((r) => r.json())
-      .then((data) => setEvents(Array.isArray(data) ? data : (data.events || [])))
-      .catch(() => {});
+    try {
+      const response = await fetch(`/api/calendar?from=${start.toISOString()}&to=${end.toISOString()}`);
+      if (!response.ok) throw new Error("Calendar request failed");
+      const data = await response.json();
+      setEvents(Array.isArray(data) ? data : (data.events || []));
+    } catch {
+      setLoadError(true);
+    } finally {
+      setLoading(false);
+    }
   }, [currentDate]);
+
+  useEffect(() => {
+    void loadEvents();
+  }, [loadEvents]);
 
   const addEvent = async () => {
     if (!newTitle.trim()) return;
@@ -91,6 +106,12 @@ export default function CalendarPage() {
       const d = new Date(e.startAt);
       return d.getDate() === day && d.getMonth() === month && d.getFullYear() === year;
     });
+
+  if (loading) {
+    return <div className="h-[32rem] animate-pulse rounded-xl bg-muted" />;
+  }
+
+  if (loadError) return <ResourceLoadError resource="calendar" onRetry={loadEvents} />;
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
