@@ -220,6 +220,10 @@ AI acceptance, and production reliability still require scoped instrumentation.
    - Docker image/migrations, health/authenticated smoke test, monitoring, backups,
      rollback, support path, and five-user pilot protocol. Blocked by runtime/hosting,
      runner, legal/support decisions, and customer access.
+   - The consent-first five-user, 14-day protocol is explicit in `PILOT.md`, including
+     entry gates, moderated setup, support/incident capture, interviews, economics
+     inputs, thresholds, stop rules, and closeout. It does not authorize deployment,
+     outreach, pricing, legal commitments, or enrollment.
    - Privacy-minimal pilot measurement is implemented for first-plan activation,
      distinct-day Today engagement, and successful export. Consent defaults off,
      Settings explains the fixed signals, opt-out deletes them atomically, exports

@@ -63,6 +63,9 @@ target environment.
 Backup creation, destructive restore-drill safeguards, and the remaining production
 recovery gates are documented in [OPERATIONS.md](OPERATIONS.md).
 
+The approval-gated five-user validation workflow is documented in
+[PILOT.md](PILOT.md).
+
 ## Project Structure
 
 ```
