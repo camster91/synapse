@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { saveFile } from "@/lib/upload";
+import { deleteFile, saveFile } from "@/lib/upload";
+import { releaseUploadCapacity, reserveUploadCapacity } from "@/lib/upload-quota";
 
 const VALID_ENTITY_TYPES = [
   "note",
@@ -58,25 +59,39 @@ export async function POST(request: Request) {
       );
     }
 
-    // Save file to disk
-    const saved = await saveFile(file);
+    const reserved = await reserveUploadCapacity(session.user.id, file.size);
+    if (!reserved) {
+      return NextResponse.json(
+        { error: "Upload storage limit reached (512 MB per account)" },
+        { status: 413 }
+      );
+    }
 
-    // Create attachment record
-    const attachment = await prisma.attachment.create({
-      data: {
-        userId: session.user.id,
-        url: saved.url,
-        filename: saved.filename,
-        mimeType: saved.mimeType,
-        sizeBytes: saved.sizeBytes,
-        noteId: entityType === "note" ? entityId : null,
-        todoId: entityType === "todo" ? entityId : null,
-        calendarEventId: entityType === "calendarEvent" ? entityId : null,
-        inboxItemId: entityType === "inboxItem" ? entityId : null,
-      },
-    });
+    let saved: Awaited<ReturnType<typeof saveFile>> | null = null;
+    try {
+      saved = await saveFile(file);
+      const attachment = await prisma.attachment.create({
+        data: {
+          userId: session.user.id,
+          url: saved.url,
+          filename: saved.filename,
+          mimeType: saved.mimeType,
+          sizeBytes: saved.sizeBytes,
+          noteId: entityType === "note" ? entityId : null,
+          todoId: entityType === "todo" ? entityId : null,
+          calendarEventId: entityType === "calendarEvent" ? entityId : null,
+          inboxItemId: entityType === "inboxItem" ? entityId : null,
+        },
+      });
 
-    return NextResponse.json(attachment, { status: 201 });
+      return NextResponse.json(attachment, { status: 201 });
+    } catch (error) {
+      await Promise.allSettled([
+        releaseUploadCapacity(session.user.id, file.size),
+        ...(saved ? [deleteFile(saved.url)] : []),
+      ]);
+      throw error;
+    }
   } catch (error: any) {
     console.error("Upload error:", error);
     const message = error?.message || "Upload failed";

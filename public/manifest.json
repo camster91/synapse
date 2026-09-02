@@ -1,7 +1,7 @@
 {
-  "name": "Synapse — Your Second Brain",
+  "name": "Synapse — Private Daily Operating System",
   "short_name": "Synapse",
-  "description": "Life management, habits, goals, and AI-powered productivity",
+  "description": "Connect goals to today in one private, focused daily loop",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#09090b",

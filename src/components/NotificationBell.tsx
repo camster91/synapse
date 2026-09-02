@@ -1,8 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Bell, BellOff, Check, X } from "lucide-react";
-import { usePushNotifications } from "@/hooks/usePushNotifications";
+import { Bell, Check } from "lucide-react";
 
 interface Notification {
   id: string;
@@ -15,11 +14,12 @@ interface Notification {
 }
 
 export function NotificationBell() {
-  const { isSupported, permission, subscribe, isSubscribed } =
-    usePushNotifications();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [actionError, setActionError] = useState("");
   const panelRef = useRef<HTMLDivElement>(null);
 
   // Fetch notifications
@@ -30,16 +30,18 @@ export function NotificationBell() {
   }, []);
 
   async function loadNotifications() {
+    setLoadError(false);
     try {
       const res = await fetch("/api/notifications");
-      if (res.ok) {
-        const data = await res.json();
-        const list = Array.isArray(data) ? data : (data.notifications || []);
-        setNotifications(list);
-        setUnreadCount(data.unreadCount ?? list.filter((n: Notification) => !n.read).length);
-      }
+      if (!res.ok) throw new Error("Notifications request failed");
+      const data = await res.json();
+      const list = Array.isArray(data) ? data : (data.notifications || []);
+      setNotifications(list);
+      setUnreadCount(data.unreadCount ?? list.filter((n: Notification) => !n.read).length);
     } catch {
-      // Will retry on next interval
+      setLoadError(true);
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -55,21 +57,33 @@ export function NotificationBell() {
   }, [open]);
 
   async function markAllRead() {
-    await fetch("/api/notifications", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ markAll: true }),
-    });
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
-    setUnreadCount(0);
+    setActionError("");
+    try {
+      const response = await fetch("/api/notifications", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ markAll: true }),
+      });
+      if (!response.ok) throw new Error("Mark all read failed");
+      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+      setUnreadCount(0);
+    } catch {
+      setActionError("Notifications could not be updated. Please try again.");
+    }
   }
 
   async function markRead(id: string) {
-    await fetch(`/api/notifications/${id}`, { method: "PUT" });
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, read: true } : n))
-    );
-    setUnreadCount((c) => Math.max(0, c - 1));
+    setActionError("");
+    try {
+      const response = await fetch(`/api/notifications/${id}`, { method: "PUT" });
+      if (!response.ok) throw new Error("Mark read failed");
+      setNotifications((prev) =>
+        prev.map((n) => (n.id === id ? { ...n, read: true } : n))
+      );
+      setUnreadCount((c) => Math.max(0, c - 1));
+    } catch {
+      setActionError("That notification could not be updated. Please try again.");
+    }
   }
 
   const typeColor: Record<string, string> = {
@@ -86,11 +100,7 @@ export function NotificationBell() {
         className="relative p-2 rounded-lg hover:bg-accent transition-colors"
         aria-label="Notifications"
       >
-        {isSupported && isSubscribed ? (
-          <Bell className="w-5 h-5 text-foreground" />
-        ) : (
-          <BellOff className="w-5 h-5 text-muted-foreground" />
-        )}
+        <Bell className="w-5 h-5 text-foreground" />
         {unreadCount > 0 && (
           <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
             {unreadCount > 9 ? "9+" : unreadCount}
@@ -111,19 +121,20 @@ export function NotificationBell() {
                   Mark all read
                 </button>
               )}
-              {isSupported && !isSubscribed && permission !== "denied" && (
-                <button
-                  onClick={subscribe}
-                  className="text-xs text-primary hover:underline"
-                >
-                  Enable push
-                </button>
-              )}
             </div>
           </div>
 
           <div className="max-h-64 overflow-y-auto">
-            {notifications.length === 0 ? (
+            {loadError ? (
+              <div role="alert" className="p-4 text-center">
+                <p className="text-sm text-muted-foreground">Unable to load notifications.</p>
+                <button type="button" onClick={loadNotifications} className="mt-2 min-h-11 px-3 text-sm font-medium text-primary hover:underline">
+                  Try again
+                </button>
+              </div>
+            ) : loading ? (
+              <p className="p-4 text-sm text-muted-foreground text-center">Loading notifications…</p>
+            ) : notifications.length === 0 ? (
               <p className="p-4 text-sm text-muted-foreground text-center">
                 No notifications yet
               </p>
@@ -174,6 +185,7 @@ export function NotificationBell() {
               ))
             )}
           </div>
+          {actionError && <p role="alert" className="border-t border-border p-3 text-xs text-destructive">{actionError}</p>}
         </div>
       )}
     </div>

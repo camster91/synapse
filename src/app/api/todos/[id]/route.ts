@@ -3,6 +3,10 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { addXp } from '@/lib/xp';
 import { fireHookForUser } from '@/lib/plugins/executor';
+import { InvalidRelationshipError, validateOwnedRelationships } from '@/lib/ownership';
+import { stageFilesForDeletion } from '@/lib/upload';
+import { releaseUploadCapacity } from '@/lib/upload-quota';
+import { isoDateOrDateTimeSchema, isoDateTimeSchema } from '@/lib/date-validation';
 import { z } from 'zod/v4';
 
 const updateTodoSchema = z.object({
@@ -10,8 +14,8 @@ const updateTodoSchema = z.object({
   description: z.string().max(10000).nullable().optional(),
   status: z.enum(['INBOX', 'TODO', 'IN_PROGRESS', 'DONE', 'CANCELLED', 'SNOOZED']).optional(),
   priority: z.int().min(0).max(5).optional(),
-  dueDate: z.string().nullable().optional(),
-  scheduledAt: z.string().nullable().optional(),
+  dueDate: isoDateOrDateTimeSchema.nullable().optional(),
+  scheduledAt: isoDateTimeSchema.nullable().optional(),
   goalId: z.string().nullable().optional(),
   parentId: z.string().nullable().optional(),
   sortOrder: z.int().optional(),
@@ -73,6 +77,12 @@ export async function PUT(
     }
 
     const { tagIds, ...todoData } = data;
+    await validateOwnedRelationships(session.user.id, {
+      tagIds,
+      goalId: todoData.goalId,
+      todoParentId: todoData.parentId,
+      selfId: id,
+    });
     const wasNotDone = existing.status !== 'DONE';
     const markingDone = data.status === 'DONE';
 
@@ -117,6 +127,9 @@ export async function PUT(
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: 'Validation failed', details: error.issues }, { status: 400 });
     }
+    if (error instanceof InvalidRelationshipError) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
     if ((error as any)?.code === 'P2025') {
       return NextResponse.json({ error: 'Todo not found' }, { status: 404 });
     }
@@ -137,7 +150,22 @@ export async function DELETE(
   const { id } = await params;
 
   try {
-    await prisma.todo.delete({ where: { id, userId: session.user.id } });
+    const attachments = await prisma.attachment.findMany({
+      where: { todoId: id, userId: session.user.id },
+      select: { url: true, sizeBytes: true },
+    });
+    const stagedFiles = await stageFilesForDeletion(attachments.map(({ url }) => url));
+    try {
+      await prisma.todo.delete({ where: { id, userId: session.user.id } });
+    } catch (error) {
+      await stagedFiles.rollback();
+      throw error;
+    }
+    await stagedFiles.commit();
+    await releaseUploadCapacity(
+      session.user.id,
+      attachments.reduce((total, attachment) => total + BigInt(attachment.sizeBytes), BigInt(0))
+    );
     return NextResponse.json({ success: true });
   } catch (error) {
     if ((error as any)?.code === 'P2025') {

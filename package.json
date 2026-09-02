@@ -1,18 +1,30 @@
 {
   "name": "synapse",
   "version": "0.1.0",
+  "description": "Self-hosted life management for habits, tasks, notes, goals, calendar, journal, and AI-assisted planning.",
   "private": true,
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build --webpack",
     "start": "next start",
-    "lint": "eslint",
-    "test": "tsx --test tests/**/*.test.ts",
+    "lint": "eslint --max-warnings=0",
+    "test": "tsx --test tests/*.test.ts",
     "typecheck": "tsc --noEmit",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:push": "prisma db push",
     "db:seed": "npx tsx prisma/seed.ts",
+    "uploads:reconcile": "tsx scripts/reconcile-uploads.ts",
+    "backup": "bash scripts/backup.sh",
+    "restore:drill": "bash scripts/restore-drill.sh",
+    "metrics:pilot": "tsx scripts/pilot-metrics.ts",
+    "metrics:ai-actions": "tsx scripts/ai-action-metrics.ts",
+    "eval:ai-actions": "tsx scripts/evaluate-ai-actions.ts",
+    "economics:managed-beta": "tsx scripts/product-economics.ts",
+    "smoke:lifecycle": "tsx scripts/authenticated-lifecycle-smoke.ts",
     "db:studio": "prisma studio",
     "db:reset": "prisma migrate reset",
     "setup": "npm run db:generate && npm run db:migrate && npm run db:seed"
@@ -21,24 +33,24 @@
     "seed": "npx tsx prisma/seed.ts"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.112.3",
+    "@anthropic-ai/sdk": "^0.120.0",
     "@next-auth/prisma-adapter": "^1.0.7",
-    "@prisma/adapter-pg": "^7.8.0",
-    "@prisma/client": "^7.8.0",
+    "@prisma/adapter-pg": "^7.9.1",
+    "@prisma/client": "^7.9.1",
     "@types/dompurify": "^3.2.0",
     "bcryptjs": "^3.0.3",
     "date-fns": "^4.4.0",
     "dompurify": "^3.4.14",
-    "fast-uri": "^3.1.5",
-    "lucide-react": "^1.25.0",
-    "next": "^16.3.0",
+    "fast-uri": "^3.1.6",
+    "lucide-react": "^1.33.0",
+    "next": "^16.3.2",
     "next-auth": "^4.24.15",
-    "openai": "^6.48.0",
-    "pg": "^8.22.0",
-    "prisma": "^7.9.0",
-    "react": "19.2.7",
-    "react-dom": "19.2.7",
-    "uuid": "^14.0.1",
+    "openai": "^6.49.0",
+    "pg": "^8.23.0",
+    "prisma": "^7.9.1",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "uuid": "^14.0.2",
     "zod": "^4.4.3",
     "dotenv": "^16.4.5"
   },
@@ -54,7 +66,7 @@
     "tailwindcss": "^4",
     "tsx": "^4.23.1",
     "typescript": "^5",
-    "prisma": "^7.9.0"
+    "prisma": "^7.9.1"
   },
   "ignoreScripts": [
     "sharp",
@@ -65,6 +77,7 @@
     "unrs-resolver"
   ],
   "overrides": {
+    "deepmerge-ts": "8.0.0",
     "next-auth": {
       "uuid": ">=11.1.1"
     }

@@ -22,7 +22,7 @@ export async function GET(request: Request) {
   const contains = { contains: q, mode: "insensitive" as const };
 
   try {
-    const [todos, notes, journals, goals, events] = await Promise.all([
+    const [todos, notes, journals, goals, events, habits, inboxItems, conversations] = await Promise.all([
       prisma.todo.findMany({
         where: {
           userId,
@@ -102,6 +102,46 @@ export async function GET(request: Request) {
           allDay: true,
         },
       }),
+
+      prisma.habit.findMany({
+        where: {
+          userId,
+          archived: false,
+          OR: [{ name: contains }, { description: contains }],
+        },
+        take: 10,
+        orderBy: { updatedAt: "desc" },
+        select: { id: true, name: true, description: true },
+      }),
+
+      prisma.inboxItem.findMany({
+        where: { userId, content: contains },
+        take: 10,
+        orderBy: { createdAt: "desc" },
+        select: { id: true, content: true },
+      }),
+
+      prisma.aiConversation.findMany({
+        where: {
+          userId,
+          OR: [
+            { title: contains },
+            { messages: { some: { content: contains } } },
+          ],
+        },
+        take: 10,
+        orderBy: { updatedAt: "desc" },
+        select: {
+          id: true,
+          title: true,
+          messages: {
+            where: { content: contains },
+            take: 1,
+            orderBy: { createdAt: "desc" },
+            select: { content: true },
+          },
+        },
+      }),
     ]);
 
     return NextResponse.json({
@@ -110,6 +150,20 @@ export async function GET(request: Request) {
       journals,
       goals,
       events,
+      habits: habits.map((habit) => ({
+        id: habit.id,
+        title: habit.name,
+        content: habit.description,
+      })),
+      inboxItems: inboxItems.map((item) => ({
+        id: item.id,
+        title: item.content,
+      })),
+      conversations: conversations.map((conversation) => ({
+        id: conversation.id,
+        title: conversation.title || "AI conversation",
+        content: conversation.messages[0]?.content,
+      })),
     });
   } catch (error) {
     console.error("Search failed:", error);

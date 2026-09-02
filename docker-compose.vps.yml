@@ -4,7 +4,7 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: synapse
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
       POSTGRES_DB: synapse
     volumes:
       - synapse_pgdata:/var/lib/postgresql/data
@@ -21,10 +21,12 @@ services:
       dockerfile: Dockerfile
     restart: unless-stopped
     environment:
-      DATABASE_URL: ${DATABASE_URL}
-      NEXTAUTH_URL: ${NEXTAUTH_URL}
-      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
-      SYNAPSE_ENCRYPTION_KEY: ${SYNAPSE_ENCRYPTION_KEY}
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      NEXTAUTH_URL: ${NEXTAUTH_URL:?NEXTAUTH_URL is required}
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:?NEXTAUTH_SECRET is required}
+      SYNAPSE_ENCRYPTION_KEY: ${SYNAPSE_ENCRYPTION_KEY:?SYNAPSE_ENCRYPTION_KEY is required}
+      TRUST_PROXY: ${TRUST_PROXY:-false}
+      RELEASE_REV: ${RELEASE_REV:-unknown}
       DEFAULT_AI_PROVIDER: ${DEFAULT_AI_PROVIDER:-anthropic}
     ports:
       - "127.0.0.1:3070:3000"
@@ -34,7 +36,7 @@ services:
       db:
         condition: service_healthy
     command: >
-      sh -c "npx prisma migrate deploy && node server.js"
+      sh -c "npx prisma migrate deploy && npm run uploads:reconcile && node server.js"
 
 volumes:
   synapse_pgdata:

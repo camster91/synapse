@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Plus, Search, Grid3X3, List, FileText } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { Plus, Search, Grid3X3, List } from "lucide-react";
 import Link from "next/link";
 import Modal from "@/components/Modal";
 import EmptyState from "@/components/EmptyState";
+import ResourceLoadError from "@/components/ResourceLoadError";
 
 interface Note {
   id: string;
@@ -21,29 +22,49 @@ interface Note {
 export default function NotesPage() {
   const [notes, setNotes] = useState<Note[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [showAdd, setShowAdd] = useState(false);
   const [newTitle, setNewTitle] = useState("");
 
-  useEffect(() => {
-    fetch("/api/notes")
-      .then((r) => r.json())
-      .then((data) => setNotes(Array.isArray(data) ? data : (data.notes || [])))
-      .catch(() => {})
-      .finally(() => setLoading(false));
+  const loadNotes = useCallback(async () => {
+    setLoading(true);
+    setLoadError(false);
+    try {
+      const response = await fetch("/api/notes");
+      if (!response.ok) throw new Error("Notes request failed");
+      const data = await response.json();
+      setNotes(Array.isArray(data) ? data : (data.notes || []));
+    } catch {
+      setLoadError(true);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
+  useEffect(() => {
+    void loadNotes();
+  }, [loadNotes]);
+
   const addNote = async () => {
-    if (!newTitle.trim()) return;
-    const res = await fetch("/api/notes", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title: newTitle, content: "" }),
-    });
-    if (res.ok) {
+    if (!newTitle.trim() || creating) return;
+    setCreating(true);
+    setCreateError(null);
+    try {
+      const res = await fetch("/api/notes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: newTitle, content: "" }),
+      });
+      if (!res.ok) throw new Error("Note creation failed");
       const data = await res.json();
       window.location.href = `/notes/${data.id}`;
+    } catch {
+      setCreateError("Unable to create note. Your draft has been preserved.");
+      setCreating(false);
     }
   };
 
@@ -63,6 +84,8 @@ export default function NotesPage() {
       </div>
     );
   }
+
+  if (loadError) return <ResourceLoadError resource="notes" onRetry={loadNotes} />;
 
   return (
     <div className="space-y-6">
@@ -179,8 +202,9 @@ export default function NotesPage() {
       <Modal isOpen={showAdd} onClose={() => setShowAdd(false)} title="New Note">
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-foreground mb-1">Title</label>
+            <label htmlFor="new-note-title" className="block text-sm font-medium text-foreground mb-1">Title</label>
             <input
+              id="new-note-title"
               type="text"
               value={newTitle}
               onChange={(e) => setNewTitle(e.target.value)}
@@ -191,6 +215,7 @@ export default function NotesPage() {
             />
           </div>
           <div className="flex justify-end gap-2">
+            {createError && <p role="alert" className="mr-auto text-sm text-destructive">{createError}</p>}
             <button
               onClick={() => setShowAdd(false)}
               className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
@@ -199,10 +224,10 @@ export default function NotesPage() {
             </button>
             <button
               onClick={addNote}
-              disabled={!newTitle.trim()}
+              disabled={!newTitle.trim() || creating}
               className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              Create Note
+              {creating ? "Creating..." : "Create Note"}
             </button>
           </div>
         </div>

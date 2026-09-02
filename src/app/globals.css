@@ -94,8 +94,8 @@
   --color-info: var(--info);
   --color-xp-bar: var(--xp-bar);
   --color-xp-bar-bg: var(--xp-bar-bg);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
 }
 
 * {

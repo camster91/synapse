@@ -1,4 +1,4 @@
-import { LucideIcon, Inbox, FileText, CheckSquare, Target, BookOpen } from "lucide-react";
+import { LucideIcon, Inbox } from "lucide-react";
 
 interface EmptyStateProps {
   icon?: LucideIcon;
@@ -9,14 +9,6 @@ interface EmptyStateProps {
     onClick: () => void;
   };
 }
-
-const defaultIcons: Record<string, LucideIcon> = {
-  inbox: Inbox,
-  notes: FileText,
-  todos: CheckSquare,
-  habits: Target,
-  journal: BookOpen,
-};
 
 export default function EmptyState({
   icon: Icon,

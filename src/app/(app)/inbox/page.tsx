@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Inbox, Check, Trash2, FileText, ListTodo } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { Check, Trash2, FileText, ListTodo } from "lucide-react";
 import EmptyState from "@/components/EmptyState";
+import ResourceLoadError from "@/components/ResourceLoadError";
 
 interface InboxItem {
   id: string;
@@ -32,15 +33,27 @@ const typeLabels: Record<string, string> = {
 export default function InboxPage() {
   const [items, setItems] = useState<InboxItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [filter, setFilter] = useState<"all" | "unprocessed">("unprocessed");
 
-  useEffect(() => {
-    fetch("/api/inbox")
-      .then((r) => r.json())
-      .then((data) => setItems(data.items || data || []))
-      .catch(() => {})
-      .finally(() => setLoading(false));
+  const loadItems = useCallback(async () => {
+    setLoading(true);
+    setLoadError(false);
+    try {
+      const response = await fetch("/api/inbox");
+      if (!response.ok) throw new Error("Inbox request failed");
+      const data = await response.json();
+      setItems(data.items || data || []);
+    } catch {
+      setLoadError(true);
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    void loadItems();
+  }, [loadItems]);
 
   const deleteItem = async (id: string) => {
     const prevItems = items;
@@ -83,6 +96,8 @@ export default function InboxPage() {
       </div>
     );
   }
+
+  if (loadError) return <ResourceLoadError resource="inbox" onRetry={loadItems} />;
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">

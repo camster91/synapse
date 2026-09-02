@@ -81,6 +81,8 @@ export default function Sidebar({
         </div>
         {/* Close button on mobile */}
         <button
+          type="button"
+          aria-label="Close navigation menu"
           onClick={onMobileClose}
           className="lg:hidden p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
         >
@@ -171,6 +173,8 @@ export default function Sidebar({
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center flex-shrink-0 overflow-hidden">
               {userAvatar ? (
+                // External avatar hosts are user/provider controlled, so Next Image cannot safely enumerate them.
+                // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={userAvatar}
                   alt={userName}
@@ -193,6 +197,8 @@ export default function Sidebar({
           <div className="flex justify-center">
             <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center overflow-hidden">
               {userAvatar ? (
+                // External avatar hosts are user/provider controlled, so Next Image cannot safely enumerate them.
+                // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={userAvatar}
                   alt={userName}
@@ -210,6 +216,9 @@ export default function Sidebar({
 
       {/* Collapse Toggle (desktop only) */}
       <button
+        type="button"
+        aria-label={collapsed ? "Expand navigation" : "Collapse navigation"}
+        aria-expanded={!collapsed}
         onClick={() => setCollapsed(!collapsed)}
         className="hidden lg:flex items-center justify-center h-8 border-t border-sidebar-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
       >

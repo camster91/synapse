@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { InvalidRelationshipError, validateOwnedRelationships } from '@/lib/ownership';
+import { isoDateSchema } from '@/lib/date-validation';
 import { z } from 'zod/v4';
 
 const updateGoalSchema = z.object({
@@ -9,8 +11,8 @@ const updateGoalSchema = z.object({
   status: z.enum(['ACTIVE', 'COMPLETED', 'ABANDONED', 'ON_HOLD']).optional(),
   level: z.enum(['YEARLY', 'QUARTERLY', 'MONTHLY', 'WEEKLY']).optional(),
   parentId: z.string().nullable().optional(),
-  startDate: z.string().nullable().optional(),
-  endDate: z.string().nullable().optional(),
+  startDate: isoDateSchema.nullable().optional(),
+  endDate: isoDateSchema.nullable().optional(),
   progress: z.int().min(0).max(100).optional(),
   tagIds: z.array(z.string()).optional(),
 });
@@ -58,7 +60,36 @@ export async function PUT(
     const body = await request.json();
     const data = updateGoalSchema.parse(body);
 
+    const existing = await prisma.goal.findFirst({
+      where: { id, userId: session.user.id },
+      select: { startDate: true, endDate: true },
+    });
+    if (!existing) {
+      return NextResponse.json({ error: 'Goal not found' }, { status: 404 });
+    }
+    const nextStart = data.startDate === undefined
+      ? existing.startDate
+      : data.startDate
+        ? new Date(data.startDate)
+        : null;
+    const nextEnd = data.endDate === undefined
+      ? existing.endDate
+      : data.endDate
+        ? new Date(data.endDate)
+        : null;
+    if (nextStart && nextEnd && nextEnd < nextStart) {
+      return NextResponse.json(
+        { error: 'Goal end date must not precede its start date' },
+        { status: 400 }
+      );
+    }
+
     const { tagIds, ...goalData } = data;
+    await validateOwnedRelationships(session.user.id, {
+      tagIds,
+      goalParentId: goalData.parentId,
+      selfId: id,
+    });
 
     const updateData: any = { ...goalData };
     if (goalData.startDate !== undefined) {
@@ -88,6 +119,9 @@ export async function PUT(
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: 'Validation failed', details: error.issues }, { status: 400 });
+    }
+    if (error instanceof InvalidRelationshipError) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
     }
     if ((error as any)?.code === 'P2025') {
       return NextResponse.json({ error: 'Goal not found' }, { status: 404 });

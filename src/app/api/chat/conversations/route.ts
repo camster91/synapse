@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod/v4';
+import { getDefaultModel, getProviderForUser } from '@/lib/ai/provider';
 
 // ─── GET /api/chat/conversations — List conversations ────────────────────────
 
@@ -42,9 +43,7 @@ export async function GET() {
 
 const createConversationSchema = z.object({
   title: z.string().max(200).optional(),
-  provider: z.enum(['anthropic', 'openai', 'ollama']).default('anthropic'),
-  model: z.string().optional(),
-});
+}).strict();
 
 export async function POST(request: Request) {
   const session = await auth();
@@ -55,13 +54,14 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     const data = createConversationSchema.parse(body);
+    const provider = await getProviderForUser(session.user.id);
 
     const conversation = await prisma.aiConversation.create({
       data: {
         userId: session.user.id,
         title: data.title ?? 'New conversation',
-        provider: data.provider,
-        model: data.model ?? 'claude-sonnet-4-20250514',
+        provider: provider.name,
+        model: getDefaultModel(provider.name),
       },
     });
 

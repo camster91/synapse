@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { InvalidRelationshipError, validateOwnedRelationships } from '@/lib/ownership';
+import { isoDateSchema } from '@/lib/date-validation';
 import { z } from 'zod/v4';
 
 const createGoalSchema = z.object({
@@ -9,8 +11,8 @@ const createGoalSchema = z.object({
   status: z.enum(['ACTIVE', 'COMPLETED', 'ABANDONED', 'ON_HOLD']).default('ACTIVE'),
   level: z.enum(['YEARLY', 'QUARTERLY', 'MONTHLY', 'WEEKLY']).default('QUARTERLY'),
   parentId: z.string().nullable().optional(),
-  startDate: z.string().optional(),
-  endDate: z.string().optional(),
+  startDate: isoDateSchema.optional(),
+  endDate: isoDateSchema.optional(),
   progress: z.int().min(0).max(100).default(0),
   tagIds: z.array(z.string()).optional(),
 });
@@ -52,7 +54,18 @@ export async function POST(request: Request) {
     const body = await request.json();
     const data = createGoalSchema.parse(body);
 
+    if (data.startDate && data.endDate && data.endDate < data.startDate) {
+      return NextResponse.json(
+        { error: 'Goal end date must not precede its start date' },
+        { status: 400 }
+      );
+    }
+
     const { tagIds, ...goalData } = data;
+    await validateOwnedRelationships(session.user.id, {
+      tagIds,
+      goalParentId: goalData.parentId,
+    });
 
     const goal = await prisma.goal.create({
       data: {
@@ -71,6 +84,9 @@ export async function POST(request: Request) {
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: 'Validation failed', details: error.issues }, { status: 400 });
+    }
+    if (error instanceof InvalidRelationshipError) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
     }
     console.error('Failed to create goal:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

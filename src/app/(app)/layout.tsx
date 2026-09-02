@@ -5,6 +5,7 @@ import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
 import { useApp } from "@/components/Providers";
 import { PWAInstallPrompt } from "@/components/PWAInstallPrompt";
+import GlobalSearchResults from "@/components/GlobalSearchResults";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { sidebarOpen, setSidebarOpen } = useApp();
@@ -12,6 +13,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [userLevel, setUserLevel] = useState(1);
   const [userXp, setUserXp] = useState(0);
   const [unprocessedCount, setUnprocessedCount] = useState(0);
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     async function loadUserData() {
@@ -40,34 +42,39 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }, []);
 
   const handleAddTodo = async (title: string) => {
-    await fetch("/api/todos", {
+    const response = await fetch("/api/todos", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ title, status: "INBOX" }),
     });
+    if (!response.ok) throw new Error("Todo creation failed");
   };
 
   const handleAddNote = async (title: string) => {
-    await fetch("/api/notes", {
+    const response = await fetch("/api/notes", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ title, content: "" }),
     });
+    if (!response.ok) throw new Error("Note creation failed");
   };
 
   const handleAddInbox = async (content: string) => {
-    await fetch("/api/inbox", {
+    const response = await fetch("/api/inbox", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ content }),
     });
+    if (!response.ok) throw new Error("Inbox creation failed");
   };
 
   return (
     <div className="flex h-screen bg-background overflow-hidden">
       {/* Mobile backdrop */}
       {sidebarOpen && (
-        <div
+        <button
+          type="button"
+          aria-label="Close navigation menu"
           className="fixed inset-0 bg-black/50 z-30 lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
@@ -84,6 +91,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <Header
+          onSearch={setSearchQuery}
+          searchQuery={searchQuery}
           onAddTodo={handleAddTodo}
           onAddNote={handleAddNote}
           onAddInbox={handleAddInbox}
@@ -93,6 +102,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       </div>
 
       <PWAInstallPrompt />
+      {searchQuery.trim() && (
+        <GlobalSearchResults query={searchQuery} onQueryChange={setSearchQuery} onClose={() => setSearchQuery("")} />
+      )}
     </div>
   );
 }

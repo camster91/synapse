@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
-import { postAuthenticationPath } from "@/lib/routes";
+import { postRegistrationPath } from "@/lib/routes";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -11,10 +11,13 @@ export default function RegisterPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submitting) return;
     setError("");
+    setSubmitting(true);
 
     try {
       const res = await fetch("/api/auth/register", {
@@ -50,10 +53,12 @@ export default function RegisterPage() {
       }
 
       if (result?.ok) {
-        router.push(postAuthenticationPath());
+        router.push(postRegistrationPath());
       }
     } catch {
       setError("Something went wrong. Please try again.");
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -65,64 +70,78 @@ export default function RegisterPage() {
             S
           </div>
           <h1 className="text-2xl font-bold text-foreground">Create your account</h1>
-          <p className="text-sm text-muted-foreground mt-1">Start building your second brain</p>
+          <p className="text-sm text-muted-foreground mt-1">Connect your goals to today in one private workspace</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form method="post" onSubmit={handleSubmit} aria-busy={submitting} className="space-y-4">
           {error && (
-            <div className="p-3 text-sm text-destructive bg-destructive/10 rounded-lg">
+            <div role="alert" aria-live="polite" className="p-3 text-sm text-destructive bg-destructive/10 rounded-lg">
               {error}
             </div>
           )}
 
           <div>
-            <label className="block text-sm font-medium text-foreground mb-1">Name</label>
+            <label htmlFor="register-name" className="block text-sm font-medium text-foreground mb-1">Name</label>
             <input
+              id="register-name"
+              name="name"
               type="text"
+              autoComplete="name"
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Your name"
               required
-              className="w-full px-3 py-2 bg-background border border-input rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              disabled={submitting}
+              className="w-full min-h-11 px-3 py-2 bg-background border border-input rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-60"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-foreground mb-1">Email</label>
+            <label htmlFor="register-email" className="block text-sm font-medium text-foreground mb-1">Email</label>
             <input
+              id="register-email"
+              name="email"
               type="email"
+              autoComplete="email"
+              inputMode="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com"
               required
-              className="w-full px-3 py-2 bg-background border border-input rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              disabled={submitting}
+              className="w-full min-h-11 px-3 py-2 bg-background border border-input rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-60"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-foreground mb-1">Password</label>
+            <label htmlFor="register-password" className="block text-sm font-medium text-foreground mb-1">Password</label>
             <input
+              id="register-password"
+              name="password"
               type="password"
+              autoComplete="new-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="At least 8 characters"
               required
               minLength={8}
-              className="w-full px-3 py-2 bg-background border border-input rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              disabled={submitting}
+              className="w-full min-h-11 px-3 py-2 bg-background border border-input rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-60"
             />
           </div>
 
           <button
             type="submit"
-            className="w-full px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors"
+            disabled={submitting}
+            className="w-full min-h-11 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors disabled:cursor-not-allowed disabled:opacity-60"
           >
-            Create account
+            {submitting ? "Creating account…" : "Create account"}
           </button>
         </form>
 
         <p className="mt-6 text-center text-sm text-muted-foreground">
           Already have an account?{" "}
-          <a href="/login" className="text-primary hover:underline">
+          <a href="/login" className="text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm">
             Sign in
           </a>
         </p>

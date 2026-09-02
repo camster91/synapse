@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { deleteFile } from "@/lib/upload";
+import { stageFilesForDeletion } from "@/lib/upload";
+import { releaseUploadCapacity } from "@/lib/upload-quota";
 
 export async function DELETE(
   request: Request,
@@ -30,11 +31,15 @@ export async function DELETE(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    // Delete file from disk
-    await deleteFile(attachment.url);
-
-    // Delete DB record
-    await prisma.attachment.delete({ where: { id } });
+    const stagedFiles = await stageFilesForDeletion([attachment.url]);
+    try {
+      await prisma.attachment.delete({ where: { id } });
+    } catch (error) {
+      await stagedFiles.rollback();
+      throw error;
+    }
+    await stagedFiles.commit();
+    await releaseUploadCapacity(session.user.id, attachment.sizeBytes);
 
     return NextResponse.json({ success: true });
   } catch (error) {

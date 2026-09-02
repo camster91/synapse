@@ -1,4 +1,4 @@
-import { writeFile, mkdir, unlink } from "fs/promises";
+import { writeFile, mkdir, unlink, rename, readFile } from "fs/promises";
 import { existsSync } from "fs";
 import path from "path";
 
@@ -85,6 +85,77 @@ export async function deleteFile(url: string): Promise<void> {
   if (existsSync(filePath)) {
     await unlink(filePath);
   }
+}
+
+/** Read an owned upload for a portable export without allowing path traversal. */
+export async function readFileForExport(url: string): Promise<string | null> {
+  const filename = url.split("/").pop();
+  if (!filename || filename.includes("..") || filename.includes("/") || filename.includes("\\")) {
+    return null;
+  }
+  const filePath = path.resolve(UPLOAD_DIR, filename);
+  if (path.dirname(filePath) !== path.resolve(UPLOAD_DIR) || !existsSync(filePath)) return null;
+  return (await readFile(filePath)).toString("base64");
+}
+
+export type StagedFileDeletion = {
+  commit: () => Promise<void>;
+  rollback: () => Promise<void>;
+};
+
+/**
+ * Move files out of the served uploads directory before a related database
+ * delete. Roll the moves back if the database operation fails; after a
+ * successful commit, files are removed from the private trash directory.
+ */
+export async function stageFilesForDeletion(
+  urls: string[]
+): Promise<StagedFileDeletion> {
+  const trashDir = path.join(UPLOAD_DIR, ".trash");
+  await mkdir(trashDir, { recursive: true });
+
+  const staged: { source: string; trash: string }[] = [];
+
+  try {
+    for (const url of [...new Set(urls)]) {
+      const filename = url.split("/").pop();
+      if (!filename || filename.includes("..") || filename.includes("/") || filename.includes("\\")) {
+        continue;
+      }
+
+      const source = path.resolve(UPLOAD_DIR, filename);
+      if (path.dirname(source) !== path.resolve(UPLOAD_DIR) || !existsSync(source)) continue;
+
+      const trash = path.join(trashDir, `${crypto.randomUUID()}-${filename}`);
+      await rename(source, trash);
+      staged.push({ source, trash });
+    }
+  } catch (error) {
+    await Promise.allSettled(
+      staged.reverse().map(({ source, trash }) => rename(trash, source))
+    );
+    throw error;
+  }
+
+  return {
+    async commit() {
+      const results = await Promise.allSettled(
+        staged.map(({ trash }) => unlink(trash))
+      );
+      for (const result of results) {
+        if (result.status === "rejected") {
+          console.error("Failed to remove staged upload:", result.reason);
+        }
+      }
+    },
+    async rollback() {
+      const results = await Promise.allSettled(
+        staged.reverse().map(({ source, trash }) => rename(trash, source))
+      );
+      const failure = results.find((result) => result.status === "rejected");
+      if (failure?.status === "rejected") throw failure.reason;
+    },
+  };
 }
 
 function mimeToExt(mime: string): string {

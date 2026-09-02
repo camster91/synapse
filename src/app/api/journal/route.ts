@@ -4,9 +4,11 @@ import { prisma } from '@/lib/prisma';
 import { addXp } from '@/lib/xp';
 import { fireHookForUser } from '@/lib/plugins/executor';
 import { z } from 'zod/v4';
+import { dateOnlyToUtc, isoDateOrDateTimeSchema, isoDateSchema } from '@/lib/date-validation';
+import { InvalidRelationshipError, validateOwnedRelationships } from '@/lib/ownership';
 
 const createJournalSchema = z.object({
-  date: z.string(), // ISO date string
+  date: isoDateSchema,
   content: z.string().max(100000),
   mood: z.int().min(1).max(10).optional(),
   gratitude: z.string().max(5000).optional(),
@@ -23,6 +25,15 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const from = searchParams.get('from');
   const to = searchParams.get('to');
+
+  const parsedFrom = from ? isoDateOrDateTimeSchema.safeParse(from) : null;
+  const parsedTo = to ? isoDateOrDateTimeSchema.safeParse(to) : null;
+  if ((parsedFrom && !parsedFrom.success) || (parsedTo && !parsedTo.success)) {
+    return NextResponse.json({ error: 'Invalid journal date range' }, { status: 400 });
+  }
+  if (from && to && new Date(from) > new Date(to)) {
+    return NextResponse.json({ error: 'Journal range start must precede its end' }, { status: 400 });
+  }
 
   const where: any = { userId: session.user.id };
   if (from || to) {
@@ -51,8 +62,8 @@ export async function POST(request: Request) {
     const data = createJournalSchema.parse(body);
 
     const { tagIds, ...journalData } = data;
-    const date = new Date(journalData.date);
-    date.setHours(0, 0, 0, 0);
+    await validateOwnedRelationships(session.user.id, { tagIds });
+    const date = dateOnlyToUtc(journalData.date);
 
     // Upsert by userId + date — determine isNew from the result to avoid race condition
     const journal = await prisma.journal.upsert({
@@ -99,6 +110,9 @@ export async function POST(request: Request) {
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: 'Validation failed', details: error.issues }, { status: 400 });
+    }
+    if (error instanceof InvalidRelationshipError) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
     }
     console.error('Failed to create/update journal:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

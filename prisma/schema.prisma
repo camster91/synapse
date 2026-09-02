@@ -17,6 +17,7 @@ model User {
   timezone      String    @default("America/New_York")
   locale        String    @default("en")
   onboardingComplete Boolean @default(false)
+  productAnalyticsConsent Boolean @default(false)
 
   // Gamification
   xp            Int       @default(0)
@@ -24,6 +25,7 @@ model User {
   streakDays    Int       @default(0)
   longestStreak Int       @default(0)
   lastActiveAt  DateTime?
+  uploadBytes   BigInt    @default(0)
 
   // AI Provider
   anthropicApiKey    String?
@@ -53,8 +55,30 @@ model User {
   habitLogs     HabitLog[]
   notifications Notification[]
   pushSubscriptions PushSubscription[]
+  productEvents ProductEvent[]
+  aiActionProposals AiActionProposal[]
 
   @@map("users")
+}
+
+enum ProductEventName {
+  FIRST_PLAN_CREATED
+  TODAY_OPENED
+  EXPORT_SUCCEEDED
+}
+
+model ProductEvent {
+  id         String           @id @default(cuid())
+  userId     String
+  name       ProductEventName
+  dayKey     String
+  occurredAt DateTime         @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, name, dayKey])
+  @@index([name, occurredAt])
+  @@map("product_events")
 }
 
 model Account {
@@ -503,8 +527,40 @@ model AiConversation {
 
   user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   messages    AiMessage[]
+  actionProposals AiActionProposal[]
 
   @@map("ai_conversations")
+}
+
+enum AiActionStatus {
+  PENDING
+  APPLIED
+  REJECTED
+  UNDONE
+  EXPIRED
+}
+
+model AiActionProposal {
+  id             String         @id @default(cuid())
+  userId         String
+  conversationId String
+  toolName       String
+  arguments      Json
+  summary        String
+  status         AiActionStatus @default(PENDING)
+  result         Json?
+  expiresAt      DateTime
+  appliedAt      DateTime?
+  undoExpiresAt  DateTime?
+  undoneAt       DateTime?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  conversation AiConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status, createdAt])
+  @@map("ai_action_proposals")
 }
 
 model AiMessage {

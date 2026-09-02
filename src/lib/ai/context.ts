@@ -1,20 +1,10 @@
 import { prisma } from '@/lib/prisma';
-import { startOfDay, endOfDay, startOfWeek, endOfWeek, subDays, format } from 'date-fns';
+import { startOfDay, endOfDay, format } from 'date-fns';
 
-interface UserContextOptions {
-  timezone?: string;
-}
-
-export async function buildUserContext(
-  userId: string,
-  options?: UserContextOptions
-): Promise<string> {
-  const tz = options?.timezone ?? 'America/New_York';
+export async function buildUserContext(userId: string): Promise<string> {
   const now = new Date();
   const todayStart = startOfDay(now);
   const todayEnd = endOfDay(now);
-  const weekStart = startOfWeek(now, { weekStartsOn: 1 });
-  const weekEnd = endOfWeek(now, { weekStartsOn: 1 });
 
   const sections: string[] = [];
 

@@ -15,7 +15,6 @@ interface AchievementToastProps {
 export default function AchievementToast({
   title,
   description,
-  icon = "trophy",
   xpReward,
   onClose,
   duration = 5000,

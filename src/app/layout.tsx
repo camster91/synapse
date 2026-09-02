@@ -1,16 +1,12 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { headers } from "next/headers";
+import Script from "next/script";
 import { Providers } from "@/components/Providers";
 import "./globals.css";
 
-const inter = Inter({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
 export const metadata: Metadata = {
-  title: "Synapse — Your Second Brain",
-  description: "Life management, habits, goals, and AI-powered productivity",
+  title: "Synapse — Private Daily Operating System",
+  description: "Connect goals to today in one private, focused daily loop",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
@@ -22,30 +18,19 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
+
   return (
     <html lang="en" className="h-full antialiased" suppressHydrationWarning>
       <head>
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              (function() {
-                try {
-                  var theme = localStorage.getItem('synapse-theme');
-                  if (theme === 'dark' || (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-                    document.documentElement.classList.add('dark');
-                  }
-                } catch(e) {}
-              })();
-            `,
-          }}
-        />
+        <Script nonce={nonce} src="/theme-init.js" strategy="beforeInteractive" />
       </head>
-      <body className={`${inter.variable} min-h-full flex flex-col font-sans`}>
+      <body className="min-h-full flex flex-col font-sans">
         <Providers>{children}</Providers>
       </body>
     </html>

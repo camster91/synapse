@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod/v4';
+import { stageFilesForDeletion } from '@/lib/upload';
+import { releaseUploadCapacity } from '@/lib/upload-quota';
 
 const updateInboxSchema = z.object({
   processed: z.boolean().optional(),
@@ -72,7 +74,22 @@ export async function DELETE(
   const { id } = await params;
 
   try {
-    await prisma.inboxItem.delete({ where: { id, userId: session.user.id } });
+    const attachments = await prisma.attachment.findMany({
+      where: { inboxItemId: id, userId: session.user.id },
+      select: { url: true, sizeBytes: true },
+    });
+    const stagedFiles = await stageFilesForDeletion(attachments.map(({ url }) => url));
+    try {
+      await prisma.inboxItem.delete({ where: { id, userId: session.user.id } });
+    } catch (error) {
+      await stagedFiles.rollback();
+      throw error;
+    }
+    await stagedFiles.commit();
+    await releaseUploadCapacity(
+      session.user.id,
+      attachments.reduce((total, attachment) => total + BigInt(attachment.sizeBytes), BigInt(0))
+    );
     return NextResponse.json({ success: true });
   } catch (error) {
     if ((error as any)?.code === 'P2025') {

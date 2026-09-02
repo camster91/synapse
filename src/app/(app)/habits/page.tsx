@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Plus, Flame, Check } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { Plus } from "lucide-react";
 import HabitCard from "@/components/HabitCard";
 import Modal from "@/components/Modal";
 import EmptyState from "@/components/EmptyState";
+import ResourceLoadError from "@/components/ResourceLoadError";
 
 interface Habit {
   id: string;
@@ -25,28 +26,47 @@ export default function HabitsPage() {
   const [newName, setNewName] = useState("");
   const [newDesc, setNewDesc] = useState("");
   const [newFrequency, setNewFrequency] = useState("DAILY");
+  const [loadError, setLoadError] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetch("/api/habits")
-      .then((r) => r.json())
-      .then((data) => setHabits(Array.isArray(data) ? data : (data.habits || [])))
-      .catch(() => {})
-      .finally(() => setLoading(false));
+  const loadHabits = useCallback(async () => {
+    setLoading(true);
+    setLoadError(false);
+    try {
+      const response = await fetch("/api/habits");
+      if (!response.ok) throw new Error("Habits request failed");
+      const data = await response.json();
+      setHabits(Array.isArray(data) ? data : (data.habits || []));
+    } catch {
+      setLoadError(true);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
+  useEffect(() => { void loadHabits(); }, [loadHabits]);
+
   const addHabit = async () => {
-    if (!newName.trim()) return;
-    const res = await fetch("/api/habits", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: newName, description: newDesc || undefined, frequency: newFrequency }),
-    });
-    if (res.ok) {
+    if (!newName.trim() || creating) return;
+    setCreating(true);
+    setCreateError(null);
+    try {
+      const res = await fetch("/api/habits", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newName, description: newDesc || undefined, frequency: newFrequency }),
+      });
+      if (!res.ok) throw new Error("Habit creation failed");
       const data = await res.json();
       setHabits([...habits, { ...data, logs: data.logs || [] }]);
       setNewName("");
       setNewDesc("");
       setShowAdd(false);
+    } catch {
+      setCreateError("Unable to create habit. Your draft has been preserved.");
+    } finally {
+      setCreating(false);
     }
   };
 
@@ -117,6 +137,8 @@ export default function HabitsPage() {
     );
   }
 
+  if (loadError) return <ResourceLoadError resource="habits" onRetry={loadHabits} />;
+
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
@@ -170,8 +192,9 @@ export default function HabitsPage() {
       <Modal isOpen={showAdd} onClose={() => setShowAdd(false)} title="New Habit">
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-foreground mb-1">Name</label>
+            <label htmlFor="new-habit-name" className="block text-sm font-medium text-foreground mb-1">Name</label>
             <input
+              id="new-habit-name"
               type="text"
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
@@ -181,8 +204,9 @@ export default function HabitsPage() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-foreground mb-1">Description (optional)</label>
+            <label htmlFor="new-habit-description" className="block text-sm font-medium text-foreground mb-1">Description (optional)</label>
             <input
+              id="new-habit-description"
               type="text"
               value={newDesc}
               onChange={(e) => setNewDesc(e.target.value)}
@@ -190,13 +214,15 @@ export default function HabitsPage() {
               className="w-full px-3 py-2 bg-background border border-input rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
             />
           </div>
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-1">Frequency</label>
+          <fieldset>
+            <legend className="block text-sm font-medium text-foreground mb-1">Frequency</legend>
             <div className="flex gap-2">
               {["DAILY", "WEEKLY"].map((f) => (
                 <button
+                  type="button"
                   key={f}
                   onClick={() => setNewFrequency(f)}
+                  aria-pressed={newFrequency === f}
                   className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                     newFrequency === f
                       ? "bg-primary text-primary-foreground"
@@ -207,8 +233,9 @@ export default function HabitsPage() {
                 </button>
               ))}
             </div>
-          </div>
+          </fieldset>
           <div className="flex justify-end gap-2 pt-2">
+            {createError && <p role="alert" className="mr-auto text-sm text-destructive">{createError}</p>}
             <button
               onClick={() => setShowAdd(false)}
               className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
@@ -217,10 +244,10 @@ export default function HabitsPage() {
             </button>
             <button
               onClick={addHabit}
-              disabled={!newName.trim()}
+              disabled={!newName.trim() || creating}
               className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              Create Habit
+              {creating ? "Creating..." : "Create Habit"}
             </button>
           </div>
         </div>

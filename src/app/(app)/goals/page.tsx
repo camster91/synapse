@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Plus, ChevronDown, ChevronRight } from "lucide-react";
 import Modal from "@/components/Modal";
 import EmptyState from "@/components/EmptyState";
+import ResourceLoadError from "@/components/ResourceLoadError";
 
 interface Goal {
   id: string;
@@ -35,27 +36,46 @@ export default function GoalsPage() {
   const [newTitle, setNewTitle] = useState("");
   const [newLevel, setNewLevel] = useState("QUARTERLY");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [loadError, setLoadError] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetch("/api/goals")
-      .then((r) => r.json())
-      .then((data) => setGoals(Array.isArray(data) ? data : (data.goals || [])))
-      .catch(() => {})
-      .finally(() => setLoading(false));
+  const loadGoals = useCallback(async () => {
+    setLoading(true);
+    setLoadError(false);
+    try {
+      const response = await fetch("/api/goals");
+      if (!response.ok) throw new Error("Goals request failed");
+      const data = await response.json();
+      setGoals(Array.isArray(data) ? data : (data.goals || []));
+    } catch {
+      setLoadError(true);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
+  useEffect(() => { void loadGoals(); }, [loadGoals]);
+
   const addGoal = async () => {
-    if (!newTitle.trim()) return;
-    const res = await fetch("/api/goals", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title: newTitle, level: newLevel }),
-    });
-    if (res.ok) {
+    if (!newTitle.trim() || creating) return;
+    setCreating(true);
+    setCreateError(null);
+    try {
+      const res = await fetch("/api/goals", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: newTitle, level: newLevel }),
+      });
+      if (!res.ok) throw new Error("Goal creation failed");
       const data = await res.json();
       setGoals([...goals, data]);
       setNewTitle("");
       setShowAdd(false);
+    } catch {
+      setCreateError("Unable to create goal. Your draft has been preserved.");
+    } finally {
+      setCreating(false);
     }
   };
 
@@ -95,6 +115,8 @@ export default function GoalsPage() {
       </div>
     );
   }
+
+  if (loadError) return <ResourceLoadError resource="goals" onRetry={loadGoals} />;
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
@@ -198,8 +220,9 @@ export default function GoalsPage() {
       <Modal isOpen={showAdd} onClose={() => setShowAdd(false)} title="New Goal">
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-foreground mb-1">What do you want to achieve?</label>
+            <label htmlFor="new-goal-title" className="block text-sm font-medium text-foreground mb-1">What do you want to achieve?</label>
             <input
+              id="new-goal-title"
               type="text"
               value={newTitle}
               onChange={(e) => setNewTitle(e.target.value)}
@@ -209,13 +232,15 @@ export default function GoalsPage() {
               autoFocus
             />
           </div>
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-1">Timeframe</label>
+          <fieldset>
+            <legend className="block text-sm font-medium text-foreground mb-1">Timeframe</legend>
             <div className="flex gap-2">
               {LEVEL_ORDER.map((level) => (
                 <button
+                  type="button"
                   key={level}
                   onClick={() => setNewLevel(level)}
+                  aria-pressed={newLevel === level}
                   className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                     newLevel === level
                       ? "bg-primary text-primary-foreground"
@@ -226,8 +251,9 @@ export default function GoalsPage() {
                 </button>
               ))}
             </div>
-          </div>
+          </fieldset>
           <div className="flex justify-end gap-2 pt-2">
+            {createError && <p role="alert" className="mr-auto text-sm text-destructive">{createError}</p>}
             <button
               onClick={() => setShowAdd(false)}
               className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
@@ -236,10 +262,10 @@ export default function GoalsPage() {
             </button>
             <button
               onClick={addGoal}
-              disabled={!newTitle.trim()}
+              disabled={!newTitle.trim() || creating}
               className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              Create Goal
+              {creating ? "Creating..." : "Create Goal"}
             </button>
           </div>
         </div>

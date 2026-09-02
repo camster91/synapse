@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { User, Key, Download, Palette } from "lucide-react";
+import { signOut } from "next-auth/react";
+import { User, Key, Download, Palette, Trash2 } from "lucide-react";
 
 export default function SettingsPage() {
   const [name, setName] = useState("");
@@ -9,32 +10,47 @@ export default function SettingsPage() {
   const [timezone, setTimezone] = useState("America/New_York");
   const [anthropicKey, setAnthropicKey] = useState("");
   const [openaiKey, setOpenaiKey] = useState("");
-  const [ollamaBaseUrl, setOllamaBaseUrl] = useState("");
   const [preferredAiProvider, setPreferredAiProvider] = useState("anthropic");
   const [hasAnthropicKey, setHasAnthropicKey] = useState(false);
   const [hasOpenaiKey, setHasOpenaiKey] = useState(false);
-  const [darkMode, setDarkMode] = useState(
-    typeof window !== "undefined" ? document.documentElement.classList.contains("dark") : false
-  );
+  const [ollamaAvailable, setOllamaAvailable] = useState(false);
+  const [productAnalyticsConsent, setProductAnalyticsConsent] = useState(false);
+  const [darkMode, setDarkMode] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [deleteConfirmation, setDeleteConfirmation] = useState("");
+  const [deletePassword, setDeletePassword] = useState("");
+  const [deleting, setDeleting] = useState(false);
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
 
   useEffect(() => {
+    setDarkMode(document.documentElement.classList.contains("dark"));
     fetch("/api/settings")
-      .then((r) => r.json())
+      .then(async (r) => {
+        if (!r.ok) throw new Error("Settings request failed");
+        return r.json();
+      })
       .then((data) => {
         setName(data.name || "");
         setEmail(data.email || "");
         setTimezone(data.timezone || "America/New_York");
-        setOllamaBaseUrl(data.ollamaBaseUrl || "");
-        setPreferredAiProvider(data.preferredAiProvider || "anthropic");
+        setPreferredAiProvider(
+          data.preferredAiProvider === "ollama" && !data.ollamaAvailable
+            ? "anthropic"
+            : data.preferredAiProvider || "anthropic"
+        );
         setHasAnthropicKey(Boolean(data.hasAnthropicKey));
         setHasOpenaiKey(Boolean(data.hasOpenaiKey));
-        setLoading(false);
+        setOllamaAvailable(Boolean(data.ollamaAvailable));
+        setProductAnalyticsConsent(Boolean(data.productAnalyticsConsent));
+        setSettingsLoaded(true);
       })
-      .catch(() => setLoading(false));
+      .catch(() => {
+        setError("Unable to load settings. Refresh the page and try again.");
+      });
   }, []);
 
   const handleSave = async () => {
@@ -49,8 +65,8 @@ export default function SettingsPage() {
           timezone: timezone || undefined,
           anthropicApiKey: anthropicKey || undefined,
           openaiApiKey: openaiKey || undefined,
-          ollamaBaseUrl: ollamaBaseUrl || undefined,
           preferredAiProvider,
+          productAnalyticsConsent,
         }),
       });
       if (!res.ok) {
@@ -82,15 +98,46 @@ export default function SettingsPage() {
   };
 
   const handleExportData = async () => {
-    const res = await fetch("/api/settings/export");
-    if (res.ok) {
+    if (exporting) return;
+    setExporting(true);
+    setExportError(null);
+    try {
+      const res = await fetch("/api/settings/export");
+      if (!res.ok) throw new Error("Export request failed");
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
       a.download = "synapse-export.json";
+      document.body.appendChild(a);
       a.click();
-      URL.revokeObjectURL(url);
+      a.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 0);
+    } catch {
+      setExportError("Data export failed. No archive was downloaded; please try again.");
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (deleteConfirmation !== "DELETE") return;
+    setDeleting(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/account", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ confirmation: deleteConfirmation, password: deletePassword }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Account deletion failed");
+      }
+      await signOut({ callbackUrl: "/" });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Account deletion failed");
+      setDeleting(false);
     }
   };
 
@@ -99,6 +146,7 @@ export default function SettingsPage() {
     { id: "ai", label: "AI Provider", icon: Key },
     { id: "appearance", label: "Appearance", icon: Palette },
     { id: "data", label: "Data", icon: Download },
+    { id: "delete-account", label: "Delete account", icon: Trash2 },
   ];
 
   return (
@@ -155,10 +203,12 @@ export default function SettingsPage() {
                 <input
                   type="email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  readOnly
+                  aria-readonly="true"
                   placeholder="you@example.com"
-                  className="w-full px-3 py-2 bg-background border border-input rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                  className="w-full min-h-11 px-3 py-2 bg-muted/40 border border-input rounded-lg text-sm text-muted-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                 />
+                <p className="mt-1 text-xs text-muted-foreground">Email changes are not available in this beta.</p>
               </div>
               <div>
                 <label className="block text-sm font-medium text-foreground mb-1">Timezone</label>
@@ -192,7 +242,7 @@ export default function SettingsPage() {
                 <select value={preferredAiProvider} onChange={(e) => setPreferredAiProvider(e.target.value)} className="w-full px-3 py-2 bg-background border border-input rounded-lg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring">
                   <option value="anthropic">Anthropic</option>
                   <option value="openai">OpenAI</option>
-                  <option value="ollama">Ollama (self-hosted)</option>
+                  {ollamaAvailable && <option value="ollama">Ollama (managed by this instance)</option>}
                 </select>
               </div>
               <div>
@@ -217,10 +267,11 @@ export default function SettingsPage() {
                 />
                 {hasOpenaiKey && <p className="mt-1 text-xs text-emerald-600">Connected. Enter a new key only to replace it.</p>}
               </div>
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-1">Ollama base URL</label>
-                <input type="url" value={ollamaBaseUrl} onChange={(e) => setOllamaBaseUrl(e.target.value)} placeholder="http://localhost:11434" className="w-full px-3 py-2 bg-background border border-input rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
-              </div>
+              {ollamaAvailable && (
+                <p className="text-xs text-muted-foreground">
+                  Ollama is connected by the instance operator. Its network address is not exposed or changed from your account.
+                </p>
+              )}
             </div>
           </section>
 
@@ -251,15 +302,52 @@ export default function SettingsPage() {
           <section id="data" className="bg-card border border-border rounded-xl p-6">
             <h2 className="text-lg font-semibold text-foreground mb-4">Data</h2>
             <p className="text-sm text-muted-foreground mb-4">
-              Export all your data as JSON for backup or migration.
+              Download a portable JSON archive of your profile and user-owned content. Uploaded files are included as base64 data; reusable credentials are excluded for security.
             </p>
             <button
               onClick={handleExportData}
+              disabled={exporting}
               className="flex items-center gap-2 px-4 py-2 border border-border rounded-lg text-sm text-foreground hover:bg-muted transition-colors"
             >
               <Download className="w-4 h-4" />
-              Export Data
+              {exporting ? "Preparing export..." : "Export Data"}
             </button>
+            {exportError && <p role="alert" className="mt-2 text-sm text-destructive">{exportError}</p>}
+            <label className="mt-5 flex items-start gap-3 rounded-lg border border-border bg-muted/30 p-3">
+              <input
+                type="checkbox"
+                checked={productAnalyticsConsent}
+                onChange={(event) => setProductAnalyticsConsent(event.target.checked)}
+                className="mt-0.5 h-4 w-4 rounded border-input"
+              />
+              <span>
+                <span className="block text-sm font-medium text-foreground">Share private-beta activity signals</span>
+                <span className="mt-1 block text-xs text-muted-foreground">
+                  Stores only first plan created, Today opened, and export succeeded in this Synapse instance. No content, browsing history, device data, or third-party analytics. Turning this off deletes previously stored signals when you save.
+                </span>
+              </span>
+            </label>
+          </section>
+
+          <section id="delete-account" className="rounded-xl border border-destructive/30 bg-card p-6">
+            <h2 className="text-lg font-semibold text-destructive">Delete account</h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Permanently remove your account, records, conversations, and uploaded files. Export first if you need a copy. This cannot be undone.
+            </p>
+            <div className="mt-4 space-y-3">
+              <div>
+                <label htmlFor="delete-password" className="mb-1 block text-sm font-medium text-foreground">Current password</label>
+                <input id="delete-password" type="password" value={deletePassword} onChange={(event) => setDeletePassword(event.target.value)} autoComplete="current-password" className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
+              </div>
+              <div>
+                <label htmlFor="delete-confirmation" className="mb-1 block text-sm font-medium text-foreground">Type DELETE to confirm</label>
+                <input id="delete-confirmation" value={deleteConfirmation} onChange={(event) => setDeleteConfirmation(event.target.value)} className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
+              </div>
+              <button type="button" onClick={handleDeleteAccount} disabled={deleting || deleteConfirmation !== "DELETE"} className="flex items-center gap-2 rounded-lg bg-destructive px-4 py-2 text-sm font-semibold text-destructive-foreground hover:opacity-90 disabled:opacity-50">
+                <Trash2 className="h-4 w-4" />
+                {deleting ? "Deleting account…" : "Permanently delete account"}
+              </button>
+            </div>
           </section>
 
           {/* Save Button */}
@@ -267,8 +355,8 @@ export default function SettingsPage() {
             {error && <p className="text-sm text-destructive">{error}</p>}
             <button
               onClick={handleSave}
-              disabled={saving}
-              className="px-6 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
+              disabled={saving || !settingsLoaded}
+              className="min-h-11 px-6 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
             >
               {saving ? "Saving..." : saved ? "Saved!" : "Save Changes"}
             </button>

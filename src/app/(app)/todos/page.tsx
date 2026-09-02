@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Plus, Filter, ChevronDown, ChevronRight, Flag, Calendar } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { Plus, Filter } from "lucide-react";
 import TodoCard from "@/components/TodoCard";
 import Modal from "@/components/Modal";
 import EmptyState from "@/components/EmptyState";
+import ResourceLoadError from "@/components/ResourceLoadError";
 
 type TodoStatus = "INBOX" | "TODO" | "IN_PROGRESS" | "DONE" | "CANCELLED" | "SNOOZED";
 
@@ -36,34 +37,53 @@ export default function TodosPage() {
   const [newPriority, setNewPriority] = useState(0);
   const [newStatus, setNewStatus] = useState<TodoStatus>("INBOX");
   const [filterPriority, setFilterPriority] = useState<number | null>(null);
+  const [loadError, setLoadError] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetch("/api/todos")
-      .then((r) => r.json())
-      .then((data) => setTodos(Array.isArray(data) ? data : (data.todos || [])))
-      .catch(() => {})
-      .finally(() => setLoading(false));
+  const loadTodos = useCallback(async () => {
+    setLoading(true);
+    setLoadError(false);
+    try {
+      const response = await fetch("/api/todos");
+      if (!response.ok) throw new Error("Todos request failed");
+      const data = await response.json();
+      setTodos(Array.isArray(data) ? data : (data.todos || []));
+    } catch {
+      setLoadError(true);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
+  useEffect(() => { void loadTodos(); }, [loadTodos]);
+
   const addTodo = async () => {
-    if (!newTitle.trim()) return;
-    const res = await fetch("/api/todos", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        title: newTitle,
-        description: newDesc || undefined,
-        priority: newPriority,
-        status: newStatus,
-      }),
-    });
-    if (res.ok) {
+    if (!newTitle.trim() || creating) return;
+    setCreating(true);
+    setCreateError(null);
+    try {
+      const res = await fetch("/api/todos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: newTitle,
+          description: newDesc || undefined,
+          priority: newPriority,
+          status: newStatus,
+        }),
+      });
+      if (!res.ok) throw new Error("Todo creation failed");
       const data = await res.json();
       setTodos([...todos, data]);
       setNewTitle("");
       setNewDesc("");
       setNewPriority(0);
       setShowAdd(false);
+    } catch {
+      setCreateError("Unable to create todo. Your draft has been preserved.");
+    } finally {
+      setCreating(false);
     }
   };
 
@@ -109,6 +129,8 @@ export default function TodosPage() {
       </div>
     );
   }
+
+  if (loadError) return <ResourceLoadError resource="todos" onRetry={loadTodos} />;
 
   return (
     <div className="space-y-4">
@@ -193,8 +215,9 @@ export default function TodosPage() {
       <Modal isOpen={showAdd} onClose={() => setShowAdd(false)} title="New Todo">
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-foreground mb-1">Title</label>
+            <label htmlFor="new-todo-title" className="block text-sm font-medium text-foreground mb-1">Title</label>
             <input
+              id="new-todo-title"
               type="text"
               value={newTitle}
               onChange={(e) => setNewTitle(e.target.value)}
@@ -204,8 +227,9 @@ export default function TodosPage() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-foreground mb-1">Description (optional)</label>
+            <label htmlFor="new-todo-description" className="block text-sm font-medium text-foreground mb-1">Description (optional)</label>
             <textarea
+              id="new-todo-description"
               value={newDesc}
               onChange={(e) => setNewDesc(e.target.value)}
               placeholder="Add details..."
@@ -215,8 +239,9 @@ export default function TodosPage() {
           </div>
           <div className="flex gap-4">
             <div className="flex-1">
-              <label className="block text-sm font-medium text-foreground mb-1">Priority</label>
+              <label htmlFor="new-todo-priority" className="block text-sm font-medium text-foreground mb-1">Priority</label>
               <select
+                id="new-todo-priority"
                 value={newPriority}
                 onChange={(e) => setNewPriority(Number(e.target.value))}
                 className="w-full px-3 py-2 bg-background border border-input rounded-lg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
@@ -228,8 +253,9 @@ export default function TodosPage() {
               </select>
             </div>
             <div className="flex-1">
-              <label className="block text-sm font-medium text-foreground mb-1">Status</label>
+              <label htmlFor="new-todo-status" className="block text-sm font-medium text-foreground mb-1">Status</label>
               <select
+                id="new-todo-status"
                 value={newStatus}
                 onChange={(e) => setNewStatus(e.target.value as TodoStatus)}
                 className="w-full px-3 py-2 bg-background border border-input rounded-lg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
@@ -241,6 +267,7 @@ export default function TodosPage() {
             </div>
           </div>
           <div className="flex justify-end gap-2 pt-2">
+            {createError && <p role="alert" className="mr-auto text-sm text-destructive">{createError}</p>}
             <button
               onClick={() => setShowAdd(false)}
               className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
@@ -249,10 +276,10 @@ export default function TodosPage() {
             </button>
             <button
               onClick={addTodo}
-              disabled={!newTitle.trim()}
+              disabled={!newTitle.trim() || creating}
               className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              Create Todo
+              {creating ? "Creating..." : "Create Todo"}
             </button>
           </div>
         </div>

@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { InvalidRelationshipError, validateOwnedRelationships } from '@/lib/ownership';
+import { isoDateOrDateTimeSchema, isoDateTimeSchema } from '@/lib/date-validation';
 import { z } from 'zod/v4';
 
 const createTodoSchema = z.object({
@@ -8,8 +10,8 @@ const createTodoSchema = z.object({
   description: z.string().max(10000).optional(),
   status: z.enum(['INBOX', 'TODO', 'IN_PROGRESS', 'DONE', 'CANCELLED', 'SNOOZED']).default('INBOX'),
   priority: z.int().min(0).max(5).default(0),
-  dueDate: z.string().optional(),
-  scheduledAt: z.string().optional(),
+  dueDate: isoDateOrDateTimeSchema.optional(),
+  scheduledAt: isoDateTimeSchema.optional(),
   goalId: z.string().optional(),
   parentId: z.string().optional(),
   sortOrder: z.int().default(0),
@@ -57,6 +59,12 @@ export async function POST(request: Request) {
 
     const { tagIds, ...todoData } = data;
 
+    await validateOwnedRelationships(session.user.id, {
+      tagIds,
+      goalId: todoData.goalId,
+      todoParentId: todoData.parentId,
+    });
+
     const todo = await prisma.todo.create({
       data: {
         ...todoData,
@@ -74,6 +82,9 @@ export async function POST(request: Request) {
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: 'Validation failed', details: error.issues }, { status: 400 });
+    }
+    if (error instanceof InvalidRelationshipError) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
     }
     console.error('Failed to create todo:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

@@ -26,7 +26,6 @@ interface TodoCardProps {
   todo: Todo;
   onStatusChange?: (id: string, status: string) => Promise<void> | void;
   onDelete?: (id: string) => void;
-  onExpand?: (id: string) => void;
 }
 
 const priorityColors: Record<number, string> = {
@@ -36,14 +35,7 @@ const priorityColors: Record<number, string> = {
   3: "text-destructive",
 };
 
-const priorityLabels: Record<number, string> = {
-  0: "No priority",
-  1: "Low",
-  2: "Medium",
-  3: "High",
-};
-
-export default function TodoCard({ todo, onStatusChange, onDelete, onExpand }: TodoCardProps) {
+export default function TodoCard({ todo, onStatusChange, onDelete }: TodoCardProps) {
   const [expanded, setExpanded] = useState(false);
   const hasSubtasks = todo.subtasks && todo.subtasks.length > 0;
 

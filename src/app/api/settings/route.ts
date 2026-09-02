@@ -11,9 +11,9 @@ const updateSettingsSchema = z.object({
   avatarUrl: z.string().max(2000).nullable().optional(),
   anthropicApiKey: z.string().max(200).optional(),
   openaiApiKey: z.string().max(200).optional(),
-  ollamaBaseUrl: z.string().max(500).optional(),
   preferredAiProvider: z.enum(["anthropic", "openai", "ollama"]).optional(),
-});
+  productAnalyticsConsent: z.boolean().optional(),
+}).strict();
 
 export async function GET() {
   const session = await auth();
@@ -33,6 +33,7 @@ export async function GET() {
         openaiApiKey: true,
         ollamaBaseUrl: true,
         preferredAiProvider: true,
+        productAnalyticsConsent: true,
       },
     });
 
@@ -57,6 +58,7 @@ export async function GET() {
         select: {
           name: true, email: true, timezone: true, avatarUrl: true,
           anthropicApiKey: true, openaiApiKey: true, ollamaBaseUrl: true, preferredAiProvider: true,
+          productAnalyticsConsent: true,
         },
       });
     }
@@ -67,10 +69,11 @@ export async function GET() {
       email: user.email,
       timezone: user.timezone,
       avatarUrl: user.avatarUrl,
-      ollamaBaseUrl: user.ollamaBaseUrl,
       preferredAiProvider: user.preferredAiProvider,
       hasAnthropicKey: Boolean(user.anthropicApiKey),
       hasOpenaiKey: Boolean(user.openaiApiKey),
+      ollamaAvailable: Boolean(process.env.OLLAMA_BASE_URL),
+      productAnalyticsConsent: user.productAnalyticsConsent,
     });
   } catch (error) {
     console.error("Failed to fetch settings:", error);
@@ -125,31 +128,31 @@ export async function PUT(request: Request) {
           updateData[key] = null;
         }
         // else: "****" or undefined — skip, keep existing
-      } else if (key === "ollamaBaseUrl") {
-        if (typeof value === "string" && value.trim() !== "") {
-          updateData[key] = value.trim();
-        } else if (value === null) {
-          updateData[key] = null;
-        }
-        // else: undefined — skip
       } else if (value !== undefined) {
         updateData[key] = value;
       }
     }
 
-    const user = await prisma.user.update({
-      where: { id: session.user.id },
-      data: updateData,
-      select: {
-        name: true,
-        email: true,
-        timezone: true,
-        avatarUrl: true,
-        anthropicApiKey: true,
-        openaiApiKey: true,
-        ollamaBaseUrl: true,
-        preferredAiProvider: true,
-      },
+    const user = await prisma.$transaction(async (tx) => {
+      const updated = await tx.user.update({
+        where: { id: session.user.id },
+        data: updateData,
+        select: {
+          name: true,
+          email: true,
+          timezone: true,
+          avatarUrl: true,
+          anthropicApiKey: true,
+          openaiApiKey: true,
+          ollamaBaseUrl: true,
+          preferredAiProvider: true,
+          productAnalyticsConsent: true,
+        },
+      });
+      if (data.productAnalyticsConsent === false) {
+        await tx.productEvent.deleteMany({ where: { userId: session.user.id } });
+      }
+      return updated;
     });
 
     // Never return API keys in the response — only expose whether they are configured
@@ -158,10 +161,11 @@ export async function PUT(request: Request) {
       email: user.email,
       timezone: user.timezone,
       avatarUrl: user.avatarUrl,
-      ollamaBaseUrl: user.ollamaBaseUrl,
       preferredAiProvider: user.preferredAiProvider,
       hasAnthropicKey: Boolean(user.anthropicApiKey),
       hasOpenaiKey: Boolean(user.openaiApiKey),
+      ollamaAvailable: Boolean(process.env.OLLAMA_BASE_URL),
+      productAnalyticsConsent: user.productAnalyticsConsent,
     });
   } catch (error) {
     if (error instanceof z.ZodError) {

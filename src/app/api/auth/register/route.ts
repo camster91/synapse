@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { addXp, checkAndAwardAchievements } from "@/lib/xp";
+import { addXp } from "@/lib/xp";
 import bcrypt from "bcryptjs";
 import { z } from "zod/v4";
+import { consumeRateLimit, rateLimitResponse, trustedClientIp } from "@/lib/rate-limit";
 
 const registerSchema = z.object({
   name: z.string().min(1).max(100),
@@ -15,20 +16,37 @@ export async function POST(request: Request) {
     const body = await request.json();
     const data = registerSchema.parse(body);
 
+    const accountLimit = consumeRateLimit({
+      namespace: "register-account",
+      identifier: data.email,
+      maxAttempts: 5,
+      windowMs: 60 * 60 * 1000,
+    });
+    if (!accountLimit.allowed) return rateLimitResponse(accountLimit.retryAfterSeconds);
+
+    const clientIp = trustedClientIp(request);
+    if (clientIp) {
+      const ipLimit = consumeRateLimit({
+        namespace: "register-ip",
+        identifier: clientIp,
+        maxAttempts: 10,
+        windowMs: 60 * 60 * 1000,
+      });
+      if (!ipLimit.allowed) return rateLimitResponse(ipLimit.retryAfterSeconds);
+    }
+
+    // Always perform the password work before the existence branch so the API
+    // does not expose registered accounts through response timing.
+    const hashedPassword = await bcrypt.hash(data.password, 12);
+
     // Check if email already exists
     const existingUser = await prisma.user.findUnique({
       where: { email: data.email },
     });
 
     if (existingUser) {
-      return NextResponse.json(
-        { error: "An account with this email already exists" },
-        { status: 409 }
-      );
+      return NextResponse.json({ accepted: true }, { status: 201 });
     }
-
-    // Hash password
-    const hashedPassword = await bcrypt.hash(data.password, 12);
 
     // Create User + Account in a transaction
     const user = await prisma.$transaction(async (tx) => {

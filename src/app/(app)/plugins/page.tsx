@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
 import {
   Puzzle,
   Settings,
@@ -13,6 +12,7 @@ import {
   X,
 } from "lucide-react";
 import Modal from "@/components/Modal";
+import ResourceLoadError from "@/components/ResourceLoadError";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -45,7 +45,6 @@ interface UserPluginInfo {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function PluginsPage() {
-  const router = useRouter();
   const [allPlugins, setAllPlugins] = useState<PluginManifest[]>([]);
   const [userPlugins, setUserPlugins] = useState<UserPluginInfo[]>([]);
   const [loading, setLoading] = useState(true);
@@ -54,25 +53,23 @@ export default function PluginsPage() {
   const [configuring, setConfiguring] = useState<UserPluginInfo | null>(null);
   const [configValues, setConfigValues] = useState<Record<string, unknown>>({});
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState(false);
+  const [actionError, setActionError] = useState("");
 
   // Fetch all available plugins and user's installed plugins
   const fetchPlugins = useCallback(async () => {
+    setLoadError(false);
     try {
       const [allRes, userRes] = await Promise.all([
         fetch("/api/plugins"),
         fetch("/api/plugins?installed=true"),
       ]);
 
-      if (allRes.ok) {
-        const data = await allRes.json();
-        setAllPlugins(data);
-      }
-      if (userRes.ok) {
-        const data = await userRes.json();
-        setUserPlugins(data);
-      }
-    } catch (err) {
-      console.error("Failed to load plugins:", err);
+      if (!allRes.ok || !userRes.ok) throw new Error("Plugins request failed");
+      setAllPlugins(await allRes.json());
+      setUserPlugins(await userRes.json());
+    } catch {
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
@@ -87,17 +84,17 @@ export default function PluginsPage() {
 
   const installPlugin = async (pluginName: string) => {
     setActionLoading(pluginName);
+    setActionError("");
     try {
       const res = await fetch("/api/plugins/install", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ pluginName }),
       });
-      if (res.ok) {
-        await fetchPlugins();
-      }
-    } catch (err) {
-      console.error("Install failed:", err);
+      if (!res.ok) throw new Error("Install failed");
+      await fetchPlugins();
+    } catch {
+      setActionError("The plugin could not be installed. Nothing was changed.");
     } finally {
       setActionLoading(null);
     }
@@ -105,17 +102,17 @@ export default function PluginsPage() {
 
   const uninstallPlugin = async (pluginName: string) => {
     setActionLoading(pluginName);
+    setActionError("");
     try {
       const res = await fetch("/api/plugins/uninstall", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ pluginName }),
       });
-      if (res.ok) {
-        await fetchPlugins();
-      }
-    } catch (err) {
-      console.error("Uninstall failed:", err);
+      if (!res.ok) throw new Error("Uninstall failed");
+      await fetchPlugins();
+    } catch {
+      setActionError("The plugin could not be removed. Your installation was preserved.");
     } finally {
       setActionLoading(null);
     }
@@ -123,17 +120,17 @@ export default function PluginsPage() {
 
   const togglePlugin = async (pluginName: string, enabled: boolean) => {
     setActionLoading(pluginName);
+    setActionError("");
     try {
       const res = await fetch("/api/plugins/configure", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ pluginName, config: { _enabled: enabled } }),
       });
-      if (res.ok) {
-        await fetchPlugins();
-      }
-    } catch (err) {
-      console.error("Toggle failed:", err);
+      if (!res.ok) throw new Error("Toggle failed");
+      await fetchPlugins();
+    } catch {
+      setActionError("The plugin state could not be updated. Its previous state was preserved.");
     } finally {
       setActionLoading(null);
     }
@@ -154,6 +151,7 @@ export default function PluginsPage() {
   const saveConfig = async () => {
     if (!configuring) return;
     setActionLoading(configuring.manifest.name);
+    setActionError("");
     try {
       const res = await fetch("/api/plugins/configure", {
         method: "PUT",
@@ -163,12 +161,11 @@ export default function PluginsPage() {
           config: configValues,
         }),
       });
-      if (res.ok) {
-        setConfiguring(null);
-        await fetchPlugins();
-      }
-    } catch (err) {
-      console.error("Config save failed:", err);
+      if (!res.ok) throw new Error("Configuration save failed");
+      setConfiguring(null);
+      await fetchPlugins();
+    } catch {
+      setActionError("Plugin settings could not be saved. Your previous settings were preserved.");
     } finally {
       setActionLoading(null);
     }
@@ -254,7 +251,9 @@ export default function PluginsPage() {
         </div>
 
         {/* Loading */}
-        {loading ? (
+        {loadError ? (
+          <ResourceLoadError resource="plugins" onRetry={fetchPlugins} />
+        ) : loading ? (
           <div className="flex items-center justify-center py-20">
             <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
           </div>
@@ -386,6 +385,11 @@ export default function PluginsPage() {
               }
             )}
           </div>
+        )}
+        {actionError && (
+          <p role="alert" className="mt-4 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+            {actionError}
+          </p>
         )}
       </div>
 

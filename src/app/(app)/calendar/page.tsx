@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Plus, ChevronLeft, ChevronRight } from "lucide-react";
 import Modal from "@/components/Modal";
+import ResourceLoadError from "@/components/ResourceLoadError";
 
 interface CalendarEvent {
   id: string;
@@ -18,6 +19,9 @@ interface CalendarEvent {
 export default function CalendarPage() {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [showAdd, setShowAdd] = useState(false);
   const [showEvent, setShowEvent] = useState<CalendarEvent | null>(null);
@@ -27,30 +31,44 @@ export default function CalendarPage() {
   const [newAllDay, setNewAllDay] = useState(false);
   const [newLocation, setNewLocation] = useState("");
 
-  useEffect(() => {
+  const loadEvents = useCallback(async () => {
+    setLoading(true);
+    setLoadError(false);
     const start = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
     const end = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
-    fetch(`/api/calendar?start=${start.toISOString()}&end=${end.toISOString()}`)
-      .then((r) => r.json())
-      .then((data) => setEvents(Array.isArray(data) ? data : (data.events || [])))
-      .catch(() => {})
-      .finally(() => setLoading(false));
+    try {
+      const response = await fetch(`/api/calendar?from=${start.toISOString()}&to=${end.toISOString()}`);
+      if (!response.ok) throw new Error("Calendar request failed");
+      const data = await response.json();
+      setEvents(Array.isArray(data) ? data : (data.events || []));
+    } catch {
+      setLoadError(true);
+    } finally {
+      setLoading(false);
+    }
   }, [currentDate]);
 
+  useEffect(() => {
+    void loadEvents();
+  }, [loadEvents]);
+
   const addEvent = async () => {
-    if (!newTitle.trim()) return;
-    const res = await fetch("/api/calendar", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        title: newTitle,
-        startAt: newStart,
-        endAt: newEnd || undefined,
-        allDay: newAllDay,
-        location: newLocation || undefined,
-      }),
-    });
-    if (res.ok) {
+    if (!newTitle.trim() || creating) return;
+    setCreating(true);
+    setCreateError(null);
+    try {
+      const res = await fetch("/api/calendar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: newTitle,
+          startAt: new Date(newStart).toISOString(),
+          endAt: newEnd ? new Date(newEnd).toISOString() : undefined,
+          allDay: newAllDay,
+          location: newLocation || undefined,
+        }),
+      });
+      if (!res.ok) throw new Error("Event creation failed");
       const data = await res.json();
       setEvents([...events, data]);
       setNewTitle("");
@@ -59,6 +77,10 @@ export default function CalendarPage() {
       setNewLocation("");
       setNewAllDay(false);
       setShowAdd(false);
+    } catch {
+      setCreateError("Unable to create event. Your draft has been preserved.");
+    } finally {
+      setCreating(false);
     }
   };
 
@@ -94,6 +116,12 @@ export default function CalendarPage() {
       return d.getDate() === day && d.getMonth() === month && d.getFullYear() === year;
     });
 
+  if (loading) {
+    return <div className="h-[32rem] animate-pulse rounded-xl bg-muted" />;
+  }
+
+  if (loadError) return <ResourceLoadError resource="calendar" onRetry={loadEvents} />;
+
   return (
     <div className="max-w-6xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
@@ -115,6 +143,8 @@ export default function CalendarPage() {
         {/* Month Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-border">
           <button
+            type="button"
+            aria-label="Previous month"
             onClick={() => setCurrentDate(new Date(year, month - 1, 1))}
             className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
           >
@@ -124,6 +154,8 @@ export default function CalendarPage() {
             {currentDate.toLocaleString("default", { month: "long", year: "numeric" })}
           </h2>
           <button
+            type="button"
+            aria-label="Next month"
             onClick={() => setCurrentDate(new Date(year, month + 1, 1))}
             className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
           >
@@ -146,9 +178,11 @@ export default function CalendarPage() {
             const isToday = day === today.getDate() && month === today.getMonth() && year === today.getFullYear();
 
             return (
-              <div
+              <button
+                type="button"
+                aria-label={`${new Date(year, month, day).toLocaleDateString()}: ${dayEvents.length} event${dayEvents.length === 1 ? "" : "s"}`}
                 key={i}
-                className="min-h-24 p-1 border-b border-r border-border hover:bg-muted/20 transition-colors cursor-pointer"
+                className="min-h-24 p-1 border-b border-r border-border hover:bg-muted/20 transition-colors cursor-pointer text-left"
                 onClick={() => {
                   if (dayEvents.length > 0) setShowEvent(dayEvents[0]);
                 }}
@@ -169,7 +203,7 @@ export default function CalendarPage() {
                     <div className="text-xs text-muted-foreground px-1">+{dayEvents.length - 2} more</div>
                   )}
                 </div>
-              </div>
+              </button>
             );
           })}
         </div>
@@ -179,8 +213,9 @@ export default function CalendarPage() {
       <Modal isOpen={showAdd} onClose={() => setShowAdd(false)} title="New Event">
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-foreground mb-1">Title</label>
+            <label htmlFor="new-event-title" className="block text-sm font-medium text-foreground mb-1">Title</label>
             <input
+              id="new-event-title"
               type="text"
               value={newTitle}
               onChange={(e) => setNewTitle(e.target.value)}
@@ -191,8 +226,9 @@ export default function CalendarPage() {
           </div>
           <div className="flex gap-3">
             <div className="flex-1">
-              <label className="block text-sm font-medium text-foreground mb-1">Start</label>
+              <label htmlFor="new-event-start" className="block text-sm font-medium text-foreground mb-1">Start</label>
               <input
+                id="new-event-start"
                 type="datetime-local"
                 value={newStart}
                 onChange={(e) => setNewStart(e.target.value)}
@@ -200,8 +236,9 @@ export default function CalendarPage() {
               />
             </div>
             <div className="flex-1">
-              <label className="block text-sm font-medium text-foreground mb-1">End</label>
+              <label htmlFor="new-event-end" className="block text-sm font-medium text-foreground mb-1">End</label>
               <input
+                id="new-event-end"
                 type="datetime-local"
                 value={newEnd}
                 onChange={(e) => setNewEnd(e.target.value)}
@@ -210,8 +247,9 @@ export default function CalendarPage() {
             </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-foreground mb-1">Location (optional)</label>
+            <label htmlFor="new-event-location" className="block text-sm font-medium text-foreground mb-1">Location (optional)</label>
             <input
+              id="new-event-location"
               type="text"
               value={newLocation}
               onChange={(e) => setNewLocation(e.target.value)}
@@ -229,6 +267,7 @@ export default function CalendarPage() {
             All day event
           </label>
           <div className="flex justify-end gap-2 pt-2">
+            {createError && <p role="alert" className="mr-auto text-sm text-destructive">{createError}</p>}
             <button
               onClick={() => setShowAdd(false)}
               className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
@@ -237,10 +276,10 @@ export default function CalendarPage() {
             </button>
             <button
               onClick={addEvent}
-              disabled={!newTitle.trim()}
+              disabled={!newTitle.trim() || creating}
               className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              Create Event
+              {creating ? "Creating..." : "Create Event"}
             </button>
           </div>
         </div>
