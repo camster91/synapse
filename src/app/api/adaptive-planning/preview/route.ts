@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { createAdaptiveProposal } from "@/lib/adaptive-proposals";
 import { signAdaptiveConfirmation } from "@/lib/adaptive-token";
+import type { PlanningSnapshot } from "@/lib/adaptive-planning";
 
 const inputSchema = z.object({
   remainingMinutes: z.number().int().min(0).max(24 * 60),
@@ -62,12 +63,12 @@ export async function POST(request: Request) {
     return total + Math.max(0, Math.round((end - start) / 60_000));
   }, 0);
 
-  // Todo currently has no persisted effort estimate. Keep it unknown rather than inventing one.
-  const proposal = createAdaptiveProposal({
+  const snapshot: PlanningSnapshot = {
     now: now.toISOString(),
     remainingMinutes: parsed.data.remainingMinutes,
     capacity: parsed.data.capacity,
     calendarBusyMinutes,
+    // Todo currently has no persisted effort estimate. Keep it unknown rather than inventing one.
     items: todos.map((todo) => ({
       id: todo.id,
       priority: todo.priority,
@@ -77,12 +78,14 @@ export async function POST(request: Request) {
       completed: Boolean(todo.completedAt),
       scheduledAt: todo.scheduledAt?.toISOString() ?? null,
     })),
-  });
+  };
 
+  const proposal = createAdaptiveProposal(snapshot);
   const confirmationToken = signAdaptiveConfirmation({
     userId,
     proposalId: proposal.id,
     snapshotHash: proposal.snapshotHash,
+    snapshot,
     expiresAt: proposal.expiresAt,
   });
 
