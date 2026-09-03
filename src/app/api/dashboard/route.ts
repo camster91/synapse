@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { recordProductEvent } from "@/lib/product-metrics";
 import { dateOnlyToUtc } from "@/lib/date-validation";
 import { addDaysToDayKey, localDayBounds, safeTimeZone } from "@/lib/timezone";
+import { loadAdaptiveEffortMetadata } from "@/lib/adaptive-effort";
 
 export async function GET() {
   const session = await auth();
@@ -25,22 +26,21 @@ export async function GET() {
       },
     });
     const timezone = safeTimeZone(user?.timezone ?? "UTC");
-    const { dayKey, start: today, end: tomorrow } = localDayBounds(new Date(), timezone);
+    const now = new Date();
+    const { dayKey, start: today, end: tomorrow } = localDayBounds(now, timezone);
     const habitToday = dateOnlyToUtc(dayKey);
     const habitTomorrow = dateOnlyToUtc(addDaysToDayKey(dayKey, 1));
     const threeDaysAgo = dateOnlyToUtc(addDaysToDayKey(dayKey, -3));
 
-    // Run all queries in parallel
     const [
       habitsWithLogs,
-      activeTodos,
+      activeTodoCandidates,
       todayEvents,
       recentJournal,
       unprocessedInboxCount,
       activeGoals,
       inboxItems,
     ] = await Promise.all([
-      // Today's habits with today's logs
       prisma.habit.findMany({
         where: { userId, archived: false },
         include: {
@@ -53,7 +53,6 @@ export async function GET() {
         orderBy: { sortOrder: "asc" },
       }),
 
-      // Active todos (top 10 by priority)
       prisma.todo.findMany({
         where: {
           userId,
@@ -65,14 +64,13 @@ export async function GET() {
           ],
         },
         orderBy: [{ priority: "desc" }, { sortOrder: "asc" }],
-        take: 10,
+        take: 20,
         include: {
           tags: { select: { id: true, name: true, color: true } },
           goal: { select: { id: true, title: true } },
         },
       }),
 
-      // Today's calendar events
       prisma.calendarEvent.findMany({
         where: {
           userId,
@@ -81,7 +79,6 @@ export async function GET() {
         orderBy: { startAt: "asc" },
       }),
 
-      // Recent journal entry (last 3 days)
       prisma.journal.findFirst({
         where: {
           userId,
@@ -90,7 +87,6 @@ export async function GET() {
         orderBy: { date: "desc" },
       }),
 
-      // Unprocessed inbox count
       prisma.inboxItem.count({
         where: { userId, processed: false },
       }),
@@ -110,7 +106,17 @@ export async function GET() {
       }),
     ]);
 
-    // Calculate habits completed / total for today
+    const adaptiveMetadata = await loadAdaptiveEffortMetadata(
+      userId,
+      activeTodoCandidates.map((todo) => todo.id),
+    );
+    const activeTodos = activeTodoCandidates
+      .filter((todo) => {
+        const deferredUntil = adaptiveMetadata.get(todo.id)?.deferredUntil;
+        return !deferredUntil || new Date(deferredUntil).getTime() <= now.getTime();
+      })
+      .slice(0, 10);
+
     const habitsCompleted = habitsWithLogs.filter(
       (h) => h.logs.length > 0 && h.logs.some((log) => log.count >= h.targetCount)
     ).length;
