@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { createAdaptiveProposal } from "@/lib/adaptive-proposals";
 import { signAdaptiveConfirmation } from "@/lib/adaptive-token";
+import { loadAdaptiveEffortMetadata } from "@/lib/adaptive-effort";
 import type { PlanningSnapshot } from "@/lib/adaptive-planning";
 
 const inputSchema = z.object({
@@ -57,6 +58,12 @@ export async function POST(request: Request) {
     }),
   ]);
 
+  const effort = await loadAdaptiveEffortMetadata(userId, todos.map((todo) => todo.id));
+  const visibleTodos = todos.filter((todo) => {
+    const deferredUntil = effort.get(todo.id)?.deferredUntil;
+    return !deferredUntil || new Date(deferredUntil).getTime() <= now.getTime();
+  });
+
   const calendarBusyMinutes = events.reduce((total, event) => {
     const start = Math.max(now.getTime(), event.startAt.getTime());
     const end = Math.min(horizon.getTime(), (event.endAt ?? event.startAt).getTime());
@@ -68,12 +75,11 @@ export async function POST(request: Request) {
     remainingMinutes: parsed.data.remainingMinutes,
     capacity: parsed.data.capacity,
     calendarBusyMinutes,
-    // Todo currently has no persisted effort estimate. Keep it unknown rather than inventing one.
-    items: todos.map((todo) => ({
+    items: visibleTodos.map((todo) => ({
       id: todo.id,
       priority: todo.priority,
       dueAt: todo.dueDate?.toISOString() ?? null,
-      estimatedMinutes: null,
+      estimatedMinutes: effort.get(todo.id)?.estimatedMinutes ?? null,
       goalId: todo.goalId,
       completed: Boolean(todo.completedAt),
       scheduledAt: todo.scheduledAt?.toISOString() ?? null,
