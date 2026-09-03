@@ -3,6 +3,7 @@ import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { hashPlanningSnapshot } from "@/lib/adaptive-proposals";
 import { buildAdaptivePlan } from "@/lib/adaptive-planning";
+import { rebuildAdaptiveSnapshot } from "@/lib/adaptive-current-snapshot";
 import { verifyAdaptiveConfirmation } from "@/lib/adaptive-token";
 import { applyAdaptiveChange } from "@/lib/adaptive-storage";
 
@@ -36,6 +37,14 @@ export async function POST(request: Request) {
 
   if (hashPlanningSnapshot(claims.snapshot) !== claims.snapshotHash) {
     return NextResponse.json({ error: "Signed planning snapshot is invalid" }, { status: 409 });
+  }
+
+  const currentSnapshot = await rebuildAdaptiveSnapshot(session.user.id, claims.snapshot);
+  if (hashPlanningSnapshot(currentSnapshot) !== claims.snapshotHash) {
+    return NextResponse.json(
+      { error: "Your Today plan changed. Generate a fresh proposal." },
+      { status: 409, headers: { "Cache-Control": "no-store" } },
+    );
   }
 
   const proposal = buildAdaptivePlan(claims.snapshot);
