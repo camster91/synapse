@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { hashPlanningSnapshot } from "@/lib/adaptive-proposals";
 import { verifyAdaptiveConfirmation } from "@/lib/adaptive-token";
+import { loadAdaptiveEffortMetadata } from "@/lib/adaptive-effort";
 import type { PlanningSnapshot } from "@/lib/adaptive-planning";
 
 const inputSchema = z.object({ confirmationToken: z.string().min(1) });
@@ -61,6 +62,12 @@ export async function POST(request: Request) {
     }),
   ]);
 
+  const effort = await loadAdaptiveEffortMetadata(session.user.id, todos.map((todo) => todo.id));
+  const visibleTodos = todos.filter((todo) => {
+    const deferredUntil = effort.get(todo.id)?.deferredUntil;
+    return !deferredUntil || new Date(deferredUntil).getTime() <= originalNow.getTime();
+  });
+
   const calendarBusyMinutes = events.reduce((total, event) => {
     const start = Math.max(originalNow.getTime(), event.startAt.getTime());
     const end = Math.min(horizon.getTime(), (event.endAt ?? event.startAt).getTime());
@@ -72,11 +79,11 @@ export async function POST(request: Request) {
     remainingMinutes: claims.snapshot.remainingMinutes,
     capacity: claims.snapshot.capacity,
     calendarBusyMinutes,
-    items: todos.map((todo) => ({
+    items: visibleTodos.map((todo) => ({
       id: todo.id,
       priority: todo.priority,
       dueAt: todo.dueDate?.toISOString() ?? null,
-      estimatedMinutes: null,
+      estimatedMinutes: effort.get(todo.id)?.estimatedMinutes ?? null,
       goalId: todo.goalId,
       completed: Boolean(todo.completedAt),
       scheduledAt: todo.scheduledAt?.toISOString() ?? null,
