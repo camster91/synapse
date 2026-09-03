@@ -3,6 +3,7 @@ import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { createAdaptiveProposal } from "@/lib/adaptive-proposals";
+import { signAdaptiveConfirmation } from "@/lib/adaptive-token";
 
 const inputSchema = z.object({
   remainingMinutes: z.number().int().min(0).max(24 * 60),
@@ -78,5 +79,15 @@ export async function POST(request: Request) {
     })),
   });
 
-  return NextResponse.json({ proposal }, { headers: { "Cache-Control": "no-store" } });
+  const confirmationToken = signAdaptiveConfirmation({
+    userId,
+    proposalId: proposal.id,
+    snapshotHash: proposal.snapshotHash,
+    expiresAt: proposal.expiresAt,
+  });
+
+  return NextResponse.json(
+    { proposal, confirmationToken },
+    { headers: { "Cache-Control": "no-store" } },
+  );
 }
