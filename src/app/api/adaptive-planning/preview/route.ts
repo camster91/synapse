@@ -1,0 +1,82 @@
+import { NextResponse } from "next/server";
+import { z } from "zod";
+import { auth } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
+import { createAdaptiveProposal } from "@/lib/adaptive-proposals";
+
+const inputSchema = z.object({
+  remainingMinutes: z.number().int().min(0).max(24 * 60),
+  capacity: z.enum(["low", "normal", "high"]),
+});
+
+export async function POST(request: Request) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const parsed = inputSchema.safeParse(await request.json().catch(() => null));
+  if (!parsed.success) {
+    return NextResponse.json({ error: "Invalid adaptation request" }, { status: 400 });
+  }
+
+  const userId = session.user.id;
+  const now = new Date();
+  const horizon = new Date(now.getTime() + parsed.data.remainingMinutes * 60_000);
+
+  const [todos, events] = await Promise.all([
+    prisma.todo.findMany({
+      where: {
+        userId,
+        status: { in: ["INBOX", "TODO", "IN_PROGRESS"] },
+        OR: [
+          { scheduledAt: { lte: horizon } },
+          { dueDate: { lte: horizon } },
+          { scheduledAt: null, dueDate: null, priority: { gte: 3 } },
+        ],
+      },
+      orderBy: [{ priority: "desc" }, { sortOrder: "asc" }],
+      select: {
+        id: true,
+        priority: true,
+        dueDate: true,
+        scheduledAt: true,
+        completedAt: true,
+        goalId: true,
+      },
+    }),
+    prisma.calendarEvent.findMany({
+      where: {
+        userId,
+        startAt: { lt: horizon },
+        OR: [{ endAt: null }, { endAt: { gt: now } }],
+      },
+      select: { startAt: true, endAt: true },
+    }),
+  ]);
+
+  const calendarBusyMinutes = events.reduce((total, event) => {
+    const start = Math.max(now.getTime(), event.startAt.getTime());
+    const end = Math.min(horizon.getTime(), (event.endAt ?? event.startAt).getTime());
+    return total + Math.max(0, Math.round((end - start) / 60_000));
+  }, 0);
+
+  // Todo currently has no persisted effort estimate. Keep it unknown rather than inventing one.
+  const proposal = createAdaptiveProposal({
+    now: now.toISOString(),
+    remainingMinutes: parsed.data.remainingMinutes,
+    capacity: parsed.data.capacity,
+    calendarBusyMinutes,
+    items: todos.map((todo) => ({
+      id: todo.id,
+      priority: todo.priority,
+      dueAt: todo.dueDate?.toISOString() ?? null,
+      estimatedMinutes: null,
+      goalId: todo.goalId,
+      completed: Boolean(todo.completedAt),
+      scheduledAt: todo.scheduledAt?.toISOString() ?? null,
+    })),
+  });
+
+  return NextResponse.json({ proposal }, { headers: { "Cache-Control": "no-store" } });
+}
