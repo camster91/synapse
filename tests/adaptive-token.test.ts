@@ -8,19 +8,29 @@ import {
 process.env.NEXTAUTH_SECRET = "adaptive-test-secret";
 
 const now = new Date("2026-09-03T20:00:00.000Z");
+const snapshot = {
+  now: now.toISOString(),
+  remainingMinutes: 90,
+  capacity: "normal" as const,
+  calendarBusyMinutes: 15,
+  items: [{ id: "task-1", priority: 5, estimatedMinutes: null }],
+};
 
 function token() {
   return signAdaptiveConfirmation({
     userId: "user-1",
     proposalId: "proposal-1",
-    snapshotHash: "abc123",
+    snapshotHash: "a".repeat(64),
+    snapshot,
     expiresAt: "2026-09-03T20:15:00.000Z",
   });
 }
 
-test("signed adaptive confirmation is bound to the intended user", () => {
+test("signed adaptive confirmation is bound to the intended user and snapshot", () => {
   assert.equal(verifyAdaptiveConfirmation(token(), "user-2", now), null);
-  assert.equal(verifyAdaptiveConfirmation(token(), "user-1", now)?.proposalId, "proposal-1");
+  const claims = verifyAdaptiveConfirmation(token(), "user-1", now);
+  assert.equal(claims?.proposalId, "proposal-1");
+  assert.deepEqual(claims?.snapshot, snapshot);
 });
 
 test("tampered adaptive confirmation fails closed", () => {
