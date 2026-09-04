@@ -44,6 +44,7 @@ function canonicalSnapshot(snapshot: PlanningSnapshot) {
       scheduledAt: item.scheduledAt ?? null,
       moveTargetAt: item.moveTargetAt ?? null,
       dropUntil: item.dropUntil ?? null,
+      updatedAt: item.updatedAt ?? null,
     })),
   });
 }
