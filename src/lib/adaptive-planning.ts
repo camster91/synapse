@@ -293,7 +293,9 @@ export function buildAdaptivePlan(snapshot: PlanningSnapshot): PlanningProposal 
     reasonCodeVersion: PLANNING_REASON_CODE_VERSION,
     effectiveMinutes,
     recommendations,
-    noChange: recommendations.every((recommendation) => recommendation.action === "keep"),
+    noChange:
+      recommendations.every((recommendation) => recommendation.action === "keep") &&
+      !requiresAttention,
     requiresAttention,
   };
 }
