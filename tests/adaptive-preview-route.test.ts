@@ -3,25 +3,32 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 const route = readFileSync("src/app/api/adaptive-planning/preview/route.ts", "utf8");
+const context = readFileSync("src/lib/adaptive-context.ts", "utf8");
 
-test("adaptive preview requires authentication and scopes all reads to the user", () => {
+test("preview requires authentication and delegates tenant-scoped context loading", () => {
   assert.match(route, /const session = await auth\(\)/);
-  assert.match(route, /userId,/);
-  assert.match(route, /prisma\.todo\.findMany/);
-  assert.match(route, /prisma\.calendarEvent\.findMany/);
+  assert.match(route, /userId: session\.user\.id/);
+  assert.match(context, /userId: input\.userId/);
+  assert.match(context, /prisma\.todo\.findMany/);
+  assert.match(context, /prisma\.calendarEvent\.findMany/);
 });
 
-test("adaptive preview performs no database mutation", () => {
+test("preview performs no mutation and returns non-cacheable signed targets", () => {
   assert.doesNotMatch(route, /\.create\(/);
   assert.doesNotMatch(route, /\.update\(/);
   assert.doesNotMatch(route, /\.delete\(/);
   assert.doesNotMatch(route, /\$transaction/);
-});
-
-test("unknown todo effort stays unknown rather than being fabricated", () => {
-  assert.match(route, /estimatedMinutes: null/);
-});
-
-test("adaptive preview is explicitly non-cacheable", () => {
+  assert.match(route, /signAdaptiveConfirmation/);
   assert.match(route, /"Cache-Control": "no-store"/);
+  assert.match(context, /moveTargetAt/);
+  assert.match(context, /dropUntil/);
+});
+
+test("preview binds effort and task revision while returning display labels separately", () => {
+  assert.match(route, /displayItems/);
+  assert.match(context, /estimatedMinutes: todo\.estimatedMinutes/);
+  assert.match(context, /minimumMinutes: todo\.minimumMinutes/);
+  assert.match(context, /updatedAt: todo\.updatedAt\.toISOString\(\)/);
+  assert.match(context, /title: todo\.title/);
+  assert.doesNotMatch(readFileSync("src/lib/adaptive-proposals.ts", "utf8"), /title:/);
 });
