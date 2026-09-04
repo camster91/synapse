@@ -43,7 +43,7 @@ test("forwarded client IPs are ignored unless proxy trust is explicit", () => {
   }
 });
 
-test("credential routes apply account limits and avoid registration enumeration", () => {
+test("credential routes apply limits and avoid registration enumeration", () => {
   const register = readFileSync(
     path.join(root, "src/app/api/auth/register/route.ts"),
     "utf8"
@@ -55,11 +55,19 @@ test("credential routes apply account limits and avoid registration enumeration"
 
   assert.match(register, /namespace: "register-account"/);
   assert.match(register, /namespace: "register-ip"/);
-  assert.match(register, /await bcrypt\.hash[\s\S]*?findUnique/);
+  assert.match(register, /await bcrypt\.hash[\s\S]*?user\.findFirst/);
+  assert.match(register, /mode: "insensitive"/);
   assert.doesNotMatch(register, /account with this email already exists/i);
-  assert.match(register, /existingUser[\s\S]*?accepted: true[\s\S]*?status: 201/);
+  assert.match(register, /existingUser[\s\S]*?acceptedResponse\(\)/);
+  assert.match(register, /isUniqueConstraintError/);
+  assert.match(register, /after\(async \(\) =>/);
 
   assert.match(nextAuth, /callback\/credentials/);
   assert.match(nextAuth, /namespace: "login-account"/);
   assert.match(nextAuth, /namespace: "login-ip"/);
+});
+
+test("rate-limit responses are never cacheable", () => {
+  const source = readFileSync(path.join(root, "src/lib/rate-limit.ts"), "utf8");
+  assert.match(source, /"Cache-Control": "no-store"/);
 });

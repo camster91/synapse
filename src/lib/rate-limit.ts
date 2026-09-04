@@ -75,7 +75,10 @@ export function rateLimitResponse(retryAfterSeconds: number): Response {
     { error: "Too many authentication attempts. Please try again later." },
     {
       status: 429,
-      headers: { "Retry-After": String(retryAfterSeconds) },
+      headers: {
+        "Retry-After": String(retryAfterSeconds),
+        "Cache-Control": "no-store",
+      },
     }
   );
 }

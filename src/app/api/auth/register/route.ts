@@ -1,8 +1,19 @@
-import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { addXp } from "@/lib/xp";
+import { after, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { z } from "zod/v4";
+import { prisma } from "@/lib/prisma";
+import { addXp } from "@/lib/xp";
+import {
+  createAuthToken,
+  createCredentialSessionVersion,
+  generateAuthToken,
+  hasPendingVerification,
+} from "@/lib/auth-tokens";
+import {
+  authEmailErrorCode,
+  emailDeliveryConfigured,
+  sendVerificationEmail,
+} from "@/lib/email";
 import { consumeRateLimit, rateLimitResponse, trustedClientIp } from "@/lib/rate-limit";
 
 const registerSchema = z.object({
@@ -11,10 +22,85 @@ const registerSchema = z.object({
   password: z.string().min(8).max(128),
 });
 
+function acceptedResponse() {
+  return NextResponse.json(
+    { accepted: true },
+    { status: 201, headers: { "Cache-Control": "no-store" } },
+  );
+}
+
+function isUniqueConstraintError(error: unknown) {
+  return Boolean(
+    error &&
+    typeof error === "object" &&
+    "code" in error &&
+    error.code === "P2002"
+  );
+}
+
+function scheduleVerificationEmail(input: {
+  email: string;
+  rawToken: string;
+  tokenHash: string;
+}) {
+  after(async () => {
+    try {
+      await sendVerificationEmail(input);
+    } catch (error) {
+      console.error("auth_email_delivery_failed", {
+        type: "verification",
+        provider: "resend",
+        code: authEmailErrorCode(error),
+      });
+    }
+  });
+}
+
+function scheduleExistingVerification(email: string) {
+  after(async () => {
+    try {
+      const user = await prisma.user.findFirst({
+        where: { email: { equals: email, mode: "insensitive" } },
+        include: {
+          accounts: {
+            where: { provider: "credentials" },
+            select: { id: true },
+          },
+        },
+      });
+      if (!user || user.accounts.length === 0 || !await hasPendingVerification(user.id)) {
+        return;
+      }
+
+      const token = await createAuthToken("verify", user.id);
+      await sendVerificationEmail({
+        email: user.email,
+        rawToken: token.rawToken,
+        tokenHash: token.token,
+      });
+    } catch (error) {
+      console.error("auth_verification_issue_failed", {
+        code: authEmailErrorCode(error),
+      });
+    }
+  });
+}
+
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
-    const data = registerSchema.parse(body);
+    if (!emailDeliveryConfigured()) {
+      return NextResponse.json(
+        { error: "Email delivery is not configured" },
+        { status: 503, headers: { "Cache-Control": "no-store" } },
+      );
+    }
+
+    const parsed = registerSchema.parse(await request.json());
+    const data = {
+      ...parsed,
+      email: parsed.email.trim().toLowerCase(),
+      name: parsed.name.trim(),
+    };
 
     const accountLimit = consumeRateLimit({
       namespace: "register-account",
@@ -35,91 +121,124 @@ export async function POST(request: Request) {
       if (!ipLimit.allowed) return rateLimitResponse(ipLimit.retryAfterSeconds);
     }
 
-    // Always perform the password work before the existence branch so the API
-    // does not expose registered accounts through response timing.
+    // Perform password work before the account-existence branch so a public
+    // response does not cheaply disclose a registered email through timing.
     const hashedPassword = await bcrypt.hash(data.password, 12);
-
-    // Check if email already exists
-    const existingUser = await prisma.user.findUnique({
-      where: { email: data.email },
+    const existingUser = await prisma.user.findFirst({
+      where: { email: { equals: data.email, mode: "insensitive" } },
+      include: {
+        accounts: {
+          where: { provider: "credentials" },
+          select: { id: true },
+        },
+      },
     });
 
     if (existingUser) {
-      return NextResponse.json({ accepted: true }, { status: 201 });
+      // Any pending-state lookup and delivery work happens after the response,
+      // so verified and unverified existing accounts share the same public path.
+      if (existingUser.accounts.length > 0) scheduleExistingVerification(data.email);
+      return acceptedResponse();
     }
 
-    // Create User + Account in a transaction
-    const user = await prisma.$transaction(async (tx) => {
-      const newUser = await tx.user.create({
-        data: {
-          email: data.email,
-          name: data.name,
-          lastActiveAt: new Date(),
-        },
-      });
+    let created: {
+      user: { id: string; email: string };
+      verificationToken: ReturnType<typeof generateAuthToken>;
+    };
 
-      await tx.account.create({
-        data: {
-          userId: newUser.id,
-          provider: "credentials",
-          providerAccountId: data.email,
-          accessToken: hashedPassword,
-        },
-      });
+    try {
+      created = await prisma.$transaction(async (tx) => {
+        const user = await tx.user.create({
+          data: {
+            email: data.email,
+            name: data.name,
+            lastActiveAt: new Date(),
+          },
+          select: { id: true, email: true },
+        });
 
-      return newUser;
+        await tx.account.create({
+          data: {
+            userId: user.id,
+            provider: "credentials",
+            providerAccountId: data.email,
+            accessToken: hashedPassword,
+            // Credentials accounts use refreshToken only as a private session
+            // invalidation version; it is never sent to an external provider.
+            refreshToken: createCredentialSessionVersion(),
+          },
+        });
+
+        // This row is both the hashed one-time token and the durable
+        // unverified-account marker. Link expiry must not activate the account.
+        const verificationToken = generateAuthToken("verify", user.id);
+        await tx.verificationToken.create({
+          data: {
+            identifier: verificationToken.identifier,
+            token: verificationToken.token,
+            expires: verificationToken.expires,
+          },
+        });
+
+        return { user, verificationToken };
+      });
+    } catch (error) {
+      if (isUniqueConstraintError(error)) {
+        // A concurrent registration may have won after the initial lookup.
+        // Preserve the same response and schedule the same safe resend path.
+        scheduleExistingVerification(data.email);
+        return acceptedResponse();
+      }
+      throw error;
+    }
+
+    scheduleVerificationEmail({
+      email: created.user.email,
+      rawToken: created.verificationToken.rawToken,
+      tokenHash: created.verificationToken.token,
     });
 
-    // Award "first steps" achievement
-    try {
-      // Ensure the achievement record exists
-      const achievementRecord = await prisma.achievement.upsert({
-        where: { key: "first_steps" },
-        update: {},
-        create: {
-          key: "first_steps",
-          name: "First Steps",
-          description: "Create your account and start your journey",
-          icon: "footprints",
-          category: "explorer",
-          xpReward: 25,
-        },
-      });
+    after(async () => {
+      try {
+        const achievementRecord = await prisma.achievement.upsert({
+          where: { key: "first_steps" },
+          update: {},
+          create: {
+            key: "first_steps",
+            name: "First Steps",
+            description: "Create your account and start your journey",
+            icon: "footprints",
+            category: "explorer",
+            xpReward: 25,
+          },
+        });
 
-      await prisma.userAchievement.create({
-        data: {
-          userId: user.id,
-          achievementId: achievementRecord.id,
-        },
-      });
+        await prisma.userAchievement.create({
+          data: {
+            userId: created.user.id,
+            achievementId: achievementRecord.id,
+          },
+        });
+        await addXp(created.user.id, 25, "achievement:first_steps");
+      } catch {
+        console.error("auth_registration_achievement_failed", {
+          code: "achievement_award_failed",
+        });
+      }
+    });
 
-      await addXp(user.id, 25, "achievement:first_steps");
-    } catch (err) {
-      // Achievement award is non-critical — log but don't fail registration
-      console.error("Failed to award first_steps achievement:", err);
-    }
-
-    // Return user data without password
-    return NextResponse.json(
-      {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        createdAt: user.createdAt,
-      },
-      { status: 201 }
-    );
+    return acceptedResponse();
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { error: "Validation failed", details: error.issues },
-        { status: 400 }
+        { status: 400, headers: { "Cache-Control": "no-store" } },
       );
     }
-    console.error("Failed to register user:", error);
+    console.error("auth_registration_failed", { code: "registration_failed" });
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500, headers: { "Cache-Control": "no-store" } },
     );
   }
 }
