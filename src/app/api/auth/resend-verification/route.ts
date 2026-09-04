@@ -1,21 +1,30 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { z } from "zod/v4";
 import { prisma } from "@/lib/prisma";
 import { createAuthToken, hasPendingVerification } from "@/lib/auth-tokens";
-import { emailDeliveryConfigured, sendVerificationEmail } from "@/lib/email";
+import {
+  authEmailErrorCode,
+  emailDeliveryConfigured,
+  sendVerificationEmail,
+} from "@/lib/email";
 import { consumeRateLimit, rateLimitResponse, trustedClientIp } from "@/lib/rate-limit";
 
 const schema = z.object({ email: z.string().email() });
+const acceptedResponse = () => NextResponse.json(
+  { accepted: true },
+  { status: 202, headers: { "Cache-Control": "no-store" } },
+);
 
 export async function POST(request: Request) {
   if (!emailDeliveryConfigured()) {
-    return NextResponse.json({ error: "Email delivery is not configured" }, { status: 503 });
+    return NextResponse.json(
+      { error: "Email delivery is not configured" },
+      { status: 503, headers: { "Cache-Control": "no-store" } },
+    );
   }
 
   const parsed = schema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) {
-    return NextResponse.json({ accepted: true }, { status: 202 });
-  }
+  if (!parsed.success) return acceptedResponse();
 
   const email = parsed.data.email.trim().toLowerCase();
   const accountLimit = consumeRateLimit({
@@ -37,32 +46,52 @@ export async function POST(request: Request) {
     if (!ipLimit.allowed) return rateLimitResponse(ipLimit.retryAfterSeconds);
   }
 
-  const user = await prisma.user.findUnique({
-    where: { email },
-    include: {
-      accounts: {
-        where: { provider: "credentials" },
-        select: { id: true },
+  try {
+    const user = await prisma.user.findFirst({
+      where: { email: { equals: email, mode: "insensitive" } },
+      include: {
+        accounts: {
+          where: { provider: "credentials" },
+          select: { id: true },
+        },
       },
-    },
-  });
+    });
 
-  if (user && user.accounts.length > 0 && await hasPendingVerification(user.id)) {
-    const token = await createAuthToken("verify", user.id);
-    try {
-      await sendVerificationEmail({
-        email: user.email,
-        rawToken: token.rawToken,
-        tokenHash: token.token,
-      });
-    } catch (error) {
-      console.error("auth_email_delivery_failed", {
-        type: "verification",
-        provider: "resend",
-        error: error instanceof Error ? error.message : "unknown",
-      });
+    if (user && user.accounts.length > 0 && await hasPendingVerification(user.id)) {
+      try {
+        const token = await createAuthToken("verify", user.id);
+        after(async () => {
+          try {
+            await sendVerificationEmail({
+              email: user.email,
+              rawToken: token.rawToken,
+              tokenHash: token.token,
+            });
+          } catch (error) {
+            // Keep the durable verification marker in place on delivery failure.
+            console.error("auth_email_delivery_failed", {
+              type: "verification",
+              provider: "resend",
+              code: authEmailErrorCode(error),
+            });
+          }
+        });
+      } catch {
+        // Do not expose whether a matching unverified account exists.
+        console.error("auth_verification_issue_failed", {
+          code: "token_issue_failed",
+        });
+      }
     }
+  } catch {
+    console.error("auth_verification_resend_failed", {
+      code: "verification_resend_failed",
+    });
+    return NextResponse.json(
+      { error: "Unable to process verification request" },
+      { status: 500, headers: { "Cache-Control": "no-store" } },
+    );
   }
 
-  return NextResponse.json({ accepted: true }, { status: 202 });
+  return acceptedResponse();
 }
