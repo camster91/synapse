@@ -1,8 +1,16 @@
 import type { PlanningAction } from "@/lib/adaptive-planning";
 
+export type AdaptiveTodoStatus =
+  | "INBOX"
+  | "TODO"
+  | "IN_PROGRESS"
+  | "DONE"
+  | "CANCELLED"
+  | "SNOOZED";
+
 export interface AdaptiveTodoState {
   id: string;
-  status: string;
+  status: AdaptiveTodoStatus;
   priority: number;
   dueDate: string | null;
   scheduledAt: string | null;
@@ -14,7 +22,7 @@ export interface AdaptiveTodoState {
 
 export interface AdaptiveAcceptedRecommendation {
   itemId: string;
-  action: PlanningAction | "shorten";
+  action: Exclude<PlanningAction, "keep">;
   targetScheduledAt?: string | null;
   targetDeferredUntil?: string | null;
   targetEstimatedMinutes?: number | null;
@@ -44,12 +52,9 @@ export function buildAdaptiveMutations(
 
     const before = byId.get(recommendation.itemId);
     if (!before) throw new Error("Adaptive recommendation references missing todo");
-
     let after: AdaptiveTodoState = { ...before };
 
     switch (recommendation.action) {
-      case "keep":
-        continue;
       case "move": {
         if (!recommendation.targetScheduledAt) throw new Error("Move requires a target schedule");
         const target = new Date(recommendation.targetScheduledAt);
@@ -75,8 +80,6 @@ export function buildAdaptiveMutations(
         after = { ...after, estimatedMinutes: target };
         break;
       }
-      default:
-        throw new Error("Unsupported adaptive action");
     }
 
     mutations.push({ itemId: before.id, before: { ...before }, after });
