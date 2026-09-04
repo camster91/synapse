@@ -1,4 +1,7 @@
+export type AuthEmailKind = "verification" | "password_reset";
+
 export interface TransactionalEmail {
+  kind: AuthEmailKind;
   to: string;
   subject: string;
   html: string;
@@ -6,45 +9,126 @@ export interface TransactionalEmail {
   idempotencyKey: string;
 }
 
+export class TransactionalEmailError extends Error {
+  constructor(
+    public readonly code: string,
+    message = "Transactional email delivery failed",
+  ) {
+    super(message);
+    this.name = "TransactionalEmailError";
+  }
+}
+
+function emailProviderConfig() {
+  const provider = process.env.EMAIL_PROVIDER?.trim().toLowerCase();
+  const apiKey = process.env.RESEND_API_KEY?.trim();
+  const from = process.env.EMAIL_FROM?.trim();
+
+  if (provider !== "resend" || !apiKey || !from) {
+    throw new TransactionalEmailError(
+      "email_provider_unconfigured",
+      "Transactional email delivery is not configured",
+    );
+  }
+
+  return {
+    provider,
+    apiKey,
+    from,
+    replyTo: process.env.EMAIL_REPLY_TO?.trim() || null,
+  } as const;
+}
+
+function publicAuthBaseUrl() {
+  const configured = process.env.AUTH_PUBLIC_URL?.trim() || process.env.NEXTAUTH_URL?.trim();
+  if (!configured) {
+    throw new TransactionalEmailError(
+      "auth_public_url_unconfigured",
+      "Authentication public URL is not configured",
+    );
+  }
+
+  let parsed: URL;
+  try {
+    parsed = new URL(configured);
+  } catch {
+    throw new TransactionalEmailError("auth_public_url_invalid");
+  }
+
+  if (
+    !["http:", "https:"].includes(parsed.protocol) ||
+    parsed.username ||
+    parsed.password
+  ) {
+    throw new TransactionalEmailError("auth_public_url_invalid");
+  }
+
+  return new URL("/", parsed.origin);
+}
+
 export function emailDeliveryConfigured() {
-  return Boolean(process.env.RESEND_API_KEY && process.env.EMAIL_FROM && process.env.NEXTAUTH_URL);
+  try {
+    emailProviderConfig();
+    publicAuthBaseUrl();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function authEmailErrorCode(error: unknown) {
+  return error instanceof TransactionalEmailError
+    ? error.code
+    : "email_delivery_unknown";
 }
 
 export async function sendTransactionalEmail(message: TransactionalEmail) {
-  const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.EMAIL_FROM;
-  if (!apiKey || !from) {
-    throw new Error("Transactional email delivery is not configured");
+  const config = emailProviderConfig();
+
+  let response: Response;
+  try {
+    response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${config.apiKey}`,
+        "Content-Type": "application/json",
+        "Idempotency-Key": message.idempotencyKey,
+      },
+      body: JSON.stringify({
+        from: config.from,
+        to: [message.to],
+        subject: message.subject,
+        html: message.html,
+        text: message.text,
+        ...(config.replyTo ? { reply_to: config.replyTo } : {}),
+      }),
+    });
+  } catch {
+    throw new TransactionalEmailError("email_provider_network_error");
   }
 
-  const response = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-      "Idempotency-Key": message.idempotencyKey,
-    },
-    body: JSON.stringify({
-      from,
-      to: [message.to],
-      subject: message.subject,
-      html: message.html,
-      text: message.text,
-    }),
-  });
-
   if (!response.ok) {
-    throw new Error(`Transactional email provider returned ${response.status}`);
+    throw new TransactionalEmailError(`email_provider_http_${response.status}`);
   }
 
   const data = (await response.json().catch(() => null)) as { id?: string } | null;
-  return { provider: "resend" as const, id: data?.id ?? null };
+  return { provider: config.provider, id: data?.id ?? null };
 }
 
-function baseUrl() {
-  const value = process.env.NEXTAUTH_URL;
-  if (!value) throw new Error("NEXTAUTH_URL is required for authentication email links");
-  return value.replace(/\/$/, "");
+function actionUrl(pathname: "/verify-email" | "/reset-password", rawToken: string) {
+  const url = new URL(pathname, publicAuthBaseUrl());
+  // Keep raw bearer tokens out of server access logs and referrer query strings.
+  url.hash = new URLSearchParams({ token: rawToken }).toString();
+  return url.toString();
+}
+
+function escapeHtml(value: string) {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
 }
 
 export async function sendVerificationEmail(input: {
@@ -52,12 +136,14 @@ export async function sendVerificationEmail(input: {
   rawToken: string;
   tokenHash: string;
 }) {
-  const url = `${baseUrl()}/verify-email?token=${encodeURIComponent(input.rawToken)}`;
+  const url = actionUrl("/verify-email", input.rawToken);
+  const safeUrl = escapeHtml(url);
   return sendTransactionalEmail({
+    kind: "verification",
     to: input.email,
     subject: "Verify your Synapse email",
     text: `Verify your Synapse email within 30 minutes: ${url}`,
-    html: `<p>Verify your Synapse email within 30 minutes.</p><p><a href="${url}">Verify email</a></p>`,
+    html: `<p>Verify your Synapse email within 30 minutes.</p><p><a href="${safeUrl}">Verify email</a></p>`,
     idempotencyKey: `synapse-verify-${input.tokenHash.slice(0, 24)}`,
   });
 }
@@ -67,12 +153,14 @@ export async function sendPasswordResetEmail(input: {
   rawToken: string;
   tokenHash: string;
 }) {
-  const url = `${baseUrl()}/reset-password?token=${encodeURIComponent(input.rawToken)}`;
+  const url = actionUrl("/reset-password", input.rawToken);
+  const safeUrl = escapeHtml(url);
   return sendTransactionalEmail({
+    kind: "password_reset",
     to: input.email,
     subject: "Reset your Synapse password",
     text: `Reset your Synapse password within 30 minutes: ${url}`,
-    html: `<p>Reset your Synapse password within 30 minutes.</p><p><a href="${url}">Reset password</a></p>`,
+    html: `<p>Reset your Synapse password within 30 minutes.</p><p><a href="${safeUrl}">Reset password</a></p>`,
     idempotencyKey: `synapse-reset-${input.tokenHash.slice(0, 24)}`,
   });
 }
