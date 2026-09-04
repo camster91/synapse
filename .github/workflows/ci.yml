@@ -1,6 +1,6 @@
 name: CI Build
 
-# Build-only workflow: verifies the project builds cleanly. No deploy, no secrets required.
+# Canonical pull-request verification workflow. No deploy and no secrets required.
 
 on:
   push:
@@ -14,6 +14,7 @@ permissions:
 
 concurrency:
   group: ci-build-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
@@ -37,7 +38,6 @@ jobs:
       - name: Generate Prisma client
         run: npx prisma generate
         env:
-          # Placeholder for prisma schema validation (no DB connection made during generate)
           DATABASE_URL: postgresql://placeholder:***@localhost:5432/placeholder
 
       - name: Type check
@@ -52,6 +52,5 @@ jobs:
       - name: Build
         run: npm run build
         env:
-          # CI-safe defaults so the build doesn't depend on real env vars
           NODE_ENV: production
           CI: true
