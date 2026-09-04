@@ -7,12 +7,26 @@ test("liveness and readiness are separate cache-disabled contracts", async () =>
   const ready = await readFile("src/app/api/health/ready/route.ts", "utf8");
 
   assert.match(live, /status: "alive"/);
-  assert.doesNotMatch(live, /\$queryRaw|access\(/);
+  assert.doesNotMatch(live, /\$queryRaw|access\(|emailDeliveryConfigured/);
   assert.match(live, /"Cache-Control": "no-store"/);
+
   assert.match(ready, /prisma\.\$queryRaw`SELECT 1`/);
   assert.match(ready, /constants\.R_OK \| constants\.W_OK/);
-  assert.match(ready, /status: "not_ready"/);
-  assert.match(ready, /status: 503/);
+  assert.match(ready, /emailDeliveryConfigured\(\)/);
+  assert.match(ready, /authenticationEmail: "failed"/);
+  assert.match(ready, /checks\.authenticationEmail = "ok"/);
+  assert.match(ready, /status: ready \? "ready" : "not_ready"/);
+  assert.match(ready, /status: ready \? 200 : 503/);
+  assert.match(ready, /"Cache-Control": "no-store"/);
+});
+
+test("readiness evidence identifies failed gates without exposing provider secrets", async () => {
+  const ready = await readFile("src/app/api/health/ready/route.ts", "utf8");
+
+  assert.match(ready, /event: "readiness_failed"/);
+  assert.match(ready, /failedChecks: Object\.entries\(checks\)/);
+  assert.doesNotMatch(ready, /RESEND_API_KEY|EMAIL_FROM|EMAIL_REPLY_TO|DATABASE_URL/);
+  assert.doesNotMatch(ready, /error\.message|request\.headers|request\.body/);
 });
 
 test("request-error instrumentation omits private request and error fields", async () => {

@@ -3,6 +3,12 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
+import { hasPendingVerification } from "@/lib/auth-tokens";
+import { reconcileCredentialSession } from "@/lib/credential-session";
+
+// Missing accounts still perform password work so credential responses do not
+// cheaply expose account existence through a timing difference.
+const dummyPasswordHash = bcrypt.hash("synapse-invalid-credentials", 12);
 
 declare module "next-auth" {
   interface Session {
@@ -17,10 +23,21 @@ declare module "next-auth" {
 
 declare module "next-auth/jwt" {
   interface JWT {
-    id: string;
-    xp: number;
-    level: number;
+    id?: string;
+    xp?: number;
+    level?: number;
+    credentialSession?: boolean;
+    credentialVersion?: string | null;
+    credentialsInvalidated?: boolean;
   }
+}
+
+function invalidateCredentialToken(token: {
+  id?: string;
+  credentialsInvalidated?: boolean;
+}) {
+  token.id = "";
+  token.credentialsInvalidated = true;
 }
 
 export const authOptions: NextAuthOptions = {
@@ -35,28 +52,28 @@ export const authOptions: NextAuthOptions = {
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) {
-          throw new Error("Email and password are required");
+          return null;
         }
 
+        const email = credentials.email.trim().toLowerCase();
         const account = await prisma.account.findFirst({
           where: {
             provider: "credentials",
-            providerAccountId: credentials.email,
+            providerAccountId: { equals: email, mode: "insensitive" },
           },
           include: { user: true },
         });
 
-        if (!account || !account.accessToken) {
-          throw new Error("Invalid email or password");
+        const passwordHash = account?.accessToken ?? await dummyPasswordHash;
+        const passwordMatch = await bcrypt.compare(credentials.password, passwordHash);
+        if (!account?.accessToken || !passwordMatch) {
+          return null;
         }
 
-        const passwordMatch = await bcrypt.compare(
-          credentials.password,
-          account.accessToken
-        );
-
-        if (!passwordMatch) {
-          throw new Error("Invalid email or password");
+        // Use the same CredentialsSignin result for a correct password on an
+        // unverified account; resend is an explicit, separate generic flow.
+        if (await hasPendingVerification(account.user.id)) {
+          return null;
         }
 
         return {
@@ -74,24 +91,71 @@ export const authOptions: NextAuthOptions = {
   },
 
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, account }) {
       if (user) {
+        const credentialSession = account?.provider === "credentials";
         token.id = user.id;
+        token.credentialSession = credentialSession;
+        token.credentialsInvalidated = false;
+
         const dbUser = await prisma.user.findUnique({
           where: { id: user.id },
           select: { xp: true, level: true },
         });
         token.xp = dbUser?.xp ?? 0;
         token.level = dbUser?.level ?? 1;
+
+        if (credentialSession) {
+          const credentialsAccount = await prisma.account.findFirst({
+            where: { userId: user.id, provider: "credentials" },
+            select: { refreshToken: true },
+          });
+          token.credentialVersion = credentialsAccount?.refreshToken ?? null;
+        } else {
+          delete token.credentialVersion;
+        }
+        return token;
       }
+
+      if (!token.id || token.credentialsInvalidated || token.credentialSession === false) {
+        return token;
+      }
+
+      const credentialsAccount = await prisma.account.findFirst({
+        where: { userId: token.id, provider: "credentials" },
+        select: { refreshToken: true },
+      });
+      const decision = reconcileCredentialSession(
+        {
+          credentialSession: token.credentialSession,
+          credentialVersion: token.credentialVersion,
+        },
+        credentialsAccount?.refreshToken,
+      );
+
+      if (decision.kind === "invalid") {
+        invalidateCredentialToken(token);
+      } else if (decision.kind === "adopt_legacy_null") {
+        token.credentialSession = true;
+        token.credentialVersion = decision.credentialVersion;
+      } else if (decision.kind === "valid") {
+        token.credentialSession = true;
+      }
+
       return token;
     },
 
     async session({ session, token }) {
       if (token && session.user) {
-        session.user.id = token.id;
-        (session as unknown as Record<string, unknown>).xp = token.xp;
-        (session as unknown as Record<string, unknown>).level = token.level;
+        const invalidated = Boolean(token.credentialsInvalidated || !token.id);
+        session.user.id = invalidated ? "" : token.id ?? "";
+        if (invalidated) {
+          session.user.name = null;
+          session.user.email = null;
+          session.user.image = null;
+        }
+        (session as unknown as Record<string, unknown>).xp = invalidated ? 0 : token.xp ?? 0;
+        (session as unknown as Record<string, unknown>).level = invalidated ? 0 : token.level ?? 1;
       }
       return session;
     },
@@ -104,12 +168,10 @@ export const authOptions: NextAuthOptions = {
   secret: process.env.NEXTAUTH_SECRET,
 };
 
-/**
- * Get the current session on the server side (App Router).
- * Use this in server components and API routes.
- */
+/** Get the current App Router session, excluding revoked credential tokens. */
 export async function auth() {
-  return getServerSession(authOptions);
+  const session = await getServerSession(authOptions);
+  return session?.user?.id ? session : null;
 }
 
 export default NextAuth(authOptions);

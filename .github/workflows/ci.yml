@@ -1,6 +1,6 @@
 name: CI Build
 
-# Canonical pull-request verification workflow. No deploy and no secrets required.
+# Canonical pull-request verification workflow. No deploy and no production secrets required.
 
 on:
   push:
@@ -21,6 +21,23 @@ jobs:
     name: Build
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      DATABASE_URL: postgresql://synapse_ci:synapse_ci@127.0.0.1:5432/synapse_ci?schema=public
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: synapse_ci
+          POSTGRES_PASSWORD: synapse_ci
+          POSTGRES_DB: synapse_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U synapse_ci -d synapse_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
 
     steps:
       - name: Checkout
@@ -37,8 +54,9 @@ jobs:
 
       - name: Generate Prisma client
         run: npx prisma generate
-        env:
-          DATABASE_URL: postgresql://placeholder:***@localhost:5432/placeholder
+
+      - name: Apply migrations to disposable PostgreSQL
+        run: npx prisma migrate deploy
 
       - name: Type check
         run: npm run typecheck

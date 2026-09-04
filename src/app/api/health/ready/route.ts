@@ -2,42 +2,64 @@ import { constants } from "node:fs";
 import { access } from "node:fs/promises";
 import path from "node:path";
 import { NextResponse } from "next/server";
+import { emailDeliveryConfigured } from "@/lib/email";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 export async function GET() {
-  const checks = { database: "pending", uploads: "pending" };
+  const checks: Record<string, "ok" | "failed"> = {
+    database: "failed",
+    uploads: "failed",
+    authenticationEmail: "failed",
+  };
 
   try {
     await prisma.$queryRaw`SELECT 1`;
     checks.database = "ok";
+  } catch {
+    // Do not expose connection details.
+  }
 
+  try {
     await access(path.join(process.cwd(), "uploads"), constants.R_OK | constants.W_OK);
     checks.uploads = "ok";
-
-    return NextResponse.json(
-      {
-        status: "ready",
-        checks,
-        timestamp: new Date().toISOString(),
-        revision: process.env.RELEASE_REV || "development",
-      },
-      { headers: { "Cache-Control": "no-store" } }
-    );
   } catch {
+    // Do not expose filesystem details.
+  }
+
+  if (emailDeliveryConfigured()) {
+    checks.authenticationEmail = "ok";
+  }
+
+  const ready = Object.values(checks).every((value) => value === "ok");
+  const timestamp = new Date().toISOString();
+  const revision = process.env.RELEASE_REV || "development";
+
+  if (!ready) {
     console.error(
       JSON.stringify({
         event: "readiness_failed",
-        checks,
-        timestamp: new Date().toISOString(),
-        revision: process.env.RELEASE_REV || "development",
+        failedChecks: Object.entries(checks)
+          .filter(([, value]) => value === "failed")
+          .map(([name]) => name),
+        timestamp,
+        revision,
       })
     );
-    return NextResponse.json(
-      { status: "not_ready", checks },
-      { status: 503, headers: { "Cache-Control": "no-store" } }
-    );
   }
+
+  return NextResponse.json(
+    {
+      status: ready ? "ready" : "not_ready",
+      checks,
+      timestamp,
+      revision,
+    },
+    {
+      status: ready ? 200 : 503,
+      headers: { "Cache-Control": "no-store" },
+    }
+  );
 }
