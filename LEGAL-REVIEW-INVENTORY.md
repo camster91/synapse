@@ -14,10 +14,10 @@ Do not replace these with assumptions.
 - **Copyright holder for the repository:** OWNER DECISION REQUIRED.
 - **Copyright year or year range:** OWNER DECISION REQUIRED.
 - **Managed-beta hosting provider and data region:** OWNER DECISION REQUIRED.
-- **Approved transactional-email provider/domain:** OWNER DECISION REQUIRED; pending PR #83 currently implements a Resend adapter but does not configure or approve Resend.
-- **Approved support/privacy contact routes:** OWNER DECISION REQUIRED; PR #84 prepares the operating model but does not choose routes.
+- **Approved transactional-email provider/domain:** OWNER DECISION REQUIRED. The code-side verification/recovery journey is now on `main`, but no sender/provider/domain is approved or externally verified.
+- **Approved support/privacy contact routes:** OWNER DECISION REQUIRED. The support/incident model is now on `main`, but routes, responders, hours and escalation remain unset.
 - **Participant eligibility/minimum-age policy:** OWNER + QUALIFIED REVIEW REQUIRED.
-- **Backup retention, deletion-from-backup policy, RPO and RTO:** OWNER DECISION + QUALIFIED REVIEW REQUIRED.
+- **Backup retention, deletion-from-backup policy, RPO and RTO:** OWNER DECISION + QUALIFIED REVIEW REQUIRED. The operations validators are now on `main`, but they do not constitute runtime evidence.
 - **Policy/version effective date:** OWNER DECISION REQUIRED after qualified review.
 
 ## 2. Current first-party data categories
@@ -64,11 +64,12 @@ The current authenticated deletion path:
 1. requires the literal `DELETE` confirmation;
 2. requires password verification for a credentials account;
 3. stages the user's uploaded files for deletion;
-4. deletes the user database record and schema-cascaded owned records;
-5. rolls staged files back if the database delete fails;
-6. permanently commits staged file deletion only after the database delete succeeds.
+4. removes relationless verification/reset token rows for that account;
+5. deletes the user database record and schema-cascaded owned records;
+6. rolls staged files back if the database delete fails;
+7. permanently commits staged file deletion only after the database delete succeeds.
 
-Important policy gap: deleting the live account does **not by itself prove deletion from previously created backups**. Issue #61 deliberately leaves backup retention and restore operations unresolved until the owner approves the backup target/retention model. Privacy/deletion wording must therefore be reconciled with the approved backup-retention procedure before publication.
+Important policy gap: deleting the live account does **not by itself prove deletion from previously created backups**. Issue #61 still requires approved backup retention and real restore/rollback evidence. Privacy/deletion wording must therefore be reconciled with the approved backup-retention procedure before publication.
 
 ## 5. Product analytics
 
@@ -96,13 +97,23 @@ Current key handling:
 
 Qualified review should define the exact AI disclosure, provider/subprocessor wording, user choice language, and any categories of information users should be warned not to submit.
 
-## 7. Transactional email
+## 7. Transactional email and credentials recovery
 
-Current `main` does not provide the complete external verification/recovery journey required by #60. Pending PR #83 prepares verification and password-recovery email through a configurable Resend REST adapter, but no sender/provider/domain is approved or configured by that PR.
+The code-side credentials journey is now on `main` and includes:
 
-Before policy publication or pilot enrollment, the approved review should reflect the actual provider and sender domain ultimately chosen, not the implementation candidate alone.
+- verification-gated credentials registration;
+- generic public responses for registration, resend and password recovery;
+- hashed 30-minute single-use verification/reset tokens;
+- verification and password-reset screens;
+- reset-session invalidation;
+- RC1 email identity remaining read-only until a separately verified email-change flow exists;
+- configurable Resend delivery plus a tightly restricted loopback-only disposable local sink for runtime smoke.
 
-## 8. Hosting, uploads and backups
+This does **not** prove the external #60 gate. No sender/provider/domain/mailbox is approved or configured by the merge itself, and SPF/DKIM/DMARC, real mailbox delivery, expiry/replay through real messages, rendered host QA and delivery-failure evidence remain outstanding.
+
+Before policy publication or pilot enrollment, the approved review should reflect the actual provider and sender domain ultimately chosen, not only the implementation capability.
+
+## 8. Hosting, uploads, backups and recovery
 
 The managed-beta host/data region is not yet approved under #61.
 
@@ -112,15 +123,17 @@ Current operational primitives include:
 - persistent uploaded files;
 - a backup containing a PostgreSQL dump plus matching uploaded files;
 - checksums and a manifest;
-- a destructive restore drill restricted to a disposable database/uploads target.
+- a destructive restore drill restricted to a disposable database/uploads target;
+- decision-safe operations preflight for approved host, backup, alert, retention, RPO and RTO values;
+- exact-candidate evidence validation for readiness, backup, restore, rollback and alert proof.
 
-The repository backup command does not itself encrypt or upload a backup off-site. Those properties depend on the approved operator destination/process. Policy must not claim encrypted off-site backup, retention period, deletion deadline, or geographic location until #61 has real evidence.
+The repository backup command does not itself encrypt or upload a backup off-site. The operations validators inspect declared decisions/evidence; they do not create runtime proof. Policy must not claim encrypted off-site backup, retention period, deletion deadline, geographic location, RPO/RTO achievement, or tested alerting until #61 has real evidence.
 
 ## 9. Support and incident records
 
-Issue #63 requires support records to use participant IDs/aggregates instead of private product content. Pending PR #84 prepares that scorecard and incident model, but support routes, responders, hours and participant-facing expectations are still owner decisions.
+The support/incident model is now on `main` and requires support records to use participant IDs/aggregates instead of private product content. The scorecard includes fixed severity/category contracts, zero-support participant/weeks, operator minutes, completion eligibility and automatic pilot pause on any Sev 1.
 
-Qualified review should reconcile support/privacy incident procedures with privacy-contact and withdrawal/deletion wording before pilot enrollment.
+Support routes, responders, hours, escalation destination, pause authority and participant-facing expectations remain owner decisions. Qualified review should reconcile support/privacy incident procedures with privacy-contact and withdrawal/deletion wording before pilot enrollment.
 
 ## 10. Security-relevant user controls to describe accurately
 
@@ -132,7 +145,9 @@ The product currently has or is preparing the following user/account controls:
 - consent-gated first-party product measurement and deletion of those events on opt-out;
 - encrypted persistence of supported external AI keys;
 - no returning stored AI key values to the browser;
-- pending PR #83: verified-email activation, password reset and recovery, with RC1 email identity changes blocked until a separately verified change flow exists.
+- verified-email activation and password recovery for credentials accounts;
+- server-side invalidation of older credential sessions after password reset;
+- RC1 email identity changes blocked until a separately verified change flow exists.
 
 These are implementation facts, not promises of legal compliance or absolute security.
 
