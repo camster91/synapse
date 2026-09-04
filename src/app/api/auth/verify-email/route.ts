@@ -39,17 +39,37 @@ export async function POST(request: Request) {
   const token = await findAuthToken("verify", parsed.data.token);
   if (!token) return invalidLinkResponse();
 
-  // Deletion is the atomic state transition: this row is both the hashed
-  // one-time bearer token and the durable unverified-account marker.
-  const deleted = await prisma.verificationToken.deleteMany({
-    where: {
-      identifier: token.identifier,
-      token: token.token,
-      expires: { gt: new Date() },
-    },
-  });
+  try {
+    await prisma.$transaction(async (tx) => {
+      // The matching row is the atomic one-time bearer transition.
+      const consumed = await tx.verificationToken.deleteMany({
+        where: {
+          identifier: token.identifier,
+          token: token.token,
+          expires: { gt: new Date() },
+        },
+      });
+      if (consumed.count !== 1) throw new Error("VERIFY_TOKEN_CONSUMED");
 
-  if (deleted.count !== 1) return invalidLinkResponse();
+      // Resends may leave several still-valid links so an anonymous request
+      // cannot invalidate a delivered one. Once any valid link succeeds, clear
+      // every sibling marker and complete verification exactly once.
+      await tx.verificationToken.deleteMany({
+        where: { identifier: token.identifier },
+      });
+    });
+  } catch (error) {
+    if (error instanceof Error && error.message === "VERIFY_TOKEN_CONSUMED") {
+      return invalidLinkResponse();
+    }
+    console.error("auth_email_verification_failed", {
+      code: "email_verification_failed",
+    });
+    return NextResponse.json(
+      { verified: false, error: "Unable to verify email" },
+      { status: 500, headers: { "Cache-Control": "no-store" } },
+    );
+  }
 
   return NextResponse.json(
     { verified: true },
