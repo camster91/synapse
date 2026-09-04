@@ -17,6 +17,8 @@ test("the browser selects item ids but cannot substitute action targets", () => 
   assert.match(applyRoute, /selectedItemIds/);
   assert.doesNotMatch(applyRoute, /targetScheduledAt: z\./);
   assert.doesNotMatch(applyRoute, /targetDeferredUntil: z\./);
+  assert.match(applyRoute, /claims\.plan\.recommendations/);
+  assert.doesNotMatch(applyRoute, /buildAdaptivePlan/);
   assert.match(applyRoute, /targetScheduledAt: recommendation\.targetScheduledAt/);
   assert.match(applyRoute, /targetDeferredUntil: recommendation\.targetDeferredUntil/);
   assert.match(applyRoute, /targetEstimatedMinutes: recommendation\.targetEstimatedMinutes/);
@@ -32,6 +34,7 @@ test("storage applies all task changes and the change record in one transaction"
 test("duplicate proposal application is idempotent", () => {
   assert.match(storage, /findUnique\(\{\s*where: \{ proposalId: input\.proposalId \}/s);
   assert.match(storage, /duplicate: true/);
+  assert.match(storage, /concurrent replay/);
   assert.match(migration, /UNIQUE INDEX "adaptive_plan_changes_proposalId_key"/);
 });
 
