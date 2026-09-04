@@ -188,7 +188,7 @@ Remaining acceptance:
 - operational route test;
 - qualified-review-approved participant support/withdrawal wording.
 
-### #70 — exact-artifact release package
+### #70 — exact-artifact pre-pilot release package
 
 **State:** Completed awaiting evidence / approval-required.
 
@@ -200,13 +200,23 @@ Implemented:
 - `release:validate` completeness mode and approval-required mode;
 - staged rollout and rollback boundaries.
 
-Remaining acceptance:
+Pre-pilot acceptance requires:
 
-- real evidence from #29/#49/#60/#61/#62/#63/#64/#65/#67/#68;
+- real runtime/trust evidence from #29/#49/#60/#61/#62/#63/#64/#67;
+- #65 Day-0 comprehension protocol ready, with any completed pre-pilot evidence
+  included; if not completed beforehand, it must be explicitly incorporated into
+  #66 Day 0;
+- #68 **pre-pilot readiness only**: an owner-approved test range, frozen unaided-WTP
+  question order, and economics measurement plan. Observed WTP/support/service-cost
+  results are collected during #66 and are not prerequisites for #70;
 - exact immutable image digest;
 - migration boundary;
 - release notes/known limitations/responders/rollback triggers;
-- one explicit `approve / reject / request-changes` request bound to exact artifact.
+- one explicit `approve / reject / request-changes` request bound to the exact
+  pre-pilot artifact.
+
+#66 is not a dependency of #70. #70 is the release package that must be approved
+before #66 can start on the managed-beta host.
 
 ## P1 — RC1 validation gates
 
@@ -225,15 +235,21 @@ keyboard, focus, slow/failure/retry, expiry, and duplicate-submit states.
 
 Five approved target participants must describe the value unaided and reach a useful
 first daily plan. Identities/private content stay outside GitHub; use P01–P05 evidence.
-Participant recruitment/contact requires separate approval.
+Participant recruitment/contact requires separate approval. The Day-0 test may occur
+immediately before the 14-day pilot or as the explicit first phase of #66; it does not
+need to be falsely completed before the pilot environment exists.
 
 ### #66 — five-user 14-day managed beta
 
 **State:** Customer-validation pending / approval-required.
 
-Do not start until the runtime/trust/policy/support/release entry gates are satisfied.
-The pilot is invite-only, five approved testers, 14 measured days, no billing, and
-privacy-minimal evidence. Any Sev 1 trust incident pauses enrolment/use.
+Do not start until the runtime/trust/policy/support/pre-pilot release gates are
+satisfied, including #70 exact-artifact staged-deployment approval. The pilot is
+invite-only, five approved testers, 14 measured days, no billing, and privacy-minimal
+evidence. Any Sev 1 trust incident pauses enrolment/use.
+
+During #66, collect the evidence needed to complete #65 and #68 when those tests are
+incorporated into Day 0 / pilot closeout.
 
 ### #67 — AI task-creation quality/safety/latency/cost
 
@@ -246,12 +262,28 @@ limited/disabled.
 
 ### #68 — pricing and sustainable economics
 
-**State:** Customer/economics validation pending / approval-required.
+**State:** Pre-pilot plan readiness + post-pilot customer/economics validation pending /
+approval-required.
 
-Current price/cost values are internal hypotheses only. During #65/#66, collect
-unaided willingness-to-pay before showing an owner-approved range, replace modeled
-service/support/AI costs with observed evidence, then recommend approve/revise/reject.
-No public price or payment collection is authorized.
+Before #70/#66:
+
+- freeze the unaided willingness-to-pay questions and order;
+- obtain explicit approval for any price range that will be shown after the unaided
+  response;
+- define the service/support/AI cost fields to measure during the pilot;
+- do not publish pricing or collect payment.
+
+During #65/#66:
+
+- collect unaided willingness-to-pay before showing the approved range;
+- collect observed service/support/AI cost evidence using privacy-minimal records.
+
+After #66:
+
+- replace modeled assumptions with observed evidence;
+- run sensitivity analysis against the approved contribution-margin target;
+- recommend approve/revise/reject;
+- only then may #69 become implementation-ready if separately approved.
 
 ## Post-beta
 
@@ -297,9 +329,10 @@ re-frozen/revalidated.
 4. #60 external email/DNS/auth QA.
 5. #62 + #63 policy/support decisions and verification.
 6. #64 + #67 rendered lifecycle and AI validation.
-7. #65 + #68 participant/economics preparation and evidence.
-8. #70 exact-artifact release package and staged deployment approval.
-9. #66 five-user 14-day pilot and keep/revise/stop decision.
+7. #65 Day-0 protocol + #68 pre-pilot test-range/economics measurement readiness.
+8. #70 exact-artifact pre-pilot release package and staged deployment approval.
+9. #66 five-user 14-day pilot; run #65 Day 0 if needed and collect #68 WTP/cost data.
+10. #68 final post-pilot economics recommendation.
 
 No later phase should silently bypass an unfinished earlier gate.
 
