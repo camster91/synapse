@@ -18,7 +18,9 @@ test("Today exposes the complete My day changed flow", () => {
 test("the dialog is mobile first and keyboard accessible", () => {
   assert.match(panel, /role="dialog"/);
   assert.match(panel, /aria-modal="true"/);
+  assert.match(panel, /aria-busy=\{busy\}/);
   assert.match(panel, /event\.key === "Escape"/);
+  assert.match(panel, /if \(busyRef\.current\) return/);
   assert.match(panel, /event\.key !== "Tab"/);
   assert.match(panel, /items-end/);
   assert.match(panel, /sm:items-center/);
@@ -34,7 +36,7 @@ test("optional context remains local and recommendations require explicit confir
   assert.match(panel, /type="checkbox"/);
 });
 
-test("loading, no-change, stale/failure, success, and undo states are represented", () => {
+test("loading, no-change, stale\/failure, success, and undo states are represented", () => {
   assert.match(panel, /Revising your day/);
   assert.match(panel, /already fits/);
   assert.match(panel, /role="alert"/);
