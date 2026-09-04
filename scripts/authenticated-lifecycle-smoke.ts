@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 import pg from "pg";
 
 const REQUIRED_CONFIRMATION = "create-and-delete-disposable-account";
+const REQUIRED_LOCAL_SINK_CONFIRMATION = "disposable-lifecycle-only";
 
 type CookieJar = Map<string, string>;
 
@@ -75,6 +76,14 @@ async function locallyVerifyDisposableAccount(baseUrl: URL, email: string) {
       "remote lifecycle smoke cannot bypass email verification; verify through the approved external mailbox instead"
     );
   }
+  if (
+    process.env.EMAIL_PROVIDER !== "local-sink" ||
+    process.env.AUTH_EMAIL_LOCAL_SINK !== REQUIRED_LOCAL_SINK_CONFIRMATION
+  ) {
+    throw new Error(
+      "local verification bypass requires the explicitly confirmed disposable email sink"
+    );
+  }
   if (!process.env.DATABASE_URL) {
     throw new Error("local verification bypass requires DATABASE_URL for the same disposable deployment");
   }
@@ -118,14 +127,16 @@ async function assertDatabaseDeletion(userId: string) {
         (select count(*) from habits where "userId" = $1) +
         (select count(*) from goals where "userId" = $1) +
         (select count(*) from product_events where "userId" = $1) +
-        (select count(*) from accounts where "userId" = $1)
+        (select count(*) from accounts where "userId" = $1) +
+        (select count(*) from sessions where "userId" = $1) +
+        (select count(*) from verification_tokens where identifier in ('verify:' || $1, 'reset:' || $1))
       )::text as count`,
       [userId]
     );
     if (user.rows[0]?.count !== "0" || owned.rows[0]?.count !== "0") {
-      throw new Error("database still contains disposable account rows");
+      throw new Error("database still contains disposable account or authentication rows");
     }
-    return "verified-zero-owned-rows";
+    return "verified-zero-owned-and-authentication-rows";
   } finally {
     await pool.end();
   }
