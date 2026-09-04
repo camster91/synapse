@@ -4,6 +4,10 @@ A private daily operating system that connects goals to today across priorities,
 habits, calendar context, captures, and reflection—with portable data and optional
 bring-your-own AI.
 
+## Runtime
+
+Use Node.js 24 and npm 11.6.0. The repository includes `.nvmrc` for compatible version managers.
+
 ## Quick Start
 
 ```bash
@@ -53,6 +57,7 @@ npm test               # Contract and regression tests
 npm run typecheck      # TypeScript validation
 npm run lint           # ESLint with zero warnings allowed
 npm run build          # Production Next.js build
+npm run verify         # Full local gate: typecheck, lint, tests, and build
 ```
 
 Production Compose files fail closed when required secrets are absent. Before a
