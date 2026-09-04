@@ -61,7 +61,7 @@ function normalizeDashboard(raw: Record<string, unknown>): DashboardData {
   };
 }
 
-export default function DashboardPage() {
+export default function DashboardPage({ refreshKey = 0 }: { refreshKey?: number }) {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -79,6 +79,7 @@ export default function DashboardPage() {
         if (res.ok) {
           const raw = await res.json();
           setData(normalizeDashboard(raw));
+          setError(null);
         } else if (res.status === 401) {
           setError("Please sign in to view your dashboard.");
         } else {
@@ -91,7 +92,7 @@ export default function DashboardPage() {
       }
     }
     load();
-  }, []);
+  }, [refreshKey]);
 
   const handleQuickCapture = async () => {
     if (!quickCapture.trim() || !data || capturing) return;
