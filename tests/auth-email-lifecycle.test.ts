@@ -11,8 +11,10 @@ const auth = readFileSync("src/lib/auth.ts", "utf8");
 const tokens = readFileSync("src/lib/auth-tokens.ts", "utf8");
 const registerPage = readFileSync("src/app/register/page.tsx", "utf8");
 
-test("new credentials registrations require a verification token before sign in", () => {
-  assert.match(registerRoute, /createAuthToken\("verify"/);
+test("new credentials registrations require a verification marker before sign in", () => {
+  assert.match(registerRoute, /generateAuthToken\("verify", user\.id\)/);
+  assert.match(registerRoute, /tx\.verificationToken\.create/);
+  assert.match(registerRoute, /tx\.account\.create/);
   assert.match(auth, /hasPendingVerification/);
   assert.match(auth, /Email verification required/);
   assert.match(registerRoute, /NextResponse\.json\(\{ accepted: true \}/);
