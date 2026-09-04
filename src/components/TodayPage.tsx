@@ -9,7 +9,7 @@ export default function TodayPage() {
   return (
     <div className="space-y-4">
       <AdaptivePlanningPanel onPlanChanged={() => setRevision((value) => value + 1)} />
-      <DashboardPage key={revision} />
+      <DashboardPage refreshKey={revision} />
     </div>
   );
 }
