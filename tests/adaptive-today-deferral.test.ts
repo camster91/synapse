@@ -3,17 +3,19 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 const dashboard = readFileSync("src/app/api/dashboard/route.ts", "utf8");
-const preview = readFileSync("src/app/api/adaptive-planning/preview/route.ts", "utf8");
+const context = readFileSync("src/lib/adaptive-context.ts", "utf8");
 
-test("Today excludes only tasks whose adaptive deferral is still active", () => {
-  assert.match(dashboard, /loadAdaptiveEffortMetadata/);
-  assert.match(dashboard, /deferredUntil/);
-  assert.match(dashboard, /new Date\(deferredUntil\)\.getTime\(\) <= now\.getTime\(\)/);
-  assert.match(dashboard, /\.slice\(0, 10\)/);
+test("Today excludes only tasks whose bounded deferral is active", () => {
+  assert.match(dashboard, /deferredUntil: null/);
+  assert.match(dashboard, /deferredUntil: \{ lte: now \}/);
+  assert.match(dashboard, /take: 10/);
+  assert.doesNotMatch(dashboard, /loadAdaptiveEffortMetadata/);
 });
 
-test("adaptive preview applies the same deferral visibility rule", () => {
-  assert.match(preview, /loadAdaptiveEffortMetadata/);
-  assert.match(preview, /deferredUntil/);
-  assert.match(preview, /estimatedMinutes: effort\.get\(todo\.id\)\?\.estimatedMinutes \?\? null/);
+test("adaptive preview uses the same visible-Today rule directly in Prisma", () => {
+  assert.match(context, /deferredUntil: null/);
+  assert.match(context, /deferredUntil: \{ lte: input\.now \}/);
+  assert.match(context, /estimatedMinutes: todo\.estimatedMinutes/);
+  assert.match(context, /minimumMinutes: todo\.minimumMinutes/);
+  assert.match(context, /updatedAt: todo\.updatedAt\.toISOString\(\)/);
 });
