@@ -4,6 +4,30 @@ A private daily operating system that connects goals to today across priorities,
 habits, calendar context, captures, and reflection—with portable data and optional
 bring-your-own AI.
 
+## Current project state
+
+Synapse is in **RC1 managed-beta validation**, not public launch.
+
+Canonical control plane:
+
+- `PRODUCT.md` — product position, evidence, risks, and release boundaries;
+- `BACKLOG.md` — technical implementation/verification state;
+- GitHub issue #71 — governing execution order;
+- `OPERATIONS.md` / `OPERATIONS-RC1.md` — runtime, backup, restore, alerts, and evidence;
+- `SUPPORT.md` — beta support/incident operating model;
+- `LEGAL-REVIEW-INVENTORY.md` — factual legal/data review inventory;
+- `RELEASE-RC1.md` — exact-artifact release approval flow;
+- `PILOT.md` — five-user, 14-day no-billing validation protocol.
+
+The integrated RC1 baseline before the current documentation reconciliation is
+`0c05e7037b5d07029401aad2d6515ef6c243a08c`. It is a candidate, not an approved
+deployment artifact. Runtime, governance, external email, operations, policy/support,
+rendered QA, customer validation, and exact-artifact release gates remain open.
+
+GitHub-hosted canonical CI is currently not usable as release evidence because jobs
+have repeatedly failed before checkout with zero executed steps. Do not interpret that
+as an application pass or failure.
+
 ## Quick Start
 
 ```bash
@@ -55,64 +79,69 @@ npm run lint           # ESLint with zero warnings allowed
 npm run build          # Production Next.js build
 ```
 
-Production Compose files fail closed when required secrets are absent. Before a
-real deployment, keep browser push disabled until a standards-compliant sender is
-configured, then smoke-test the built application and database together in the
-target environment.
+RC1-specific commands include:
 
-Backup creation, destructive restore-drill safeguards, and the remaining production
-recovery gates are documented in [OPERATIONS.md](OPERATIONS.md).
+```bash
+npm run smoke:lifecycle
+npm run backup
+npm run restore:drill
+npm run ops:preflight
+npm run ops:evidence
+npm run metrics:support
+npm run release:validate -- /absolute/path/to/release-package.json
+```
 
-The approval-gated five-user validation workflow is documented in
-[PILOT.md](PILOT.md).
+These commands have explicit safety/evidence boundaries. Read `OPERATIONS.md` and
+`RELEASE-RC1.md` before using them. A passing local command does not itself authorize
+remote execution, deployment, destructive restore, or release.
+
+Production Compose files fail closed when required secrets are absent. Before any
+managed-beta deployment, the exact candidate must pass the runtime, external-email,
+recovery, governance, policy/support, rendered-QA, and release-package gates tracked
+by roadmap #71.
 
 ## Project Structure
 
-```
+```text
 synapse/
 ├── prisma/
 │   ├── schema.prisma      # Database schema
 │   ├── seed.ts            # Seed data
 │   └── migrations/        # Migration files
 ├── plugins/               # Plugin manifests & code
-│   ├── finance-tracker/
-│   └── relationship-crm/
 ├── src/
-│   ├── app/
-│   │   ├── (app)/         # Authenticated pages
-│   │   │   ├── habits/
-│   │   │   ├── todos/
-│   │   │   ├── notes/
-│   │   │   ├── calendar/
-│   │   │   ├── goals/
-│   │   │   ├── journal/
-│   │   │   ├── chat/
-│   │   │   ├── plugins/
-│   │   │   ├── achievements/
-│   │   │   └── settings/
-│   │   ├── api/           # API routes
-│   │   ├── login/
-│   │   └── register/
+│   ├── app/               # App Router pages and APIs
 │   ├── components/        # React components
-│   └── lib/
-│       ├── ai/            # AI provider, context, tools
-│       ├── plugins/       # Plugin system
-│       ├── auth.ts        # NextAuth config
-│       ├── prisma.ts      # DB client
-│       ├── validators.ts  # Zod schemas
-│       └── xp.ts          # Gamification logic
-└── docker-compose.yml     # PostgreSQL
+│   └── lib/               # auth, AI, plugins, validation, data helpers
+├── scripts/               # validation, lifecycle, backup/restore, metrics, release tools
+├── PRODUCT.md             # product/release control
+├── BACKLOG.md             # technical execution control
+├── OPERATIONS.md          # operator runbook
+├── SUPPORT.md             # beta support/incident model
+├── PILOT.md               # managed-beta protocol
+└── docker-compose.yml     # local PostgreSQL
 ```
 
 ## Features
 
 - **Habits** — Track daily/weekly habits with streaks
-- **Todos** — Kanban-style task management with priorities
-- **Notes** — Notion-style notes with backlinks (`[[wikilinks]]`)
-- **Calendar** — Event management and a daily schedule view
-- **Goals** — Hierarchical goals (yearly → quarterly → monthly → weekly)
-- **Journal** — Daily entries with mood, gratitude, and highlights
-- **Inbox** — Quick capture for thoughts before organizing
-- **AI Chat** — Natural language interaction with your data via LLM
+- **Todos / Today** — Task management, priorities, and focused daily planning
+- **Notes** — Notes with backlinks (`[[wikilinks]]`)
+- **Calendar** — Event management and daily schedule context
+- **Goals** — Hierarchical goals and goal-linked planning
+- **Journal** — Daily entries, gratitude, highlights, and reflection
+- **Inbox** — Quick capture before organizing
+- **Export / deletion** — Portable data export and credential-confirmed account deletion
+- **AI Chat** — Natural-language interaction with user-controlled provider settings
 - **Gamification** — XP, levels, achievements, streaks
-- **Plugins** — Permissioned installable modules; bundled examples cover finance and relationship CRM workflows
+- **Plugins** — Permissioned installable modules
+
+## Release boundaries
+
+The current intended milestone is one invite-only managed beta for five specifically
+approved testers, 14 measured days, no billing, and no public launch. It requires a
+separate exact-artifact approval after all evidence gates pass.
+
+Post-beta billing (#69), Adaptive Planning (#74–#77/#80 and draft PR #79), and routine
+dependency PRs (#59/#72/#73) remain outside the frozen RC1 scope unless the governing
+roadmap is explicitly changed.

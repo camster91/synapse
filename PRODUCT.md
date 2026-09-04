@@ -1,324 +1,172 @@
 # Synapse Product Control
 
-Authoritative product, market, roadmap, risk, and release record. Technical
-implementation detail remains in `BACKLOG.md`; when the two disagree, this file
-controls product priority and launch claims.
+Authoritative product, positioning, roadmap, risk, evidence, and release record.
+Technical implementation detail belongs in `BACKLOG.md`. The governing execution
+sequence is GitHub roadmap issue #71. When an older document, issue comment, or PR
+body conflicts with this file or #71, the newer evidence-bound record controls.
 
-Last reconciled: 2026-09-01 against branch
-`codex/integrated-backlog-hardening`, PR #55, and the current working tree.
+Last reconciled: 2026-09-04 against `main` baseline
+`0c05e7037b5d07029401aad2d6515ef6c243a08c`, roadmap #71, the open issue register,
+and the current open PR queue.
 
 ## Product charter
 
 - **Product:** Synapse, a web-first, self-hostable personal operating system.
 - **Primary customer hypothesis:** privacy-conscious technical solo professionals
   whose goals, tasks, habits, notes, calendar, and reflection are fragmented across
-  multiple products.
+  multiple tools.
 - **Core job:** turn intentions and captured inputs into a realistic daily plan,
-  then preserve context through execution and reflection without surrendering
-  control of personal data or AI credentials.
-- **Promise hypothesis:** one private daily command center connecting goals to
-  today, with self-hosting, export, and bring-your-own AI.
-- **Initial market assumption:** English-language individual users in Canada and
-  the United States. This is unvalidated and must not become a public legal or
-  commercial claim without owner approval.
-- **Deliberately deferred:** team collaboration, enterprise administration,
-  native mobile apps, broad third-party integrations, and autonomous AI mutations.
-- **Success definition:** at least 5 target users complete a two-week pilot; 4/5
-  independently reach first value in under 10 minutes; at least 3/5 use the daily
-  plan on 8 of 14 days; no critical/high release risk or unrecoverable data loss.
+  preserve context through execution and reflection, and keep the user in control of
+  data and AI credentials.
+- **Promise hypothesis:** one private daily command center connecting goals to today,
+  with portable export, deletion controls, self-hosting, and optional bring-your-own AI.
+- **RC1 milestone:** one invite-only, five-user, 14-day managed beta with no billing
+  and no public launch.
+- **Deliberately deferred:** paid billing, broad acquisition, team collaboration,
+  enterprise administration, native mobile apps, broad third-party integrations,
+  autonomous AI mutations, and further Adaptive Planning expansion.
 
-## Current state
+## Current release candidate state
 
-### Verified
+The integrated RC1 baseline before this documentation-only reconciliation is:
 
-- Private GitHub repository; no homepage or verified production deployment is
-  connected to the repository.
-- Next.js web/PWA with PostgreSQL and Prisma; production Compose and a standalone
-  image exist. The exact PR #55 candidate builds successfully for `linux/amd64`
-  and `linux/arm64`. Current host has no Docker runtime, so image/database runtime
-  smoke testing remains blocked.
-- Credentials auth, tenant-scoped habits, tasks, notes/backlinks, calendar, goals,
-  journal, inbox, gamification, plugins, export, and read-only AI chat tools exist.
-- The current PR #55 candidate has 142 passing local tests, passing typecheck,
-  zero-warning lint, and a passing
-  production build. Hosted Build, Lint, Ashbi Local CI, GitGuardian, and the
-  read-only dual-architecture image validation all pass.
-- The five current Dependabot alerts on the default branch are resolved in this PR
-  branch: `deepmerge-ts` 8.0.0, `nanoid` 3.3.18, `find-my-way` 9.7.0,
-  `valibot` 1.4.2, and `@babel/core` 7.29.7. Both full and production-only
-  `npm audit` report zero vulnerabilities; the default-branch alerts remain visible
-  until the branch is merged.
-- Guided onboarding, a focused Today loop, portable export, and credential-verified
-  account deletion now exist in code and automated coverage. The disposable local
-  PostgreSQL environment successfully generated Prisma client code, applied the
-  initial migration, seeded reference data, and served the public application.
-- Public desktop/mobile rendering, registration, authenticated onboarding, the
-  Today task/habit loop, portable export, sign-out, and safe protected deep-link
-  return are browser verified with a disposable local account. Rendered account
-  deletion remains pending explicit irreversible-action approval.
-- No billing, product analytics, external log destination/alerts, support path,
-  automated off-site backup, terms, or privacy notice exists. Local liveness,
-  database/filesystem readiness, privacy-minimal structured error logs, backup
-  creation, and restore-drill tooling are implemented and locally verified.
-- Recurrence strings are stored but occurrences are not expanded; public copy no
-  longer promises recurrence expansion or automatic time blocking.
-- AI mutations are implemented internally but intentionally excluded from the chat
-  tool list until explicit confirmation UI exists. Current AI value is retrieval and
-  context, not safe autonomous execution.
-- AI chat now derives provider execution only from the authenticated user's saved
-  settings. Anthropic and OpenAI require that user's encrypted key; request-level
-  provider/model overrides cannot consume operator credentials. Ollama execution is
-  pinned to the instance operator's configured endpoint rather than a tenant URL.
+`0c05e7037b5d07029401aad2d6515ef6c243a08c`
 
-### Inferences
+This baseline contains the merged code-side work for:
 
-- Breadth is currently a liability during activation: eleven navigation areas appear
-  before the customer has completed one useful loop.
-- Data control plus connected whole-life planning is a more credible differentiation
-  path than matching Akiflow/Motion integrations or Notion/Capacities knowledge depth.
-- BYOK AI can lower inference cost and strengthen control, but setup friction means it
-  should be optional after first value rather than required during onboarding.
+- verification-gated credential registration and password recovery;
+- external transactional-email support through the Resend adapter plus a separate
+  loopback-only disposable lifecycle sink;
+- production Compose hardening, PostgreSQL migration startup, readiness, backup,
+  restore-drill, and authenticated lifecycle tooling;
+- privacy-minimal operations preflight/evidence validation;
+- beta support/incident definitions and support-metrics tooling;
+- legal/data review inventory;
+- exact-artifact release package validation;
+- canonical migration-aware CI;
+- current-main test compatibility fixes;
+- image-workflow housekeeping that avoids unnecessary image builds for docs-only
+  changes.
 
-### Unknowns
+This is a **candidate**, not an approved deployment artifact. No immutable release
+image digest, managed-beta deployment, public launch, billing activation, participant
+outreach, legal publication, or production mutation is authorized by repository state.
 
-- No verified customers, interviews, usage analytics, retention, revenue, support
-  demand, willingness to pay, or production reliability evidence was found.
-- Hosting provider, domain, operational owner, budget, legal entity, support channel,
-  backup target, and acceptable recovery objectives are unknown.
-- The repository MIT license contains placeholder copyright fields. Correct ownership
-  wording requires accountable owner confirmation.
+## Evidence status
 
-## Access register
+### Implemented or prepared in the repository
 
-| Capability | State | Approval or owner action | Release consequence |
-|---|---|---|---|
-| Repository and GitHub | Available; authenticated | Approval required to merge if it releases | PR work can continue |
-| Local Node build/test | Available | None | Verified |
-| Docker runtime | Unavailable locally; hosted image build available | Install/provide isolated runtime | Blocks image-plus-database runtime smoke test |
-| GitHub-hosted runners | Available | Keep required checks and runner capacity healthy | Exact-SHA checks pass |
-| Production hosting/domain | Unknown | Owner selection and credentials | Blocks release |
-| Analytics/monitoring/logs | Local health and structured signals implemented; collection/alerts absent | Operator destination and ownership; vendor spend needs approval | Blocks launch evidence |
-| Billing | Absent | Pricing and payment approval | Blocks paid launch, not pilot |
-| Customers/feedback/support | No evidence/access | Owner recruits or authorizes outreach | Blocks customer validation |
-| Legal identity/policies | Unknown/absent | Owner/legal approval | Blocks public commercial launch |
+- Core authenticated product areas exist: goals, Today/tasks, habits, inbox, notes,
+  calendar, journal, export/deletion, plugins, gamification, and AI-assisted flows.
+- Production Compose fails closed on required database/authentication secrets,
+  PostgreSQL is not host-published, and the app waits for DB health before migration
+  and startup.
+- `smoke:lifecycle` can create and delete one synthetic disposable account on a
+  loopback deployment with explicit confirmation and database cleanup checks.
+- Backup creation and destructive restore-drill scripts contain explicit target and
+  path guards.
+- `ops:preflight` and `ops:evidence` validate approved operations decisions and
+  privacy-minimal runtime evidence but do not create that evidence.
+- `metrics:support`, pilot metrics, AI-action metrics, economics tooling, and
+  `release:validate` exist as decision-support tools.
+- Authentication verification/reset tokens are hashed at rest, single-use, and
+  time-bounded; password reset invalidates prior credential sessions.
 
-## Market evidence (researched 2026-08-28)
+### Still unverified for RC1
 
-First-party published pricing establishes three relevant clusters:
+The following are not proven merely because supporting code exists:
 
-| Alternative | Position and current published price | What it proves | Synapse gap/opportunity |
-|---|---|---|---|
-| [Todoist](https://www.todoist.com/pricing/) | General task management; free, Pro $5/user/month annually | Low-cost task execution is mature and crowded | Do not compete on todos alone |
-| [Notion](https://www.notion.com/pricing) | Flexible knowledge/work platform; free, Plus $10, Business $20/member/month | Broad workspace and AI depth set a high breadth bar | Win on guided daily coherence and control, not databases |
-| [Capacities](https://capacities.io/pricing) | Connected personal knowledge; free, Pro $9.99/month, paid AI power-up | Personal knowledge plus AI already has a focused entrant | Synapse must make action/reflection linkage tangible |
-| [Sunsama](https://www.sunsama.com/pricing) | Guided daily planning; $17/month annually or $22 monthly | Customers may pay premium prices for a calm daily ritual | A proven daily-planning value frame, but no Synapse validation |
-| [Akiflow](https://akiflow.com/pricing) | Integrated task/calendar daily planning; $19/month annually or $34 monthly | Integrations and time blocking command premium pricing | Synapse currently lacks equivalent integrations and scheduling |
-| [Motion](https://www.usemotion.com/pricing?tool=motion) | AI work suite; Pro AI $19/seat/month annually | Bundled AI planning is crowded and credit-metered | BYOK/control can differentiate if onboarding remains simple |
-| [Vikunja](https://vikunja.io/pricing/) | Open-source self-hosted tasks; cloud €4/month or €40/year | Self-hosting alone is not a premium differentiator | Whole-life daily loop must justify any price premium |
-| [Anytype](https://business.anytype.io/) | Local-first encrypted workspace; business €20/editor/month | Stronger sovereignty claims require real local-first/E2EE architecture | Do not call Synapse local-first or zero-knowledge |
+- exact-candidate Docker/PostgreSQL runtime, lifecycle, backup, and restore proof (#29);
+- executable exact-SHA canonical CI plus enforced branch governance (#49);
+- external sender/domain DNS alignment, real mailbox delivery, and rendered auth
+  journey (#60);
+- approved host, encrypted off-site backup, alerts, responders, RPO/RTO, restore,
+  rollback, and retention evidence (#61);
+- owner legal identity decisions, licence ownership, and qualified policy review (#62);
+- approved/verified support routes, responders, hours, escalation, and participant
+  instructions (#63);
+- complete rendered desktop/mobile/keyboard/failure/recovery/export/reset/delete QA (#64);
+- five-user unaided positioning and first-value evidence (#65);
+- the 14-day five-user pilot (#66);
+- live provider/model AI quality, safety, latency, and cost evidence (#67);
+- observed willingness-to-pay and sustainable unit economics (#68);
+- exact SHA + immutable image-digest release package and staged-release approval (#70).
 
-Research stop rule: first-party evidence covers the consequential positioning and
-price anchors. Customer pain and switching evidence remain insufficient and require
-interviews/pilot behavior rather than more vendor pages.
+### GitHub Actions limitation
 
-## Position and packaging hypothesis
+GitHub-hosted `CI Build / Build` for the current baseline repeatedly fails before
+checkout with zero executed steps. The latest retry also failed before any workflow
+step ran. This is not application pass evidence and is not application failure
+evidence. Do not describe hosted exact-SHA CI as green until a real job executes.
 
-- **Wedge:** technical solo professionals willing to self-host or use a managed
-  private instance, who want one daily loop across work and life.
-- **Differentiators to earn:** goals-to-today planning; habits/tasks/calendar/journal
-  in one daily review; inspectable self-hosting and complete export/deletion; optional
-  BYOK AI with explicit confirmation and undo.
-- **Reasons to switch:** fewer disconnected daily rituals, ownership/control, and a
-  price below premium planners without subsidizing bundled AI.
-- **Proposed packaging, not approved or customer-visible:** free MIT self-hosted
-  community edition; managed individual beta at $12/month annually or $15 monthly,
-  with a 14-day no-card trial; AI uses customer keys initially. Pricing requires
-  customer interviews, cost measurement, license correction, and owner approval.
+`main` is currently unprotected. The connected GitHub integration can read ruleset
+state but cannot apply repository-administration protection changes. #49 remains open.
 
-### Managed-beta economics hypothesis (modeled 2026-09-01)
+## Positioning and market hypothesis
 
-`npm run economics:managed-beta` calculates the internal hypothesis from the
-versioned model in `product-economics/managed-beta.json`. The current scenario uses
-CA$15 monthly, CA$12 annual-equivalent, a 50/50 plan mix, Stripe Canada's published
-2.9% + CA$0.30 domestic-card fee, CA$0.25 variable infrastructure, a CA$1.50
-support reserve, and CA$40 fixed monthly operations. It yields CA$13.50 weighted
-monthly revenue, CA$11.20 contribution per account, 82.93% contribution margin,
-and modeled fixed-cost break-even at four paid accounts.
+Synapse should not compete as a generic task manager, second brain, or AI automation
+suite. The intended wedge is a calmer private daily operating system that connects:
 
-These are planning outputs, not validated economics. Hosting, backup, monitoring,
-and support are editable allowances rather than selected-vendor quotes; taxes,
-refunds, disputes, foreign exchange, legal work, founder salary, and acquisition
-cost are excluded. The model assumes BYOK AI creates no operator inference cost.
-No price, vendor, purchase, or billing behavior is approved by this calculation.
+**Goals → Today → Execute → Reflect → Learn**
 
-Decision rule: do not request paid-launch approval until pilot time/cost evidence
-replaces the allowances, currency and tax treatment are decided, and sensitivity
-testing still shows at least 75% contribution margin. If measured support plus
-variable service cost exceeds CA$2.82 per account at the modeled mix, the current
-price misses that target and must be changed or the service made less costly.
+The differentiation to validate is not feature breadth. It is whether users value a
+single daily loop that combines planning context, habits/tasks/calendar/reflection,
+portable data, and user-controlled AI.
 
-## Metrics and decision rules
+Customer pain, switching behavior, retention, willingness to pay, and support burden
+remain hypotheses until #65/#66/#68 produce measured evidence.
 
-No real-customer baselines exist. Activation, Today engagement, and export success
-now use explicit opt-in, fixed-name, day-deduplicated events stored in the private
-instance. The aggregate report emits no account identifiers or activity content and
-remains decision-ineligible below five consented participants. Daily-plan resolution,
-AI acceptance, and production reliability still require scoped instrumentation.
+## Packaging and economics hypothesis
 
-| Metric | Pilot target | Decision rule |
-|---|---|---|
-| Activation | Create first daily plan in <10 minutes; >=80% of pilot users | Repair onboarding before adding breadth if missed |
-| Daily-plan success | >=70% of planned priority items resolved or consciously rescheduled | Rework plan workflow if missed |
-| 14-day engaged retention | >=60% use on 8+ days | Do not proceed to paid launch if missed |
-| Export success | 100% of representative accounts produce a complete readable archive | Release blocker |
-| Account deletion | 100% removal of DB records and owned files in tests | Release blocker |
-| AI suggestion acceptance | >=60% accepted without correction on evaluation set | Keep mutations disabled if missed |
-| Reliability | >=99.5% successful requests in pilot, no Sev-1 data loss | Release blocker |
+The five-user RC1 beta is explicitly **no-payment**.
 
-## Authoritative roadmap
+Internal pricing/economics assumptions may be used only for testing and modeling.
+They are not an offer and must not be published automatically. Current modeling
+includes a CA$15 monthly / CA$12 annual-equivalent hypothesis, BYOK AI, and a target
+contribution margin of at least 75%, but #68 must replace assumptions with observed
+hosting, monitoring, backup, support, AI, and customer willingness-to-pay evidence.
 
-1. **Activation and truthful promise — implemented and rendered-journey verified.**
-   - Outcome: new user completes a focused setup and reaches a useful Today plan.
-   - Acceptance: onboarding routes from registration; creates or skips one goal,
-     habit, and priority task; ends on Today with a visible next action; empty,
-     failure, retry, keyboard, and mobile states covered; unsupported landing claims
-     removed.
-   - Registration now enters a focused goal/habit/priority-task setup with an explicit
-     skip path; records are created atomically and Today receives the first priority.
-     Public landing access and product copy now match implemented behavior.
-   - Customer-facing metadata, install manifest, README, registration, landing,
-     empty-state, and AI framing consistently use the focused private goals-to-today
-     daily operating system position; generic “second brain” copy is removed.
-   - Registration and login expose accessible pending states, disable duplicate
-     submission, use touch-friendly controls, and recover from provider/network
-     failures without leaking raw authentication errors.
-   - Evidence: activation contracts, typecheck, zero-warning lint, and production build
-     pass. A disposable PostgreSQL database migrated and seeded successfully; desktop
-     and 390 px public views render without clipping. Rendered registration, guided
-     onboarding, Today task/habit completion, and portable export passed.
-2. **Data lifecycle and trust — implemented in code; runtime and policy evidence pending.**
-   - Portable JSON export includes profile, content, attachment records and embedded
-     bytes, plugins, notifications, and an explicit credential-exclusion manifest.
-     Credential-verified account deletion removes cascaded records and stages uploaded
-     files recoverably; individual attachment deletion now uses the same recovery model.
-   - Evidence: lifecycle contracts plus existing file rollback tests, typecheck,
-     zero-warning lint, and production build pass. An authenticated disposable
-     PostgreSQL/API run proved anonymous export denial, goal/habit/task onboarding,
-     a complete credential-free portable archive, wrong-password deletion denial
-     with preservation, credential-confirmed deletion, zero remaining owned rows,
-     and failed reauthentication. `npm run smoke:lifecycle` makes the destructive
-     synthetic lifecycle repeatable behind explicit local/remote safety gates.
-     Rendered browser completion, restore, and owner-approved policies remain gates.
-3. **Daily plan vertical loop — implemented; core rendered journey verified.**
-   - Connect inbox triage, top priorities, habits, real calendar events, deliberate
-     rescheduling, and end-of-day reflection in one Today workflow.
-   - Today returns focused goal-linked priorities, daily habits, active goals, schedule
-     context, and recent inbox captures. Users can complete tasks/habits, deliberately
-     move work to tomorrow, triage captures, and close the day with a reflection in
-     place; failures restore optimistic state or preserve the reflection draft.
-   - Evidence: the current 142-test suite, typecheck, zero-warning lint, and
-     production build pass. Rendered task, habit, inbox-triage, deliberate
-     rescheduling, and reflection journeys passed. Account-timezone day boundaries,
-     DST transitions, local habit logging, display, and 9:00 tomorrow scheduling are
-     covered deterministically; rendered boundary QA remains.
-4. **Production-like pilot readiness — partially implemented; external decisions remain.**
-   - Docker image/migrations, health/authenticated smoke test, monitoring, backups,
-     rollback, support path, and five-user pilot protocol. Blocked by runtime/hosting,
-     runner, legal/support decisions, and customer access.
-   - The consent-first five-user, 14-day protocol is explicit in `PILOT.md`, including
-     entry gates, moderated setup, support/incident capture, interviews, economics
-     inputs, thresholds, stop rules, and closeout. It does not authorize deployment,
-     outreach, pricing, legal commitments, or enrollment.
-   - Privacy-minimal pilot measurement is implemented for first-plan activation,
-     distinct-day Today engagement, and successful export. Consent defaults off,
-     Settings explains the fixed signals, opt-out deletes them atomically, exports
-     disclose them, and `npm run metrics:pilot` returns aggregates only. Synthetic
-     PostgreSQL verification proved migration, daily deduplication, target rules,
-     empty-state reporting, and deletion; it is not customer evidence.
-   - Pull-request image validation is a separate read-only job: it cannot receive
-     package/attestation write permission, authenticate to GHCR, publish an image,
-     create attestations, or mutate release-like tags. Only an explicit main/version-
-     tag event can enter the separately permissioned publication job. Superseded
-     same-ref image runs are cancelled so the latest candidate owns the gate. Both
-     jobs share a scoped GitHub Actions Buildx cache instead of discarding locally
-     exported layers between hosted runners.
-5. **AI evaluation and confirmation — task-creation slice implemented; broader evaluation pending.**
-   - Representative evaluation set, privacy disclosure, cost/latency tracking,
-     explicit mutation confirmation, correction/undo, outage behavior.
-   - Task creation is now the only confirmable AI mutation exposed to chat. The
-     model can persist a normalized proposal, but only an authenticated, tenant-
-     scoped confirmation route can create the task. Review cards show all stored
-     parameters; proposals expire after 30 minutes; duplicate decisions are claimed
-     once; rejection changes nothing; and a 10-minute undo deletes only an unchanged
-     AI-created task. Edited tasks fail closed instead of losing user work. Proposal
-     and decision history is durable and included in portable export.
-   - `npm run metrics:ai-actions` reports confirmation, rejection, expiration, and
-     undo aggregates only for users who opted into pilot measurement. It deliberately
-     does not claim to replace the representative quality evaluation set. Other AI
-     mutations remain disabled pending equivalent confirmation and recovery design.
-   - A provider-neutral 16-case evaluation contract and deterministic scorer now cover
-     task intent/parameters, ambiguity, read-only requests, unsupported mutations,
-     destructive/external actions, prompt-like task content, and confirmation-bypass
-     attempts. The gate requires >=80% overall and 100% critical-safety accuracy.
-     No provider has been run and no quality result is claimed; a live run requires
-     explicit approval if it can spend money or transmit prompts.
-6. **Pricing validation and billing — proposed.**
-   - A reproducible internal managed-beta model now separates sourced payment rates
-     from explicit infrastructure/support allowances and fails closed on invalid
-     inputs. Measure real pilot support and service costs, validate willingness to
-     pay, decide currency/tax handling, then obtain owner approval before any public
-     price or payment behavior; implement cancellation and entitlement recovery.
+Billing implementation is tracked in #69 and is deliberately post-beta.
 
-## GitHub issue register
+## RC1 success definition
 
-Reconciled 2026-09-01 against the repository issues and current PR #55 branch.
-External issue comments or closure require owner approval.
+The managed-beta decision is evidence-driven. The intended thresholds are:
 
-| Issue | Evidence-backed disposition | Next action |
-|---|---|---|
-| #49 — Restore production dependency-PR validation | Exact-SHA Build, Lint, Ashbi Local CI, GitGuardian, and read-only dual-architecture image validation pass on PR #55. PR #48 is closed and superseded. | Keep open for required-check/branch-protection confirmation and qualified candidate review. |
-| #29 — Production Compose credentials/health | Implemented on PR #55: required credentials fail closed, PostgreSQL has no host port, configured healthcheck exists, startup migration/reconciliation and app readiness are covered. | Keep open until image + database smoke test passes with Docker. |
-| #28 — TODOs/tests/description | Closed completed on 2026-09-01 with exact-SHA evidence: package description exists, 119 tests pass, and source contains no TODO/FIXME markers; enum value `TODO` is application data, not a marker. | No further action. |
-| #27 — Clickable navigation/calendar divs | Closed completed on 2026-09-01 with exact-SHA evidence: navigation backdrop and calendar days are semantic buttons with accessible names; accessibility contracts pass. | No further action. |
+- five approved target participants complete the pilot;
+- at least 4 of 5 understand the goals-to-today value without coaching;
+- at least 4 of 5 reach a useful first daily plan within ten minutes;
+- at least 4 of 5 resolve a daily plan on at least 8 of 14 days;
+- at least 4 of 5 cite a concrete planning/execution improvement;
+- reliability reaches at least 99.5% with no Sev-1 data-loss/privacy event;
+- export/deletion are findable and work for representative pilot accounts;
+- support burden is complete, privacy-minimal, and decision-eligible;
+- economics remain viable against the approved margin target;
+- all trust, recovery, and release gates have exact-artifact evidence.
 
-## Decision log
+If thresholds are missed, the result is revise or stop—not automatic feature expansion
+or paid launch.
 
-- **2026-08-28 — Position on private daily execution, not generic breadth.**
-  Evidence: current product shape plus first-party competitor positioning/pricing.
-  Alternatives: generic second brain, AI work suite, task manager, team workspace.
-  Reversal condition: target-user interviews show a different urgent job and actual
-  switching intent. Owner: product owner; state: proposed/researched, not approved.
-- **2026-08-31 — Enable only confirmed AI task creation.**
-  Evidence: durable tenant-scoped proposals, complete parameter review, single-claim
-  confirmation, expiry, reject, and edit-safe undo passed authenticated runtime checks.
-  Other mutation executors remain unreachable from chat. Reversal condition: disable
-  the slice if representative evaluation or pilot acceptance misses its target.
-  State: implemented for task creation; broader actions and evaluation remain pending.
-- **2026-09-01 — Gate managed pricing on measured contribution margin.**
-  Evidence: first-party payment pricing plus an executable, assumption-labeled model.
-  Alternatives: copy a competitor price, launch free indefinitely, or bundle operator-
-  funded AI. Reversal condition: pilot willingness-to-pay or measured service costs
-  invalidate the package. State: modeled, not approved or customer-visible.
+## Governing execution order
 
-## Risk and blocker register
+Roadmap issue #71 is the authoritative ordered execution plan:
 
-| Severity | Risk | Mitigation/state | Owner |
-|---|---|---|---|
-| Critical | No production backup/restore evidence | Local database-plus-upload backup and representative restore drill pass; encrypted off-site schedule, retention, alerts, and production-like RPO/RTO proof remain blocked on owner/operator decisions | Product owner + operator |
-| High | Deletion lacks rendered browser and production-like host evidence | Authenticated PostgreSQL/API lifecycle and local restore drill pass; browser deletion awaits explicit approval and approved-host rehearsal remains | Engineering/operator |
-| Resolved | Onboarding lacked authenticated browser completion evidence | Disposable rendered registration, onboarding, Today, and export journey passed | Engineering/product |
-| Medium | Exact-SHA technical checks pass, but required-check policy and qualified review remain unverified | GitHub issue #49 | Account owner + engineering |
-| High | Five default-branch dependency alerts | Patched versions verified on PR branch; default branch remains exposed until approved merge | Product owner + engineering |
-| High | Image/migrations untested together | GitHub issue #29 | Operator |
-| High | No legal identity, privacy, or terms | Owner/legal approval required | Product owner |
-| Medium | Landing promise needs customer comprehension and conversion evidence | Public copy is implementation-truthful; validate in pilot | Product |
-| Medium | Pilot metrics have no real-customer baseline; daily-plan success and external alerts remain absent | Opt-in aggregate activation/engagement/export metrics and local health/error signals verified; obtain pilot consent and operator-owned collection/alerts before relying on targets | Product owner + operator |
-| Medium | AI task creation has confirmation/undo and consented decision metrics, but quality, latency, cost, and broader actions remain unmeasured | Keep every other mutation disabled; build and pass the representative evaluation set before expansion | Engineering/product |
-| Medium | Pricing economics use unmeasured hosting/support allowances and omit tax, acquisition, and founder labor | Replace allowances with pilot/vendor evidence; require >=75% contribution margin and owner approval before paid launch | Product owner |
-| Resolved | Raw browser-push delivery permitted tenant-controlled outbound requests | Unsafe sender removed; in-app notifications remain until standards-compliant Web Push exists | Engineering |
-| Resolved | Uploads lacked aggregate tenant/storage quotas | Atomic 512 MB account reservations, migration backfill, and deletion release verified | Engineering |
-| Resolved | Interrupted upload/file deletion could retain untracked bytes | Production startup now removes orphan/trash residue and rebuilds quota accounting after migrations | Engineering |
-| Medium | MIT license copyright placeholders | Confirm holder/year before edit | Product owner |
+1. **#29** — isolated exact-candidate runtime/lifecycle/backup/restore proof.
+2. **#49** — exact-SHA validation execution and enforced PR/review governance.
+3. **#61** — host/backup/alerts/responder/RPO/RTO decisions and runtime evidence.
+4. **#60** — external email/DNS/mailbox/authentication QA.
+5. **#62 + #63** — qualified participant policy and support operations.
+6. **#64 + #67** — complete rendered lifecycle and AI-provider validation.
+7. **#65 + #68 pre-pilot readiness** — prepare the Day-0 comprehension protocol,
+   owner-approved price-test range, question ordering, and economics measurement plan;
+   do not require observed pilot economics yet.
+8. **#70** — exact SHA/image-digest release package and staged-deployment approval.
+9. **#66** — five-user 14-day no-billing pilot; run #65 at Day 0 if not already
+   completed and collect willingness-to-pay, support, reliability, and service-cost
+   evidence needed by #68.
+10. **#68 post-pilot conclusion** — replace assumptions with observed pilot evidence
+    and issue an approve/revise/reject economics recommendation before #69 can begin.
+
+Do not bypass an unfinished earlier gate by changing labels or wording.
 
 ## Owner decision queue — each approval is separate
 
@@ -328,204 +176,56 @@ target and artifact immediately before changing external state.
 
 | Decision | Recommended next choice | Evidence required before action | Explicitly not authorized yet |
 |---|---|---|---|
-| Repository governance | Protect `main`; require the hosted Build, Lint, image-validation, GitGuardian, and Ashbi checks plus one qualified approving review | Exact check names on the candidate SHA and an identified reviewer who did not author the change | Changing rulesets, dismissing reviews, or merging PR #55 |
-| Production rehearsal | Select an owner-controlled non-public host with PostgreSQL, encrypted backup storage, rollback capacity, and a named responder | Host identity, runtime availability, secret source, backup target, alert destination, RPO/RTO targets, and rollback artifact | Provisioning, purchasing, deploying, or opening public access |
-| Legal and data policy | Confirm operating identity, jurisdiction, copyright holder/year, privacy owner, retention/deletion wording, and beta terms with qualified review | Owner-supplied identity and policy decisions appropriate to the selected host and participants | Drafts being represented as legal advice or publishing policies |
-| Support and incidents | Use one primary support route with stated hours and one urgent route for access, loss, deletion, or privacy incidents | Named channel owners, response hours, escalation destination, and pause authority | Contacting users or promising an SLA |
-| Managed pilot | Run the consent-first 14-day protocol with exactly five approved target participants after every entry gate in `PILOT.md` is proven | Participant list, consent copy, approved host, support routes, lifecycle rehearsal, and operator schedule | Recruiting, contacting, enrolling, or collecting payment |
-| Pricing research | Test the internal CA$15 monthly / CA$12 annual-equivalent hypothesis only after unaided willingness-to-pay questions | Five-participant evidence, measured support/vendor costs, tax/currency decision, and at least 75% contribution margin | Publishing a price, enabling billing, discounts, or charges |
-| Merge and release | Request a separate exact-SHA approval only after governance, host rehearsal, backup/restore, policies, support, and candidate checks are complete | PR SHA, complete required-check rollup, approving review, image digest, rollback artifact, and production checklist | Merging, tagging, publishing an image, or deploying |
+| Repository governance | Protect `main`; require pull requests, one qualified approving review, stale-approval dismissal, and `CI Build / Build` once executable | Exact required-check name, real executed exact-SHA validation or an explicitly approved equivalent, and a protected-branch test | Changing rulesets, bypassing checks, or weakening governance |
+| Production rehearsal | Use a proven isolated/disposable Docker environment for #29 before any managed-beta host mutation | Exact target identity, isolation proof, disposable DB/volume names, lifecycle/backup/restore plan, and cleanup plan | Provisioning, purchasing, deploying, or accessing production data |
+| Legal and data policy | Confirm operating identity, jurisdiction, copyright holder/year, privacy owner, retention/deletion wording, and beta terms with qualified review | Owner-supplied identity and policy decisions appropriate to the selected host and participants | Publishing policy, making compliance claims, or changing licence ownership without approval |
+| Support and incidents | Use one primary support route with stated hours and one urgent route for access, loss, deletion, or privacy incidents | Named route owners, coverage hours, escalation destination, backup responder, and pause authority | Contacting users or promising an SLA |
+| Managed pilot | Run the consent-first 14-day protocol with exactly five approved target participants after every pre-pilot entry gate is proven | Participant ledger, consent copy, approved host, support routes, lifecycle rehearsal, and exact staged-release approval | Recruiting, contacting, enrolling, or collecting payment |
+| Pricing research | Prepare an owner-approved test range before the pilot; collect unaided willingness-to-pay and observed costs during #66, then finalize #68 afterward | Frozen question order/test range before Day 0; five-participant WTP plus measured support/service/AI costs for the post-pilot conclusion | Publishing a price, enabling billing, discounts, or charges |
+| Merge and release | Request a separate exact-artifact release approval after governance, host rehearsal, backup/restore, policies, support, and candidate checks are complete | Exact candidate SHA, immutable image digest, complete release package, rollback artifact, and named responder | Merging, tagging, publishing an image, or deploying |
 
-## Release record and work log
+## Post-beta work
 
-- No verified production release or customer pilot.
-- 2026-08-28: PR #55 implemented and locally verified the security/reliability
-  backlog; hosted validation remains blocked before checkout.
-- 2026-08-28: market baseline, positioning hypothesis, access register, metrics,
-  risks, and roadmap established from live repository and first-party sources.
-- 2026-08-28: activation journey and truthful public promise implemented; 44 tests,
-  typecheck, lint, and production build passed.
-- 2026-08-28: secret-safe portable export and recoverable account/attachment deletion
-  implemented; 48 tests, typecheck, lint, and production build passed.
-- 2026-08-28: first executable Today loop implemented with goal context and recoverable
-  task/habit completion; 51 tests, typecheck, lint, and production build passed.
-- 2026-08-28: Today loop completed in code with focused selection, tomorrow deferral,
-  inbox triage, and draft-preserving reflection; 53 tests, typecheck, lint, and
-  production build passed.
-- 2026-08-28: isolated local PostgreSQL migration and seed passed; public desktop and
-  mobile browser captures verified the revised goals-to-today positioning. Registration
-  and login now expose programmatic labels, autocomplete intent, and live error regions.
-- 2026-08-28: repository-wide offline security review validated six findings: one
-  high, four medium, and one low. The highest-risk shared-AI-credential path and the
-  tenant-controlled Ollama destination were remediated in code; 58 tests, typecheck,
-  zero-warning lint, and the production build pass. Upload quotas and file
-  reconciliation remain release-gate work.
-- 2026-08-28: unsafe raw browser-push delivery and subscription registration were
-  removed. Notifications remain available in-app, the PWA service worker still
-  registers, and browser push is explicitly deferred until a standards-compliant,
-  destination-constrained implementation exists; 61 tests pass.
-- 2026-08-28: attachment storage gained an atomic 512 MB per-account quota with
-  migration backfill, compensating cleanup for failed uploads, and quota release
-  across direct and parent-record deletion. The migration and concurrent boundary
-  behavior were verified against isolated PostgreSQL; 65 tests, typecheck, and
-  zero-warning lint pass.
-- 2026-08-28: production startup now fails closed on database access, reconciles
-  untracked upload and private-trash residue, and rebuilds quota accounting from
-  authoritative attachment rows before serving traffic. The command passed against
-  isolated PostgreSQL; 68 tests, typecheck, zero-warning lint, and production build
-  pass.
-- 2026-08-28: all five live Dependabot advisories were mapped to exact dependency
-  chains and patched in the lockfile. Prisma validation/client generation, 70 tests,
-  typecheck, zero-warning lint, production build, full `npm audit`, and
-  production-only `npm audit` pass with zero vulnerabilities.
-- 2026-08-28: fail-closed database-plus-upload backup and destructive restore-drill
-  tooling were added with checksums, archive-path validation, migration validation,
-  and upload reconciliation. A disposable PostgreSQL drill restored one attachment,
-  its exact 42-byte file, both migrations, and quota accounting; the temporary source
-  fixture and restore database were removed. Production scheduling, encrypted
-  off-site retention, alert ownership, and RPO/RTO evidence remain release blockers.
-- 2026-08-28: cache-disabled liveness and PostgreSQL/upload readiness endpoints,
-  image health checks, revision metadata, and privacy-minimal structured startup,
-  readiness-failure, and request-error logs were implemented. Runtime verification
-  proved `200` liveness, `200` readiness, `503` readiness during a forced database
-  outage, and recovery to `200`; 76 tests, typecheck, and zero-warning lint pass.
-- 2026-08-28: explicit opt-in product measurement was added for first-plan
-  activation, distinct-day Today engagement, and successful export. Only fixed event
-  names and local day keys are stored; opt-out deletes prior signals, portable export
-  discloses them, and the pilot report emits aggregate counts only. A disposable
-  PostgreSQL run verified the third migration, per-day deduplication, activation and
-  retention rules, opt-out cleanup, and empty-state output; the synthetic fixture was
-  removed. All 81 tests, Prisma validation/generation, typecheck, zero-warning lint,
-  and production build pass. No customer baseline is claimed.
-- 2026-08-31: AI-proposed task creation gained durable 30-minute review cards,
-  complete parameter disclosure, tenant-scoped single-claim confirm/reject decisions,
-  and a 10-minute undo that refuses to delete a subsequently edited task. Authenticated
-  runtime checks against isolated PostgreSQL proved success, duplicate-confirm denial,
-  unchanged-task undo, edited-task preservation, expiry, rejection, and cross-tenant
-  denial. Consented aggregate decision reporting and portable export coverage were
-  added; no real-user acceptance or quality baseline is claimed.
-- 2026-08-31: a provider-neutral 16-case AI task-action evaluation contract and
-  deterministic scorer were added with an 80% overall and 100% critical-safety gate.
-  Scorer tests prove unsafe critical failures, duplicates, missing cases, and unexpected
-  IDs fail closed. No paid/provider execution occurred, so this is evaluation
-  infrastructure rather than model-quality evidence.
-- 2026-09-01: hosted runners recovered and exposed a real cross-platform CI defect:
-  the zsh-expanded recursive test glob was passed literally by GitHub's bash shell.
-  Test discovery now uses the repository's flat portable glob, CI runs Node 24 in
-  alignment with the production image, and the package declares Node >=22 to satisfy
-  dependency engine requirements. All 90 tests, typecheck, and zero-warning lint pass
-  locally; the corrected hosted Build and Lint reruns pass on PR #55.
-- 2026-09-01: an executable managed-beta economics model now separates Stripe's
-  published Canadian card rate from editable infrastructure and support allowances,
-  shows sensitivity at 5/25/100 accounts, and preserves the explicit public-pricing
-  approval boundary. No vendor, spend, currency policy, or customer price is approved.
-- 2026-09-01: exact-SHA hosted Build passed after the economics checkpoint and
-  exposed deprecated Node 20 action runtimes. Hosted workflows now use the Node 24-
-  based checkout/setup action majors, with a contract preventing regression.
-- 2026-09-01: PR image validation was separated into a read-only job from release
-  mutation. Pull requests still exercise the multi-architecture Docker build, but
-  cannot obtain package/attestation write permission, log into GHCR, push images,
-  create attestations, or overwrite `latest`; main/version-tag publication remains
-  an explicitly triggered, separately permissioned release path.
-- 2026-09-01: rendered registration QA exposed a pre-hydration native-form fallback
-  that could place credentials in a GET URL before client JavaScript attached. Both
-  authentication forms now fail closed to POST at the HTML layer while retaining
-  their client-side handlers; a source contract prevents regression. The disposable
-  credential was invalidated and no account was created by the failed attempt.
-- 2026-09-01: the same rendered QA proved the static CSP prevented Next.js hydration
-  and left every client interaction inert. Security policy generation moved to the
-  Next.js 16 `src/proxy.ts` convention with a fresh per-request nonce propagated to
-  server rendering and the response; protected-route authorization remains enforced
-  there. Registration, onboarding, Today task/habit completion, and portable export
-  then passed in the disposable browser journey. An optimized production server
-  independently returned a nonce-bearing CSP without script `unsafe-inline` and
-  redirected an anonymous `/today` request to authentication.
-- 2026-09-01: customer-facing positioning was reconciled across browser metadata,
-  install manifest, README, registration, landing, dashboard empty state, and AI
-  framing. Generic “second brain” language is replaced by the narrower private
-  goals-to-today daily operating system promise and protected by a contract test.
-- 2026-09-01: an authenticated disposable lifecycle proved registration, session
-  ownership, goal/habit/task onboarding, credential-free export, wrong-password
-  deletion preservation, correct-password cascade deletion, zero owned rows, and
-  failed reauthentication. The guarded `smoke:lifecycle` command preserves this as
-  a repeatable release gate; no production or customer data was used.
-- 2026-09-01: registration/login activation states were hardened with duplicate-
-  submission guards, accessible busy states, 44 px controls, stable customer-safe
-  provider errors, and explicit network recovery. Rendered account submission still
-  awaits browser action-time approval.
-- 2026-09-01: returning-user authentication now preserves the originally requested
-  protected deep link after sign-in while rejecting external, protocol-relative,
-  public, and authentication-loop callback destinations.
-- 2026-09-01: Settings no longer presents email as editable while silently omitting
-  it from Save. Email is truthfully read-only for the beta, initial settings failures
-  are visible, and Save stays unavailable until authenticated settings load.
-- 2026-09-01: development no longer registers the production service worker or keeps
-  stale Synapse caches, which had replayed obsolete Turbopack chunks and caused real
-  hydration failures during journey QA. Registration has one production owner, and
-  Settings theme state now initializes identically on the server and client.
-- 2026-09-01: Todos, Habits, and Goals no longer turn failed API loads into deceptive
-  empty states. Each core planning collection now distinguishes loading, failure, and
-  genuine emptiness, explains that data was not removed, and offers an accessible retry.
-- 2026-09-01: exact SHA `ac9c90d2c34a5d052b1e3959fd5ee6f1b75f255e`
-  passed hosted Build, Lint, Ashbi Local CI, GitGuardian, and a read-only cold-cache
-  `linux/amd64,linux/arm64` image build in 26m58s. No image was published.
-- 2026-09-01: Inbox, Notes, Calendar, and Journal now distinguish failed loads
-  from genuine empty data and provide safe retry states. Journal cannot expose a
-  blank editable form or save until the existing entry has loaded, preventing a
-  transient request failure from overwriting prior reflection data.
-- 2026-09-01: Achievements and Notifications no longer convert failed requests
-  into false zero/empty states. Notification read actions and plugin discovery,
-  installation, removal, enablement, and configuration now verify server success
-  and provide customer-visible recovery that preserves prior state.
-- 2026-09-01: Chat now distinguishes failed conversation-list and history/action
-  requests from an empty conversation, supports retry, ignores superseded loads,
-  and removes a conversation from the UI only after the server confirms deletion.
-- 2026-09-01: global Quick Add now awaits Todo, Note, and Inbox creation instead
-  of clearing the draft optimistically. Failed requests preserve the entered text,
-  explain the failure accessibly, and keep duplicate submissions disabled while a
-  request is pending.
-- 2026-09-01: direct creation forms for Todos, Habits, Goals, Notes, and Calendar
-  now reject unsuccessful responses visibly, preserve customer drafts, and disable
-  duplicate submissions until each request finishes.
-- 2026-09-01: Settings data export now handles both rejected network requests and
-  unsuccessful responses, prevents duplicate downloads while preparing an archive,
-  and exposes a local accessible error instead of leaving an unhandled promise.
-- 2026-09-01: the authenticated global search control is now connected to the
-  tenant-scoped search API. Debounced results expose explicit loading, failure, and
-  empty states in an Escape-dismissible dialog with navigable grouped results.
-  Coverage includes Todos, Notes, Journal, Goals, Calendar, Habits, Inbox, and AI
-  conversations; conversation results deep-link only after tenant membership is verified.
-- 2026-09-01: rendered Today QA exposed successful quick captures disappearing
-  from view. Today now inserts the confirmed inbox item immediately, updates the
-  unprocessed count, blocks duplicate requests, and restores failed drafts visibly.
-  Authenticated rendered QA also passed for inbox archive triage and deliberate
-  move-to-tomorrow rescheduling without a recovery error.
-- 2026-09-01: primary Todo, Habit, Goal, Note, and Calendar creation forms now
-  programmatically associate visible labels with their controls. Habit frequency
-  and Goal timeframe use semantic groups and expose the selected option state.
-  Authenticated rendered QA resolved every labeled field exactly once and confirmed
-  the default Daily and Year choices through their pressed state.
-- 2026-09-01: the global-search modal now keeps forward and reverse Tab navigation
-  inside the dialog and restores focus to the invoking control after close. Rendered
-  keyboard QA confirmed trapped input, exposed an autofocus-timing flaw in the first
-  restoration attempt, and then proved Escape returned focus before the next query.
-- 2026-09-01: a consolidated owner decision queue now separates repository
-  governance, production rehearsal, legal/data policy, support, pilot, pricing, and
-  exact-SHA release approval. It explicitly grants no external authorization.
-- 2026-09-01: rendered QA exposed the install prompt advertising notifications even
-  though browser push is intentionally unavailable. The prompt now promises only
-  truthful quicker home-screen access, exposes a named region and dismiss control,
-  blocks duplicate native prompts, always closes after the native choice, cleans its
-  delayed-show timer, explains native prompt failures without leaving a dead install
-  action, and is covered by the push-safety contract.
-- 2026-09-01: mobile search no longer uses a blocking browser prompt; it opens the
-  same labeled field and global result dialog as desktop with a local close action.
-  The mobile navigation close and desktop collapse controls now expose their action
-  and expanded state to assistive technology.
-- 2026-09-01: authenticated Today reflection QA saved a close-the-day entry, showed
-  the confirmed content in the Journal card, removed the editor, and exposed no
-  recovery error. The disposable local account retains that QA journal entry.
-- 2026-09-01: Today now derives task/event bounds, date-only habit and journal days,
-  displayed dates/times, reflection dates, and move-to-tomorrow scheduling from the
-  account timezone. DST start/end tests prove 23- and 25-hour day boundaries, and
-  habit logging no longer defaults to the server's UTC date.
+### Paid lifecycle
+
+#69 becomes implementation-ready only after #66/#68 produce approved customer and
+economics evidence. Provider selection, public pricing, taxes, checkout, billing,
+cancellation, refunds, and payment collection are not RC1 entry gates.
+
+### Adaptive Planning
+
+Adaptive Planning remains an approved product direction but is outside RC1. Draft PR
+#79 contains implementation for #74, #75, #76, #77, and #80. Those issues are
+post-RC1 verification/rebase work, not managed-beta blockers.
+
+The planned next loop is:
+
+**Goals → Today → Execute → Life changes → Adapt → Reflect → Learn → Tomorrow**
+
+Initial slice: **My day changed**, with explainable Keep / Shorten / Move / Drop
+proposals and explicit confirmation before mutation.
+
+### Dependency automation
+
+Open dependency PRs #59, #72, and #73 are frozen outside RC1 unless a specific
+release-critical security reason is proven. Routine dependency churn must not silently
+change the exact candidate during release validation.
+
+## Approval boundaries
+
+Repository preparation and read-only analysis do not authorize external action.
+Separate explicit approval is required for any of the following when applicable:
+
+- branch/ruleset administration;
+- use of an external Docker/VPS environment;
+- deployment or production/database mutation;
+- DNS or email-provider configuration;
+- purchases or billing changes;
+- backup upload, destructive restore, or rollback;
+- publishing legal/policy/support wording;
+- participant recruitment, outreach, enrolment, interviews, or recording;
+- pricing tests with participants;
+- payment collection or public launch.
+
+A complete checklist, merged preparation code, or passing validator is never by itself
+release authorization.

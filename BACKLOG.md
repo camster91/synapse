@@ -1,134 +1,344 @@
 # Synapse Backlog
 
-Technical implementation record. Product priority, market status, launch claims,
-risks, and acceptance criteria are authoritative in `PRODUCT.md`.
+Technical implementation and verification record. Product priority, launch claims,
+customer validation, and release decisions are authoritative in `PRODUCT.md` and
+GitHub roadmap issue #71.
 
-Canonical issue ordering reconciled 2026-09-01 against the current PR #55
-candidate, the open issue register, local validation, and hosted checks.
+Last reconciled: 2026-09-04 against `main` baseline
+`0c05e7037b5d07029401aad2d6515ef6c243a08c`, the open issue register, open PR queue,
+and current runtime/CI evidence.
 
-## Priority model
+## State model
 
-- **P0 — Release blocker:** security boundary, unsafe production default, or no trustworthy release gate.
-- **P1 — Must fix before beta:** material reliability, privacy, abuse, or data-lifecycle problem.
-- **P2 — Beta quality:** accessibility, performance, defense-in-depth, and maintainability work.
-- **P3 — Cleanup:** low-risk polish that should not delay higher priorities.
+Use these states consistently:
 
-## Ordered backlog
+- **Implemented:** code or documentation exists, but runtime/user evidence may not.
+- **Completed awaiting verification:** implementation is present and the remaining
+  acceptance evidence is explicit.
+- **Blocked / approval-required:** progress depends on owner/admin/external action.
+- **Customer-validation pending:** implementation exists but measured user evidence
+  does not.
+- **Post-beta / Post-RC1:** intentionally excluded from current release gates.
+- **Completed and verified:** acceptance evidence exists; close the issue.
 
-### P0 — Release blockers
+Do not use “done,” “green,” or “verified” when only preparation exists.
 
-1. **Enforce tenant ownership for every relationship ID. — Implemented on PR #55.**
-   - Affected inputs: todo `goalId`, todo/note/goal `parentId`, and every `tagIds` input in todo, note, goal, and calendar create/update routes.
-   - Risk: an authenticated user can connect another user's record by ID and expose relation metadata or corrupt tenant boundaries.
-   - Implemented: shared user-scoped validation now covers all eight create/update routes, rejects foreign/missing relationships, and prevents self/ancestor cycles.
-   - Verification: 11/11 tests, typecheck, and lint pass; production build completes with the pre-existing standalone trace-copy warning.
+## Current RC1 baseline
 
-2. **Finish production database hardening (GitHub #29). — Implemented on PR #55; deployment smoke pending.**
-   - Implemented: production and VPS Compose fail closed on required credentials and application secrets; the production database host port was removed; the healthcheck uses configured database identity.
-   - Verification: 15/15 tests pass; Compose rejects missing settings and accepts a complete non-production validation configuration.
-   - Remaining deployment gate: start the built image and database together in an isolated environment and pass health/authenticated smoke tests.
+`0c05e7037b5d07029401aad2d6515ef6c243a08c`
 
-3. **Make pull-request validation authoritative (GitHub #49). — Technical checks restored; governance pending.**
-   - Exact-SHA evidence: Build, Lint, Ashbi Local CI, GitGuardian, and the read-only
-     dual-architecture image build pass on PR #55.
-   - Remaining: confirm required-check/branch-protection enforcement and obtain a
-     qualified review of the selected candidate.
+Merged into this baseline:
 
-### P1 — Must fix before beta
+- credentials registration verification and password recovery;
+- Resend transactional-email adapter and loopback-only disposable sink;
+- production Compose hardening and migration-aware startup;
+- health/readiness and authenticated lifecycle smoke tooling;
+- backup and destructive restore-drill tooling;
+- operations preflight/evidence validation;
+- support/incident definitions and support metrics;
+- legal/data review inventory;
+- exact-artifact release-package validation;
+- canonical PostgreSQL-backed CI definition;
+- test compatibility fixes;
+- image-workflow housekeeping.
 
-4. **Make the production build hermetic and verify the standalone image. — Image build verified; runtime smoke pending.**
-   - Implemented: removed `next/font/google` in favor of a system font stack and removed the duplicate authenticated `/` route by mounting the shared dashboard only at `/today`.
-   - Verification: a clean production build succeeds without network font access or the prior standalone manifest-copy warning; 17/17 tests, typecheck, and lint pass.
-   - Hosted evidence: the exact candidate builds for `linux/amd64` and `linux/arm64`.
-   - Remaining deployment gate: start the image with PostgreSQL and pass health plus authenticated smoke tests.
+This baseline is not an approved deployment artifact.
 
-5. **Add abuse controls to credential authentication. — Implemented locally, awaiting commit/PR.**
-   - Implemented: account throttles always cover login and registration; IP throttles activate only with explicit `TRUST_PROXY=true`; forwarded headers are otherwise ignored; buckets are bounded and expire.
-   - Enumeration mitigation: registration performs equivalent bcrypt work before the existence branch and returns the same accepted response for an existing account.
-   - Verification: budget exhaustion, reset timing, proxy trust, route coverage, and response-contract tests pass as part of the 23/23 suite.
+## P0 — RC1 runtime, trust, and release blockers
 
-6. **Clean up attachment files when parent entities are deleted. — Implemented locally, awaiting commit/PR.**
-   - Implemented: note, todo, calendar, and inbox deletion stage files into a private trash directory before the database cascade, restore them on database failure, and remove them after success.
-   - Verification: commit, rollback, and all-parent-route lifecycle coverage pass as part of the 20/20 test suite.
+### #29 — production-like Compose/runtime proof
 
-7. **Resolve dependency advisories through the comprehensive upgrade (PR #54). — Upgrade adopted and validated locally.**
-   - Implemented: adopted the comprehensive production dependency set and non-breaking audit lockfile fixes; installed resolution currently includes Next.js 16.3.3 and Prisma 7.10.0.
-   - Verification: clean install, Prisma generation, 23/23 tests, typecheck, lint, and a clean production build pass.
-   - Audit result: reduced from 8 findings to 3 high findings, all in Prisma CLI via `@prisma/config` → `deepmerge-ts`. npm proposes only a breaking downgrade to Prisma 6.12.0, which is not accepted without a separate migration assessment.
-   - Tracker action: local work now supersedes PRs #52-#54; close them after this change is committed and proposed as one integrated PR.
+**State:** Completed awaiting verification / approval-required.
 
-### P2 — Beta quality
+Implemented:
 
-8. **Fix keyboard-inaccessible click targets (GitHub #27; #26 is an exact duplicate). — Implemented locally.**
-   - Implemented: the mobile navigation backdrop and calendar day cells are semantic buttons with accessible names; month controls are explicitly named.
-   - Verification: accessibility contract coverage passes as part of the 25/25 suite.
-   - Tracker action: close #26 as duplicate and #27 as fixed after the integrated PR merges.
+- production credentials fail closed;
+- PostgreSQL is not host-published;
+- DB healthcheck uses configured identity;
+- app waits for DB health, runs `prisma migrate deploy`, reconciles uploads, and starts;
+- lifecycle smoke, backup, and restore-drill tooling have explicit safety guards.
 
-9. **Scope plugin rate limits per user (closed GitHub #7). — Implemented locally.**
-   - Implemented: buckets are keyed by user and plugin, expired entries are pruned, and total in-memory state is bounded.
-   - Verification: cross-user, cross-plugin, exhaustion, and window-reset coverage pass as part of the 27/27 suite.
+Remaining evidence:
 
-10. **Replace habit-streak N+1 queries (closed GitHub #5). — Implemented locally.**
-    - Implemented: one history query feeds a timezone-aware, unique-day in-memory streak calculation; invalid saved timezones safely fall back to UTC.
-    - Verification: consecutive days, duplicate logs, gaps, timezone boundaries, invalid zones, and the absence of query-per-day loops are covered in the 31/31 suite.
+- exact baseline builds/runs in an isolated Docker environment;
+- fresh PostgreSQL migrations complete;
+- liveness/readiness pass;
+- disposable authenticated lifecycle passes;
+- backup succeeds;
+- restore succeeds into an empty disposable database/uploads target;
+- exact-artifact evidence and complete cleanup are recorded.
 
-11. **Add explicit HTTP security headers (closed GitHub #8, still applicable). — Implemented locally.**
-    - Implemented: CSP, HSTS in production, frame and MIME protections, strict referrer handling, and a restrictive permissions policy apply to every route.
-    - The theme bootstrap is a same-origin static script, so `script-src` does not require `unsafe-inline`; development alone permits eval for the framework runtime.
-    - Verification: header and theme-policy contracts pass as part of the 40/40 suite; typecheck, zero-warning lint, and the production build pass.
+No production host or existing data may be used without explicit action-time approval.
 
-12. **Validate dates and recurrence at the API boundary. — Implemented locally.**
-    - Implemented: shared strict ISO date/date-time schemas reject impossible dates and ambiguous timezone-free date-times; recurrence accepts a bounded supported RRULE subset.
-    - Applied to todos, goals, calendar events and queries, habit logs, journal entries and queries, and AI tool inputs; ordered ranges enforce end-after-start.
-    - Verification: malformed dates, leap days, timezone requirements, recurrence bounds, and ordered ranges pass as part of the 37/37 suite; typecheck and lint pass.
+### #49 — authoritative validation and repository governance
 
-13. **Resolve the journal stale-effect warning and accessibility regressions. — Implemented locally.**
-    - Implemented: the journal's date snapshot is stable and its loading effect has complete dependencies; keyboard-inaccessible calendar and mobile navigation targets are semantic buttons.
-    - Verification: hook lint and accessibility contract coverage pass.
+**State:** Blocked / approval-required.
 
-### P3 — Cleanup
+Implemented:
 
-14. **Reduce the 42 lint warnings to zero and fail CI on new warnings. — Implemented locally.**
-    - Removed dead imports, state, props, and obsolete lint suppressions; retained documented exceptions for provider-hosted avatar images.
-    - `npm run lint` now enforces `--max-warnings=0` so warnings fail local and CI validation.
-15. **Add package metadata (`description`) and reconcile README claims with implemented behavior. — Implemented locally.**
-    - Added the package description; corrected the NextAuth version, cross-platform setup, dependency-install step, validation commands, plugin scope, and production caveats.
+- canonical `CI Build / Build` includes frozen install, Prisma generation,
+  disposable PostgreSQL 16, migration deploy, typecheck, zero-warning lint, tests,
+  and production build;
+- image validation remains path-scoped and non-publishing on PRs;
+- workflow-only changes no longer self-trigger unnecessary image publication work.
 
-## Tracker reconciliation
+Current blocker:
 
-| Item | Current disposition | Action |
-|---|---|---|
-| #49 PR application validation | Open; exact-SHA technical checks pass | Keep for policy enforcement and qualified review; P0 item 3 |
-| #29 production Compose | Open, partially stale | Update scope; P0 item 2 |
-| #28 TODO/tests/description | Closed completed with exact-SHA evidence on 2026-09-01 | Retain metadata cleanup in P3 item 15 |
-| #27 accessibility | Closed completed with exact-SHA evidence on 2026-09-01 | Retain regression coverage in P2 item 8 |
-| #26 accessibility | Exact duplicate | Close as duplicate of #27 |
-| #10 LLM review umbrella | Closed, stale | Leave closed |
-| #9 missing `.env.example` | Closed, fixed | Leave closed |
-| #8 missing security headers | Closed `not_planned`, still applicable | Track as P2 item 11 |
-| #7 global plugin limiter | Closed `not_planned`, still reproducible | Track as P2 item 9 |
-| #6 stored XSS | Closed, fixed | Leave closed; escaping plus DOMPurify is present |
-| #5 streak N+1 | Closed `not_planned`, still reproducible | Track as P2 item 10 |
-| #4 plaintext AI keys | Closed, fixed | Leave closed; AES-GCM storage and non-secret responses are present |
-| #3 old fast-uri advisory | Closed, obsolete | Leave closed; current version is beyond the stated fix |
-| #2 old Next.js advisory | Closed, fixed | Leave closed |
-| #1 ship/archive decision | Closed, resolved by active development | Leave closed |
-| PR #55 integrated hardening | Open, selected candidate | Review after all required evidence; release/merge needs explicit approval |
-| PR #56 production dependencies | Open, newer Dependabot proposal | Triage against PR #55 after candidate reconciliation |
-| PR #57 development dependencies | Open, newer Dependabot proposal | Triage against PR #55 after candidate reconciliation |
+- GitHub-hosted jobs repeatedly fail before checkout with zero executed steps;
+- latest retry also failed before any step executed;
+- `main` is unprotected;
+- the connected GitHub integration cannot apply repository-admin rulesets/protection.
 
-## Verified baseline
+Remaining acceptance:
 
-- `npm test`: 142/142 passing.
-- `npm run typecheck`: passing after `npm run db:generate`.
-- `npm run lint`: passing with zero warnings and a zero-warning gate.
-- `npm run build`: clean production build passing locally.
-- `npm audit`: zero vulnerabilities on the selected candidate.
-- Hosted exact-SHA Build, Lint, Ashbi Local CI, GitGuardian, and read-only
-  `linux/amd64,linux/arm64` image validation pass.
+- real exact-SHA validation execution or explicitly approved equivalent evidence;
+- required PR workflow/review governance;
+- required `CI Build / Build` check;
+- stale approval dismissal;
+- force-push/deletion protection;
+- one test PR proving an unverified change cannot merge.
+
+### #60 — external email and complete authentication QA
+
+**State:** Completed awaiting verification / approval-required.
+
+Implemented:
+
+- generic/enumeration-neutral registration and recovery responses;
+- hashed, 30-minute, single-use verification/reset tokens;
+- password-reset session invalidation;
+- fragment-based bearer links;
+- Resend REST adapter with bounded calls and privacy-minimal errors;
+- loopback-only local sink for #29 that is explicitly not #60 evidence.
+
+Remaining acceptance:
+
+- approve provider/sender/domain/mailbox/operator/spend;
+- SPF/DKIM/DMARC alignment;
+- real registration/reset delivery to operator-controlled mailbox;
+- replay/expiry proof through delivered messages;
+- desktop and 390 px rendered journey;
+- delivery-failure observability without account/content disclosure.
+
+### #61 — operations, backup, monitoring, restore, rollback
+
+**State:** Completed awaiting verification / approval-required.
+
+Implemented:
+
+- `ops:preflight` for host/backup/alert/responder/retention/RPO/RTO decisions;
+- strict privacy-minimal `ops:evidence` validation;
+- backup-age, restore-time, rollback-time, alert-acknowledgement, and retention checks.
+
+Proposed beta defaults only:
+
+- RPO: 24 hours;
+- RTO: 4 hours;
+- daily encrypted off-site backup;
+- 30-day retention unless qualified review changes it;
+- alerts for unhealthy instance, error rate, backup failure, and disk >80%;
+- named primary and backup responder;
+- no public SLA.
+
+Remaining acceptance is real approved-host evidence, not parser tests.
+
+### #62 — legal/data policy and licence ownership
+
+**State:** Blocked / approval-required.
+
+Implemented:
+
+- factual `LEGAL-REVIEW-INVENTORY.md` covering data flows, export/deletion,
+  AI providers, authentication email, hosting/backups, support records, analytics,
+  and unresolved licence ownership.
+
+Owner decisions still required:
+
+- operating identity/contracting party;
+- jurisdiction;
+- privacy owner/contact;
+- copyright holder/year;
+- host/data region;
+- email provider/domain;
+- support/privacy routes;
+- participant eligibility;
+- retention/RPO/RTO;
+- policy effective date.
+
+Qualified review and separate publication approval remain mandatory.
+
+### #63 — beta support and incident operations
+
+**State:** Completed awaiting verification / approval-required.
+
+Implemented:
+
+- Sev 1/2/3 definitions and stop rules;
+- privacy-minimal support ledger/scorecard;
+- P01–P05 participant IDs only;
+- decision-ineligible incomplete-week handling;
+- no-SLA boundary.
+
+Remaining acceptance:
+
+- approve primary/urgent routes;
+- primary and backup responders;
+- coverage hours/time zone;
+- escalation and pause authority;
+- operational route test;
+- qualified-review-approved participant support/withdrawal wording.
+
+### #70 — exact-artifact pre-pilot release package
+
+**State:** Completed awaiting evidence / approval-required.
+
+Implemented:
+
+- exact SHA and immutable digest fields;
+- fail-closed release gates;
+- exact-artifact approval binding;
+- `release:validate` completeness mode and approval-required mode;
+- staged rollout and rollback boundaries.
+
+Pre-pilot acceptance requires:
+
+- real runtime/trust evidence from #29/#49/#60/#61/#62/#63/#64/#67;
+- #65 Day-0 comprehension protocol ready, with any completed pre-pilot evidence
+  included; if not completed beforehand, it must be explicitly incorporated into
+  #66 Day 0;
+- #68 **pre-pilot readiness only**: an owner-approved test range, frozen unaided-WTP
+  question order, and economics measurement plan. Observed WTP/support/service-cost
+  results are collected during #66 and are not prerequisites for #70;
+- exact immutable image digest;
+- migration boundary;
+- release notes/known limitations/responders/rollback triggers;
+- one explicit `approve / reject / request-changes` request bound to the exact
+  pre-pilot artifact.
+
+#66 is not a dependency of #70. #70 is the release package that must be approved
+before #66 can start on the managed-beta host.
+
+## P1 — RC1 validation gates
+
+### #64 — rendered customer lifecycle QA
+
+**State:** Customer-validation/runtime QA pending.
+
+After #29 and #60, verify the complete rendered journey on an approved disposable
+host: registration, mailbox verification, onboarding, Today loop, export, password
+recovery/session invalidation, and account deletion across desktop, 390 px mobile,
+keyboard, focus, slow/failure/retry, expiry, and duplicate-submit states.
+
+### #65 — goals-to-today comprehension and first value
+
+**State:** Customer-validation pending.
+
+Five approved target participants must describe the value unaided and reach a useful
+first daily plan. Identities/private content stay outside GitHub; use P01–P05 evidence.
+Participant recruitment/contact requires separate approval. The Day-0 test may occur
+immediately before the 14-day pilot or as the explicit first phase of #66; it does not
+need to be falsely completed before the pilot environment exists.
+
+### #66 — five-user 14-day managed beta
+
+**State:** Customer-validation pending / approval-required.
+
+Do not start until the runtime/trust/policy/support/pre-pilot release gates are
+satisfied, including #70 exact-artifact staged-deployment approval. The pilot is
+invite-only, five approved testers, 14 measured days, no billing, and privacy-minimal
+evidence. Any Sev 1 trust incident pauses enrolment/use.
+
+During #66, collect the evidence needed to complete #65 and #68 when those tests are
+incorporated into Day 0 / pilot closeout.
+
+### #67 — AI task-creation quality/safety/latency/cost
+
+**State:** Validation pending / approval-required.
+
+The provider-neutral evaluation contract exists. No live managed-beta provider/model
+result is claimed. External provider/model calls, spend, or prompt transmission require
+explicit approval. Critical-safety accuracy must be 100% or the feature remains
+limited/disabled.
+
+### #68 — pricing and sustainable economics
+
+**State:** Pre-pilot plan readiness + post-pilot customer/economics validation pending /
+approval-required.
+
+Before #70/#66:
+
+- freeze the unaided willingness-to-pay questions and order;
+- obtain explicit approval for any price range that will be shown after the unaided
+  response;
+- define the service/support/AI cost fields to measure during the pilot;
+- do not publish pricing or collect payment.
+
+During #65/#66:
+
+- collect unaided willingness-to-pay before showing the approved range;
+- collect observed service/support/AI cost evidence using privacy-minimal records.
+
+After #66:
+
+- replace modeled assumptions with observed evidence;
+- run sensitivity analysis against the approved contribution-margin target;
+- recommend approve/revise/reject;
+- only then may #69 become implementation-ready if separately approved.
+
+## Post-beta
+
+### #69 — billing, cancellation, entitlement recovery
+
+**State:** Post-beta.
+
+Not an RC1 entry gate. Becomes implementation-ready only after #66/#68 produce
+approved customer/economics evidence. Provider selection, taxes, checkout, webhooks,
+refunds, cancellation, and payment collection remain separate approvals.
+
+## Post-RC1 — Adaptive Planning
+
+Draft PR #79 contains the implementation candidate and remains intentionally outside
+RC1. These issues are implemented on the deferred branch but not rebased/verified:
+
+- #74 — parent `My day changed` vertical slice;
+- #75 — deterministic prioritization/capacity model;
+- #76 — preview/revalidate/confirm/apply/safe-undo lifecycle;
+- #77 — mobile-first rendered interaction;
+- #80 — effort/deferral/persistence/migration/undo model.
+
+Before any later merge: rebase on post-beta `main`, run full exact-head validation,
+verify migration/apply/undo against disposable PostgreSQL, and complete rendered QA.
+
+## Dependency queue
+
+Open bot PRs currently frozen outside RC1:
+
+- #59 — production dependency group;
+- #72 — `docker/login-action` v4;
+- #73 — development dependency update.
+
+Do not merge routine dependency churn into the frozen candidate unless a specific
+release-critical security reason is demonstrated and the candidate is deliberately
+re-frozen/revalidated.
 
 ## Execution order
 
-Complete the remaining runtime smoke and validation-governance gates in items 2-4.
-Then triage newer dependency PRs #56-#57 against the selected integrated candidate.
-Do not merge or release without explicit approval.
+1. #29 isolated runtime proof.
+2. #49 exact-SHA validation + governance.
+3. #61 operations decisions/evidence.
+4. #60 external email/DNS/auth QA.
+5. #62 + #63 policy/support decisions and verification.
+6. #64 + #67 rendered lifecycle and AI validation.
+7. #65 Day-0 protocol + #68 pre-pilot test-range/economics measurement readiness.
+8. #70 exact-artifact pre-pilot release package and staged deployment approval.
+9. #66 five-user 14-day pilot; run #65 Day 0 if needed and collect #68 WTP/cost data.
+10. #68 final post-pilot economics recommendation.
+
+No later phase should silently bypass an unfinished earlier gate.
+
+## Release boundary
+
+Do not merge/release/deploy, alter production, configure DNS/providers, publish legal
+or support wording, contact participants, change billing, or collect payment without
+the corresponding explicit approval. Repository preparation does not authorize the
+external action.
