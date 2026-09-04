@@ -21,6 +21,10 @@ export class TransactionalEmailError extends Error {
 
 const LOCAL_SINK_OPT_IN = "disposable-lifecycle-only";
 
+function isLoopbackHost(hostname: string) {
+  return ["127.0.0.1", "localhost", "::1", "[::1]"].includes(hostname);
+}
+
 function publicAuthBaseUrl() {
   const configured = process.env.AUTH_PUBLIC_URL?.trim() || process.env.NEXTAUTH_URL?.trim();
   if (!configured) {
@@ -45,11 +49,11 @@ function publicAuthBaseUrl() {
     throw new TransactionalEmailError("auth_public_url_invalid");
   }
 
-  return new URL("/", parsed.origin);
-}
+  if (parsed.protocol !== "https:" && !isLoopbackHost(parsed.hostname)) {
+    throw new TransactionalEmailError("auth_public_url_insecure");
+  }
 
-function isLoopbackHost(hostname: string) {
-  return ["127.0.0.1", "localhost", "::1", "[::1]"].includes(hostname);
+  return new URL("/", parsed.origin);
 }
 
 function emailProviderConfig() {
