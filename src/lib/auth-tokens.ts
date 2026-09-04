@@ -3,9 +3,9 @@ import { prisma } from "@/lib/prisma";
 
 export const AUTH_TOKEN_TTL_MS = 30 * 60 * 1000;
 
-type AuthTokenPurpose = "verify" | "reset";
+export type AuthTokenPurpose = "verify" | "reset";
 
-function identifier(purpose: AuthTokenPurpose, userId: string) {
+export function authTokenIdentifier(purpose: AuthTokenPurpose, userId: string) {
   return `${purpose}:${userId}`;
 }
 
@@ -17,24 +17,37 @@ export function createCredentialSessionVersion() {
   return randomBytes(24).toString("base64url");
 }
 
-export async function createAuthToken(
+export function generateAuthToken(
   purpose: AuthTokenPurpose,
   userId: string,
   now = new Date(),
 ) {
   const rawToken = randomBytes(32).toString("base64url");
   const token = hashAuthToken(rawToken);
-  const tokenIdentifier = identifier(purpose, userId);
+  const tokenIdentifier = authTokenIdentifier(purpose, userId);
   const expires = new Date(now.getTime() + AUTH_TOKEN_TTL_MS);
+  return { rawToken, token, identifier: tokenIdentifier, expires };
+}
+
+export async function createAuthToken(
+  purpose: AuthTokenPurpose,
+  userId: string,
+  now = new Date(),
+) {
+  const generated = generateAuthToken(purpose, userId, now);
 
   await prisma.$transaction(async (tx) => {
-    await tx.verificationToken.deleteMany({ where: { identifier: tokenIdentifier } });
+    await tx.verificationToken.deleteMany({ where: { identifier: generated.identifier } });
     await tx.verificationToken.create({
-      data: { identifier: tokenIdentifier, token, expires },
+      data: {
+        identifier: generated.identifier,
+        token: generated.token,
+        expires: generated.expires,
+      },
     });
   });
 
-  return { rawToken, token, identifier: tokenIdentifier, expires };
+  return generated;
 }
 
 export async function findAuthToken(
@@ -55,7 +68,7 @@ export async function findAuthToken(
 export async function hasPendingVerification(userId: string) {
   return Boolean(
     await prisma.verificationToken.findFirst({
-      where: { identifier: identifier("verify", userId) },
+      where: { identifier: authTokenIdentifier("verify", userId) },
       select: { token: true },
     }),
   );
@@ -63,6 +76,6 @@ export async function hasPendingVerification(userId: string) {
 
 export async function clearAuthTokens(purpose: AuthTokenPurpose, userId: string) {
   await prisma.verificationToken.deleteMany({
-    where: { identifier: identifier(purpose, userId) },
+    where: { identifier: authTokenIdentifier(purpose, userId) },
   });
 }
