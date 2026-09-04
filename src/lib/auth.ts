@@ -4,6 +4,7 @@ import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { hasPendingVerification } from "@/lib/auth-tokens";
+import { reconcileCredentialSession } from "@/lib/credential-session";
 
 // Missing accounts still perform password work so credential responses do not
 // cheaply expose account existence through a timing difference.
@@ -114,43 +115,29 @@ export const authOptions: NextAuthOptions = {
         return token;
       }
 
-      if (!token.id || token.credentialsInvalidated) return token;
-
-      const legacyUnmarked =
-        token.credentialSession === undefined &&
-        token.credentialVersion === undefined;
-      const credentialLike =
-        legacyUnmarked ||
-        token.credentialSession === true ||
-        token.credentialVersion !== undefined;
-
-      if (!credentialLike) return token;
+      if (!token.id || token.credentialsInvalidated || token.credentialSession === false) {
+        return token;
+      }
 
       const credentialsAccount = await prisma.account.findFirst({
         where: { userId: token.id, provider: "credentials" },
         select: { refreshToken: true },
       });
-      if (!credentialsAccount) {
-        invalidateCredentialToken(token);
-        return token;
-      }
+      const decision = reconcileCredentialSession(
+        {
+          credentialSession: token.credentialSession,
+          credentialVersion: token.credentialVersion,
+        },
+        credentialsAccount?.refreshToken,
+      );
 
-      token.credentialSession = true;
-      const currentVersion = credentialsAccount.refreshToken ?? null;
-
-      if (legacyUnmarked) {
-        // Before versioning, Synapse had only the credentials provider. Such a
-        // JWT may adopt only a legacy null account version. A populated version
-        // proves a reset or newer sign-in occurred, so the old token is revoked.
-        if (currentVersion === null) {
-          token.credentialVersion = null;
-        } else {
-          invalidateCredentialToken(token);
-        }
-      } else if (token.credentialVersion === undefined) {
+      if (decision.kind === "invalid") {
         invalidateCredentialToken(token);
-      } else if (token.credentialVersion !== currentVersion) {
-        invalidateCredentialToken(token);
+      } else if (decision.kind === "adopt_legacy_null") {
+        token.credentialSession = true;
+        token.credentialVersion = decision.credentialVersion;
+      } else if (decision.kind === "valid") {
+        token.credentialSession = true;
       }
 
       return token;
