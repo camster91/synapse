@@ -7,7 +7,7 @@ ALTER TABLE "todos"
   ADD CONSTRAINT "todos_estimatedMinutes_positive" CHECK ("estimatedMinutes" IS NULL OR "estimatedMinutes" > 0),
   ADD CONSTRAINT "todos_minimumMinutes_positive" CHECK ("minimumMinutes" IS NULL OR "minimumMinutes" > 0),
   ADD CONSTRAINT "todos_minimumMinutes_lte_estimated" CHECK (
-    "minimumMinutes" IS NULL OR "estimatedMinutes" IS NULL OR "minimumMinutes" <= "estimatedMinutes"
+    "minimumMinutes" IS NULL OR ("estimatedMinutes" IS NOT NULL AND "minimumMinutes" <= "estimatedMinutes")
   );
 
 CREATE TABLE "adaptive_plan_changes" (
@@ -27,4 +27,4 @@ CREATE TABLE "adaptive_plan_changes" (
 
 CREATE UNIQUE INDEX "adaptive_plan_changes_proposalId_key" ON "adaptive_plan_changes"("proposalId");
 CREATE INDEX "adaptive_plan_changes_userId_appliedAt_idx" ON "adaptive_plan_changes"("userId", "appliedAt");
-CREATE INDEX "todos_deferredUntil_idx" ON "todos"("deferredUntil");
+CREATE INDEX "todos_userId_deferredUntil_idx" ON "todos"("userId", "deferredUntil");
