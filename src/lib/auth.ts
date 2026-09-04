@@ -107,8 +107,15 @@ export const authOptions: NextAuthOptions = {
         if (credentialsAccount) {
           const currentVersion = credentialsAccount.refreshToken ?? null;
           if (token.credentialVersion === undefined) {
-            // Backward-compatible adoption for sessions issued before versioning.
-            token.credentialVersion = currentVersion;
+            // A legacy JWT can adopt the legacy null version, but if the
+            // credentials row already has a version then a reset/new login has
+            // happened and this old JWT must not adopt it retroactively.
+            if (currentVersion === null) {
+              token.credentialVersion = null;
+            } else {
+              token.id = "";
+              token.credentialsInvalidated = true;
+            }
           } else if (token.credentialVersion !== currentVersion) {
             token.id = "";
             token.credentialsInvalidated = true;
