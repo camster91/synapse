@@ -3,12 +3,16 @@ name: Build and Push Image
 # Container validation is intentionally path-scoped on pull requests because
 # the canonical CI workflow already type-checks, lints, tests and builds every
 # application change. Default-branch pushes and version tags still publish the
-# full multi-arch image.
+# full multi-arch image, except CI/docs-only default-branch changes.
 
 on:
   push:
     branches: [main, master]
     tags: ['v*']
+    paths-ignore:
+      - '.github/**'
+      - 'docs/**'
+      - '**/*.md'
   pull_request:
     branches: [main, master]
     paths:
