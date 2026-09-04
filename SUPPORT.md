@@ -91,11 +91,11 @@ Example ledger structure:
 {
   "schemaVersion": 1,
   "participants": ["P01", "P02", "P03", "P04", "P05"],
-  "weeks": ["2026-09-07"],
+  "weeks": ["2026-08-17"],
   "records": [
     {
       "participantId": "P01",
-      "weekKey": "2026-09-07",
+      "weekKey": "2026-08-17",
       "category": "access",
       "severity": "sev2",
       "firstResponseMinutes": 30,
@@ -108,14 +108,37 @@ Example ledger structure:
 }
 ```
 
-The script rejects unknown fields so free-text/private content cannot silently enter
-the scorecard. It includes participant/week combinations with zero support time when
-calculating the median operator load.
+Each `weekKey` is the UTC start date of one seven-day measured interval. Add a week to
+the decision scorecard only when the interval has ended and every participant listed
+was active and observable for that interval. Interim data may still be inspected, but
+it cannot produce a pass/fail decision.
+
+The script rejects:
+
+- unknown fields, so free-text/private content cannot silently enter the scorecard;
+- participant identifiers outside `P01` through `P05` or duplicate participant IDs;
+- malformed, impossible, or duplicate calendar dates;
+- records assigned to a participant or week not declared in the ledger;
+- resolved incidents without a resolution time;
+- unresolved incidents with a resolution time;
+- resolution times earlier than first response.
+
+It includes declared participant/week combinations with zero support time when
+calculating the median operator load. This is valid only when the participant was
+actually active and observable throughout that listed interval; zero means no support
+time was required, not missing measurement.
 
 The pilot support-load threshold is a median of at most **15 operator minutes per
-active account per measured week**. A result is decision-ineligible unless all five
-participant IDs are present and at least one week is defined. Any Sev 1 incident sets
-`pauseEnrollment: true` regardless of aggregate metrics.
+active account per completed measured week**. A result is decision-ineligible unless:
+
+1. all five participant IDs are present;
+2. at least one week is defined; and
+3. every listed seven-day interval has ended at the scorecard's `measurementAsOf` time.
+
+The output reports completed and incomplete week counts and identifies incomplete week
+keys. `supportLoad.passes` remains `null` whenever the result is decision-ineligible.
+Any Sev 1 incident sets `pauseEnrollment: true` regardless of aggregate metrics or
+week completeness.
 
 ## Participant-facing expectations
 
