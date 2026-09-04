@@ -1,0 +1,238 @@
+name: RC1 Disposable Runtime Proof
+
+on:
+  push:
+    branches: [ops/rc1-runtime-proof]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: synapse-rc1-runtime-proof
+  cancel-in-progress: false
+
+jobs:
+  runtime-proof:
+    name: Disposable Compose proof
+    runs-on: [self-hosted, Linux, X64, ashbi-vps]
+    timeout-minutes: 45
+    env:
+      CANDIDATE_SHA: 0c05e7037b5d07029401aad2d6515ef6c243a08c
+    steps:
+      - name: Checkout workflow branch
+        uses: actions/checkout@v4
+
+      - name: Checkout exact RC1 candidate
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin "$CANDIDATE_SHA"
+          git checkout --detach "$CANDIDATE_SHA"
+          test "$(git rev-parse HEAD)" = "$CANDIDATE_SHA"
+
+      - name: Disposable production-like Compose proof
+        id: proof
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          command -v docker >/dev/null
+          docker version >/dev/null
+          docker compose version >/dev/null
+
+          PROJECT="synapse-rc1-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          WORK="${RUNNER_TEMP}/${PROJECT}"
+          SAFE_COMPOSE="$WORK/docker-compose.rc1.yml"
+          BACKUP_ROOT="$WORK/backups"
+          RESTORE_ROOT="$WORK/restore-uploads"
+          EVIDENCE="$WORK/rc1-runtime-evidence.json"
+          mkdir -p "$WORK" "$BACKUP_ROOT" "$RESTORE_ROOT"
+
+          cleanup() {
+            set +e
+            if [ -f "$SAFE_COMPOSE" ]; then
+              docker compose -p "$PROJECT" -f "$SAFE_COMPOSE" down -v --remove-orphans >/dev/null 2>&1
+            fi
+            rm -rf "$WORK"
+          }
+          trap cleanup EXIT INT TERM
+
+          # The repository production Compose file has fixed container names and a
+          # public app port. For this disposable proof only, remove fixed names and
+          # bind the app to a random loopback port. Service definitions, startup,
+          # migrations, volumes, healthchecks and database isolation remain the
+          # candidate's production configuration.
+          sed \
+            -e '/^[[:space:]]*container_name:/d' \
+            -e 's|"3000:3000"|"127.0.0.1:0:3000"|' \
+            docker-compose.prod.yml > "$SAFE_COMPOSE"
+
+          POSTGRES_USER="synapse"
+          POSTGRES_DB="synapse"
+          POSTGRES_PASSWORD="$(openssl rand -hex 18)"
+          NEXTAUTH_SECRET="$(openssl rand -hex 32)"
+          SYNAPSE_ENCRYPTION_KEY="$(openssl rand -hex 16)"
+          DATABASE_URL="postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}?schema=public"
+          NEXTAUTH_URL="http://127.0.0.1:3000"
+          AUTH_PUBLIC_URL="$NEXTAUTH_URL"
+          EMAIL_PROVIDER="local-sink"
+          AUTH_EMAIL_LOCAL_SINK="disposable-lifecycle-only"
+          TRUST_PROXY="false"
+          RELEASE_REV="$CANDIDATE_SHA"
+          export POSTGRES_USER POSTGRES_DB POSTGRES_PASSWORD DATABASE_URL NEXTAUTH_URL AUTH_PUBLIC_URL
+          export NEXTAUTH_SECRET SYNAPSE_ENCRYPTION_KEY EMAIL_PROVIDER AUTH_EMAIL_LOCAL_SINK TRUST_PROXY RELEASE_REV
+
+          # Fail-closed configuration proof: required settings must reject an empty
+          # operator environment before any containers are created.
+          if env -i PATH="$PATH" HOME="$HOME" docker compose -f docker-compose.prod.yml config >"$WORK/fail-closed.out" 2>&1; then
+            echo "production Compose unexpectedly accepted missing required configuration" >&2
+            exit 1
+          fi
+
+          docker compose -p "$PROJECT" -f "$SAFE_COMPOSE" config >/dev/null
+          STARTED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          docker compose -p "$PROJECT" -f "$SAFE_COMPOSE" up -d --build
+
+          APP_CID="$(docker compose -p "$PROJECT" -f "$SAFE_COMPOSE" ps -q app)"
+          DB_CID="$(docker compose -p "$PROJECT" -f "$SAFE_COMPOSE" ps -q db)"
+          test -n "$APP_CID"
+          test -n "$DB_CID"
+
+          # PostgreSQL must not publish 5432 on the host.
+          if [ -n "$(docker port "$DB_CID" 5432/tcp 2>/dev/null || true)" ]; then
+            echo "disposable PostgreSQL unexpectedly publishes 5432" >&2
+            exit 1
+          fi
+
+          # Wait for the exact image's healthcheck/readiness contract.
+          for _ in $(seq 1 90); do
+            STATUS="$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' "$APP_CID")"
+            [ "$STATUS" = "healthy" ] && break
+            [ "$STATUS" = "unhealthy" ] && { echo "app became unhealthy" >&2; exit 1; }
+            sleep 2
+          done
+          test "$(docker inspect -f '{{.State.Health.Status}}' "$APP_CID")" = "healthy"
+
+          docker compose -p "$PROJECT" -f "$SAFE_COMPOSE" exec -T app \
+            node -e "fetch('http://127.0.0.1:3000/api/health').then(r=>{if(!r.ok)process.exit(1)})"
+          docker compose -p "$PROJECT" -f "$SAFE_COMPOSE" exec -T app \
+            node -e "fetch('http://127.0.0.1:3000/api/health/ready').then(r=>{if(!r.ok)process.exit(1)})"
+          docker compose -p "$PROJECT" -f "$SAFE_COMPOSE" exec -T app npx prisma migrate status >/dev/null
+
+          # Verify the host binding is loopback-only and reachable.
+          APP_PORT="$(docker compose -p "$PROJECT" -f "$SAFE_COMPOSE" port app 3000)"
+          case "$APP_PORT" in
+            127.0.0.1:*) ;;
+            *) echo "app proof port is not loopback-only: $APP_PORT" >&2; exit 1 ;;
+          esac
+          curl -fsS "http://${APP_PORT}/api/health" >/dev/null
+          curl -fsS "http://${APP_PORT}/api/health/ready" >/dev/null
+
+          # Run the repository's disposable authenticated lifecycle inside the
+          # exact production image. It uses only its random synthetic account and
+          # the explicitly gated local sink; this is not external-email evidence.
+          docker compose -p "$PROJECT" -f "$SAFE_COMPOSE" exec -T app sh -lc '
+            LIFECYCLE_SMOKE_BASE_URL=http://127.0.0.1:3000 \
+            LIFECYCLE_SMOKE_CONFIRM=create-and-delete-disposable-account \
+            npm run smoke:lifecycle
+          '
+
+          IMAGE_ID="$(docker inspect -f '{{.Image}}' "$APP_CID")"
+          NETWORK="$(docker inspect -f '{{range $name, $cfg := .NetworkSettings.Networks}}{{$name}}{{end}}' "$APP_CID")"
+          test -n "$IMAGE_ID"
+          test -n "$NETWORK"
+
+          # Run the repository backup script in an ephemeral helper based on the
+          # exact app image. PostgreSQL client tooling is installed inside the
+          # helper only; the self-hosted runner is not modified.
+          BACKUP_PATH="$(docker run --rm --user 0 \
+            --network "$NETWORK" \
+            --volumes-from "$APP_CID" \
+            -v "$BACKUP_ROOT:/backup" \
+            -e DATABASE_URL="$DATABASE_URL" \
+            "$IMAGE_ID" sh -lc '
+              apk add --no-cache postgresql-client perl-utils tar >/dev/null
+              SYNAPSE_BACKUP_DIR=/backup SYNAPSE_UPLOAD_DIR=/app/uploads sh scripts/backup.sh
+            ' | tail -n 1)"
+          case "$BACKUP_PATH" in /backup/synapse-*) ;; *) echo "unexpected backup path" >&2; exit 1 ;; esac
+          BACKUP_NAME="$(basename "$BACKUP_PATH")"
+          test -f "$BACKUP_ROOT/$BACKUP_NAME/database.dump"
+          test -f "$BACKUP_ROOT/$BACKUP_NAME/uploads.tar.gz"
+          test -f "$BACKUP_ROOT/$BACKUP_NAME/checksums.sha256"
+
+          # Restore into a separate explicitly named empty disposable database and
+          # upload directory; never restore over the running source database.
+          RESTORE_DB="synapse_restore_${GITHUB_RUN_ID}_${GITHUB_RUN_ATTEMPT}"
+          docker compose -p "$PROJECT" -f "$SAFE_COMPOSE" exec -T db \
+            createdb -U "$POSTGRES_USER" "$RESTORE_DB"
+          RESTORE_DATABASE_URL="postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${RESTORE_DB}?schema=public"
+
+          docker run --rm --user 0 \
+            --network "$NETWORK" \
+            -v "$BACKUP_ROOT:/backup:ro" \
+            -v "$RESTORE_ROOT:/restore-uploads" \
+            -v "$RESTORE_ROOT:/app/uploads" \
+            -e SYNAPSE_BACKUP_PATH="/backup/$BACKUP_NAME" \
+            -e RESTORE_DATABASE_URL="$RESTORE_DATABASE_URL" \
+            -e RESTORE_UPLOAD_DIR=/restore-uploads \
+            -e RESTORE_CONFIRM=EMPTY_DISPOSABLE_DATABASE \
+            "$IMAGE_ID" sh -lc '
+              apk add --no-cache postgresql-client perl-utils tar >/dev/null
+              sh scripts/restore-drill.sh
+            '
+
+          MIGRATION_HEAD="$(docker compose -p "$PROJECT" -f "$SAFE_COMPOSE" exec -T app sh -lc 'find prisma/migrations -mindepth 1 -maxdepth 1 -type d -printf "%f\n" 2>/dev/null | sort | tail -n 1' | tr -d '\r')"
+          [ -n "$MIGRATION_HEAD" ] || MIGRATION_HEAD="unknown"
+          FINISHED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+          cat > "$EVIDENCE" <<EOF
+          {
+            "schemaVersion": 1,
+            "candidateSha": "$CANDIDATE_SHA",
+            "imageId": "$IMAGE_ID",
+            "migrationHead": "$MIGRATION_HEAD",
+            "startedAt": "$STARTED_AT",
+            "finishedAt": "$FINISHED_AT",
+            "environment": "self-hosted-disposable-loopback",
+            "customerImpact": "none",
+            "externalEmailUsed": false,
+            "productionDataUsed": false,
+            "checks": {
+              "requiredConfigFailsClosed": true,
+              "postgresNotHostPublished": true,
+              "migrationsHealthy": true,
+              "healthPassed": true,
+              "readinessPassed": true,
+              "authenticatedLifecyclePassed": true,
+              "backupPassed": true,
+              "restorePassed": true
+            },
+            "cleanup": "scheduled-by-finally-trap"
+          }
+          EOF
+
+          # Copy sanitized evidence outside WORK so the cleanup trap can remove all
+          # disposable runtime data while the evidence remains uploadable.
+          cp "$EVIDENCE" "$RUNNER_TEMP/synapse-rc1-runtime-evidence.json"
+
+      - name: Upload privacy-minimal runtime evidence
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: synapse-rc1-runtime-proof-${{ env.CANDIDATE_SHA }}
+          path: ${{ runner.temp }}/synapse-rc1-runtime-evidence.json
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Proof summary
+        if: always()
+        run: |
+          {
+            echo "## Synapse RC1 disposable runtime proof"
+            echo ""
+            echo "Candidate: \`${CANDIDATE_SHA}\`"
+            echo "Runner class: \`self-hosted / ashbi-vps\`"
+            echo "Scope: disposable containers, database, volumes and loopback-only app port"
+            echo "External email: not used"
+            echo "Production/customer data: not used"
+            echo "Job result: \`${{ job.status }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
