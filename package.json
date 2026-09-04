@@ -21,6 +21,7 @@
     "backup": "bash scripts/backup.sh",
     "restore:drill": "bash scripts/restore-drill.sh",
     "ops:preflight": "tsx scripts/operations-preflight.ts",
+    "ops:evidence": "tsx scripts/validate-operations-evidence.ts",
     "metrics:pilot": "tsx scripts/pilot-metrics.ts",
     "metrics:ai-actions": "tsx scripts/ai-action-metrics.ts",
     "eval:ai-actions": "tsx scripts/evaluate-ai-actions.ts",
