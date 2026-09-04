@@ -1,7 +1,12 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
-import type { PlanningSnapshot } from "@/lib/adaptive-planning";
+import {
+  ADAPTIVE_PLANNER_VERSION,
+  PLANNING_REASON_CODE_VERSION,
+  type PlanningProposal,
+  type PlanningSnapshot,
+} from "@/lib/adaptive-planning";
 
-const TOKEN_VERSION = 2;
+const TOKEN_VERSION = 3;
 
 export interface AdaptiveConfirmationClaims {
   v: number;
@@ -9,6 +14,7 @@ export interface AdaptiveConfirmationClaims {
   proposalId: string;
   snapshotHash: string;
   snapshot: PlanningSnapshot;
+  plan: PlanningProposal;
   expiresAt: string;
 }
 
@@ -49,6 +55,14 @@ export function verifyAdaptiveConfirmation(token: string, expectedUserId: string
     const claims = JSON.parse(decode(payload)) as AdaptiveConfirmationClaims;
     if (claims.v !== TOKEN_VERSION || claims.userId !== expectedUserId) return null;
     if (!claims.snapshot || claims.snapshotHash.length !== 64) return null;
+    if (
+      !claims.plan ||
+      !Array.isArray(claims.plan.recommendations) ||
+      claims.plan.plannerVersion !== ADAPTIVE_PLANNER_VERSION ||
+      claims.plan.reasonCodeVersion !== PLANNING_REASON_CODE_VERSION
+    ) {
+      return null;
+    }
     const expiresAt = new Date(claims.expiresAt);
     if (Number.isNaN(expiresAt.getTime()) || expiresAt.getTime() <= now.getTime()) return null;
     return claims;
