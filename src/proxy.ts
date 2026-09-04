@@ -56,7 +56,10 @@ export default withAuth(
   },
   {
     callbacks: {
-      authorized: ({ token, req }) => !isProtectedPath(req.nextUrl.pathname) || Boolean(token),
+      authorized: ({ token, req }) => {
+        if (!isProtectedPath(req.nextUrl.pathname)) return true;
+        return Boolean(token?.id && !token.credentialsInvalidated);
+      },
     },
   },
 );

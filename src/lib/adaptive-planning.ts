@@ -147,7 +147,7 @@ export function buildAdaptivePlan(snapshot: PlanningSnapshot): PlanningProposal 
 
     if (candidate.effort === null) {
       const action: PlanningAction = reasons.includes("due_soon") || reasons.includes("high_priority") ? "keep" : "move";
-      const reasonCodes = action === "keep" ? [...reasons, "unknown_effort"] : [...reasons, "unknown_effort"];
+      const reasonCodes: PlanningReasonCode[] = [...reasons, "unknown_effort"];
       recommendations.push({
         itemId: candidate.item.id,
         action,

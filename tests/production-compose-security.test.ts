@@ -29,6 +29,23 @@ test("production application secrets and connection settings fail closed", () =>
   }
 });
 
+test("production deployment paths forward explicit authentication email configuration", () => {
+  for (const compose of [prod, vps]) {
+    for (const variable of [
+      "EMAIL_PROVIDER",
+      "RESEND_API_KEY",
+      "EMAIL_FROM",
+      "EMAIL_REPLY_TO",
+      "AUTH_PUBLIC_URL",
+      "AUTH_EMAIL_LOCAL_SINK",
+    ]) {
+      assert.match(compose, new RegExp(`${variable}[:=]\\s*\\$\\{${variable}:-\\}`));
+    }
+    assert.doesNotMatch(compose, /AUTH_EMAIL_LOCAL_SINK[^\n]*disposable-lifecycle-only/);
+    assert.doesNotMatch(compose, /EMAIL_PROVIDER[^\n]*local-sink/);
+  }
+});
+
 test("production PostgreSQL is not published on a host port", () => {
   const dbService = prod.slice(prod.indexOf("  db:"), prod.indexOf("volumes:", prod.indexOf("  db:")));
   assert.doesNotMatch(dbService, /\n\s+ports:/);

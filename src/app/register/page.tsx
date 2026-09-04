@@ -2,8 +2,6 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { signIn } from "next-auth/react";
-import { postRegistrationPath } from "@/lib/routes";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -27,34 +25,19 @@ export default function RegisterPage() {
       });
 
       if (!res.ok) {
-        const err = await res.json();
-        const message = err.error || err.message || "Registration failed";
-
-        if (message.toLowerCase().includes("already") || message.toLowerCase().includes("exists") || message.toLowerCase().includes("unique")) {
-          setError("An account with this email already exists");
-        } else if (message.toLowerCase().includes("password") || message.toLowerCase().includes("short") || message.toLowerCase().includes("8")) {
+        const body = await res.json().catch(() => ({}));
+        const message = String(body.error || body.message || "Registration failed");
+        if (message.toLowerCase().includes("password") || message.includes("8")) {
           setError("Password must be at least 8 characters");
+        } else if (res.status === 503) {
+          setError("Account email is temporarily unavailable. Please try again later.");
         } else {
-          setError(message);
+          setError("We could not create the account. Please check your details and try again.");
         }
         return;
       }
 
-      // Auto sign in after successful registration
-      const result = await signIn("credentials", {
-        email,
-        password,
-        redirect: false,
-      });
-
-      if (result?.error) {
-        router.push("/login");
-        return;
-      }
-
-      if (result?.ok) {
-        router.push(postRegistrationPath());
-      }
+      router.push("/verify-email?sent=1");
     } catch {
       setError("Something went wrong. Please try again.");
     } finally {
@@ -66,85 +49,35 @@ export default function RegisterPage() {
     <div className="min-h-screen flex items-center justify-center bg-background px-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-primary text-primary-foreground text-xl font-bold mb-4">
-            S
-          </div>
+          <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-primary text-primary-foreground text-xl font-bold mb-4">S</div>
           <h1 className="text-2xl font-bold text-foreground">Create your account</h1>
           <p className="text-sm text-muted-foreground mt-1">Connect your goals to today in one private workspace</p>
         </div>
 
         <form method="post" onSubmit={handleSubmit} aria-busy={submitting} className="space-y-4">
-          {error && (
-            <div role="alert" aria-live="polite" className="p-3 text-sm text-destructive bg-destructive/10 rounded-lg">
-              {error}
-            </div>
-          )}
+          {error && <div role="alert" aria-live="polite" className="p-3 text-sm text-destructive bg-destructive/10 rounded-lg">{error}</div>}
 
           <div>
             <label htmlFor="register-name" className="block text-sm font-medium text-foreground mb-1">Name</label>
-            <input
-              id="register-name"
-              name="name"
-              type="text"
-              autoComplete="name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Your name"
-              required
-              disabled={submitting}
-              className="w-full min-h-11 px-3 py-2 bg-background border border-input rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-60"
-            />
+            <input id="register-name" name="name" type="text" autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Your name" required disabled={submitting} className="w-full min-h-11 px-3 py-2 bg-background border border-input rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-60" />
           </div>
 
           <div>
             <label htmlFor="register-email" className="block text-sm font-medium text-foreground mb-1">Email</label>
-            <input
-              id="register-email"
-              name="email"
-              type="email"
-              autoComplete="email"
-              inputMode="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
-              required
-              disabled={submitting}
-              className="w-full min-h-11 px-3 py-2 bg-background border border-input rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-60"
-            />
+            <input id="register-email" name="email" type="email" autoComplete="email" inputMode="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" required disabled={submitting} className="w-full min-h-11 px-3 py-2 bg-background border border-input rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-60" />
           </div>
 
           <div>
             <label htmlFor="register-password" className="block text-sm font-medium text-foreground mb-1">Password</label>
-            <input
-              id="register-password"
-              name="password"
-              type="password"
-              autoComplete="new-password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="At least 8 characters"
-              required
-              minLength={8}
-              disabled={submitting}
-              className="w-full min-h-11 px-3 py-2 bg-background border border-input rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-60"
-            />
+            <input id="register-password" name="password" type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="At least 8 characters" required minLength={8} disabled={submitting} className="w-full min-h-11 px-3 py-2 bg-background border border-input rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-60" />
           </div>
 
-          <button
-            type="submit"
-            disabled={submitting}
-            className="w-full min-h-11 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors disabled:cursor-not-allowed disabled:opacity-60"
-          >
+          <button type="submit" disabled={submitting} className="w-full min-h-11 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors disabled:cursor-not-allowed disabled:opacity-60">
             {submitting ? "Creating account…" : "Create account"}
           </button>
         </form>
 
-        <p className="mt-6 text-center text-sm text-muted-foreground">
-          Already have an account?{" "}
-          <a href="/login" className="text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm">
-            Sign in
-          </a>
-        </p>
+        <p className="mt-6 text-center text-sm text-muted-foreground">Already have an account? <a href="/login" className="text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm">Sign in</a></p>
       </div>
     </div>
   );
