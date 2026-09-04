@@ -12,13 +12,21 @@ test("authenticated lifecycle smoke is explicit, complete, and remote-safe", () 
   assert.match(smoke, /LIFECYCLE_SMOKE_CONFIRM/);
   assert.match(smoke, /create-and-delete-disposable-account/);
   assert.match(smoke, /LIFECYCLE_SMOKE_ALLOW_REMOTE/);
+  assert.match(smoke, /EMAIL_PROVIDER !== "file"/);
+  assert.match(smoke, /AUTH_EMAIL_FILE_DIR/);
   assert.match(smoke, /anonymous export did not return 401/);
+  assert.match(smoke, /verification token replay was not denied/);
+  assert.match(smoke, /password reset token replay was not denied/);
+  assert.match(smoke, /pre-reset session remained authenticated/);
+  assert.match(smoke, /old password still authenticated after reset/);
+  assert.match(smoke, /new password did not authenticate after reset/);
   assert.match(smoke, /portable export contract failed/);
   assert.match(smoke, /wrong-password deletion did not return 403/);
   assert.match(smoke, /deleted credentials still authenticate/);
   assert.match(smoke, /database still contains disposable account rows/);
   assert.match(operations, /Authenticated lifecycle smoke/);
   assert.match(operations, /requires explicit release\/operator approval/);
+  assert.match(operations, /EMAIL_PROVIDER=file/);
 });
 
 test("lifecycle smoke fails closed without confirmation and remote authorization", () => {
