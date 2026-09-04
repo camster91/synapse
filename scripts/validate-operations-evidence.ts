@@ -64,7 +64,12 @@ export function validateOperationsEvidence(evidence: Evidence) {
   realTimestamp(evidence.runtime?.rollbackRehearsedAt, "runtime.rollbackRehearsedAt");
 
   const elapsed = evidence.runtime?.restoreElapsedSeconds;
-  if (!Number.isFinite(elapsed) || !Number.isInteger(elapsed) || (elapsed ?? 0) <= 0) {
+  if (
+    typeof elapsed !== "number" ||
+    !Number.isFinite(elapsed) ||
+    !Number.isInteger(elapsed) ||
+    elapsed <= 0
+  ) {
     throw new Error("runtime.restoreElapsedSeconds must be a positive integer");
   }
 
