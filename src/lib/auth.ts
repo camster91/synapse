@@ -45,7 +45,7 @@ export const authOptions: NextAuthOptions = {
         const account = await prisma.account.findFirst({
           where: {
             provider: "credentials",
-            providerAccountId: email,
+            providerAccountId: { equals: email, mode: "insensitive" },
           },
           include: { user: true },
         });
