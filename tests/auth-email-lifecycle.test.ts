@@ -23,6 +23,13 @@ test("new credentials registrations require a verification marker before sign in
   assert.match(registerPage, /\/verify-email\?sent=1/);
 });
 
+test("legacy mixed-case credential emails remain usable without duplicate registration", () => {
+  assert.match(auth, /providerAccountId: \{ equals: email, mode: "insensitive" \}/);
+  assert.match(registerRoute, /email: \{ equals: data\.email, mode: "insensitive" \}/);
+  assert.match(resendRoute, /email: \{ equals: email, mode: "insensitive" \}/);
+  assert.match(forgotRoute, /email: \{ equals: email, mode: "insensitive" \}/);
+});
+
 test("authentication tokens are random, hashed at rest, time limited, and single use", () => {
   assert.match(tokens, /randomBytes\(32\)\.toString\("base64url"\)/);
   assert.match(tokens, /createHash\("sha256"\)/);
