@@ -63,7 +63,6 @@ function emailProviderConfig() {
   if (provider === "local-sink") {
     const baseUrl = publicAuthBaseUrl();
     if (
-      process.env.NODE_ENV === "production" ||
       process.env.AUTH_EMAIL_LOCAL_SINK !== LOCAL_SINK_OPT_IN ||
       !isLoopbackHost(baseUrl.hostname)
     ) {
@@ -114,8 +113,9 @@ export function authEmailErrorCode(error: unknown) {
 export async function sendTransactionalEmail(message: TransactionalEmail) {
   const config = emailProviderConfig();
 
-  // Deliberately discard the message in disposable loopback smoke environments.
-  // No recipient, body, or bearer token is written to logs or files.
+  // Deliberately discard the message in explicitly opted-in loopback smoke
+  // environments. This remains usable with the production image used by #29,
+  // but cannot activate for an approved public authentication origin.
   if (config.provider === "local-sink") {
     return { provider: config.provider, id: null };
   }
