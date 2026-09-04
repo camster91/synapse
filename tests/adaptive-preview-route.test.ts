@@ -19,6 +19,7 @@ test("preview performs no mutation and returns non-cacheable signed targets", ()
   assert.doesNotMatch(route, /\.delete\(/);
   assert.doesNotMatch(route, /\$transaction/);
   assert.match(route, /signAdaptiveConfirmation/);
+  assert.match(route, /plan: proposal\.plan/);
   assert.match(route, /"Cache-Control": "no-store"/);
   assert.match(context, /moveTargetAt/);
   assert.match(context, /dropUntil/);
