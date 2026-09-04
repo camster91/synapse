@@ -3,7 +3,6 @@ import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { rebuildAdaptiveSnapshot } from "@/lib/adaptive-current-snapshot";
 import type { AdaptiveAcceptedRecommendation } from "@/lib/adaptive-mutations";
-import { buildAdaptivePlan } from "@/lib/adaptive-planning";
 import { hashPlanningSnapshot } from "@/lib/adaptive-proposals";
 import { applyAdaptiveChange } from "@/lib/adaptive-storage";
 import { verifyAdaptiveConfirmation } from "@/lib/adaptive-token";
@@ -40,8 +39,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const proposal = buildAdaptivePlan(claims.snapshot);
-  const proposedById = new Map(proposal.recommendations.map((item) => [item.itemId, item]));
+  const proposedById = new Map(claims.plan.recommendations.map((item) => [item.itemId, item]));
   const recommendations: AdaptiveAcceptedRecommendation[] = [];
   for (const itemId of parsed.data.selectedItemIds) {
     const recommendation = proposedById.get(itemId);
