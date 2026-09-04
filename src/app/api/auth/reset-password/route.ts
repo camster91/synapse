@@ -61,6 +61,12 @@ export async function POST(request: Request) {
       });
       if (consumed.count !== 1) throw new Error("RESET_TOKEN_CONSUMED");
 
+      // Anonymous recovery requests may issue several still-valid links. Once
+      // one succeeds, retire every sibling reset link in this transaction.
+      await tx.verificationToken.deleteMany({
+        where: { identifier: token.identifier },
+      });
+
       const updated = await tx.account.updateMany({
         where: { userId: token.userId, provider: "credentials" },
         data: {
