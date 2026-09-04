@@ -156,11 +156,33 @@ Roadmap issue #71 is the authoritative ordered execution plan:
 4. **#60** — external email/DNS/mailbox/authentication QA.
 5. **#62 + #63** — qualified participant policy and support operations.
 6. **#64 + #67** — complete rendered lifecycle and AI-provider validation.
-7. **#65 + #68** — participant comprehension and economics protocols/evidence.
+7. **#65 + #68 pre-pilot readiness** — prepare the Day-0 comprehension protocol,
+   owner-approved price-test range, question ordering, and economics measurement plan;
+   do not require observed pilot economics yet.
 8. **#70** — exact SHA/image-digest release package and staged-deployment approval.
-9. **#66** — five-user 14-day no-billing pilot and keep/revise/stop decision.
+9. **#66** — five-user 14-day no-billing pilot; run #65 at Day 0 if not already
+   completed and collect willingness-to-pay, support, reliability, and service-cost
+   evidence needed by #68.
+10. **#68 post-pilot conclusion** — replace assumptions with observed pilot evidence
+    and issue an approve/revise/reject economics recommendation before #69 can begin.
 
 Do not bypass an unfinished earlier gate by changing labels or wording.
+
+## Owner decision queue — each approval is separate
+
+This queue prepares decisions; it does not grant permission. Approval for one row
+does not authorize any other row, and implementation must still verify the exact
+target and artifact immediately before changing external state.
+
+| Decision | Recommended next choice | Evidence required before action | Explicitly not authorized yet |
+|---|---|---|---|
+| Repository governance | Protect `main`; require pull requests, one qualified approving review, stale-approval dismissal, and `CI Build / Build` once executable | Exact required-check name, real executed exact-SHA validation or an explicitly approved equivalent, and a protected-branch test | Changing rulesets, bypassing checks, or weakening governance |
+| Production rehearsal | Use a proven isolated/disposable Docker environment for #29 before any managed-beta host mutation | Exact target identity, isolation proof, disposable DB/volume names, lifecycle/backup/restore plan, and cleanup plan | Provisioning, purchasing, deploying, or accessing production data |
+| Legal and data policy | Confirm operating identity, jurisdiction, copyright holder/year, privacy owner, retention/deletion wording, and beta terms with qualified review | Owner-supplied identity and policy decisions appropriate to the selected host and participants | Publishing policy, making compliance claims, or changing licence ownership without approval |
+| Support and incidents | Use one primary support route with stated hours and one urgent route for access, loss, deletion, or privacy incidents | Named route owners, coverage hours, escalation destination, backup responder, and pause authority | Contacting users or promising an SLA |
+| Managed pilot | Run the consent-first 14-day protocol with exactly five approved target participants after every pre-pilot entry gate is proven | Participant ledger, consent copy, approved host, support routes, lifecycle rehearsal, and exact staged-release approval | Recruiting, contacting, enrolling, or collecting payment |
+| Pricing research | Prepare an owner-approved test range before the pilot; collect unaided willingness-to-pay and observed costs during #66, then finalize #68 afterward | Frozen question order/test range before Day 0; five-participant WTP plus measured support/service/AI costs for the post-pilot conclusion | Publishing a price, enabling billing, discounts, or charges |
+| Merge and release | Request a separate exact-artifact release approval after governance, host rehearsal, backup/restore, policies, support, and candidate checks are complete | Exact candidate SHA, immutable image digest, complete release package, rollback artifact, and named responder | Merging, tagging, publishing an image, or deploying |
 
 ## Post-beta work
 
