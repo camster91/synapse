@@ -19,7 +19,9 @@ export function reconcileCredentialSession(
   accountVersion: string | null | undefined,
 ): CredentialSessionDecision {
   if (claims.credentialSession === false) {
-    return { kind: "not_credentials" };
+    return claims.credentialVersion === undefined
+      ? { kind: "not_credentials" }
+      : { kind: "invalid" };
   }
 
   const legacyUnmarked =
