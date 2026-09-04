@@ -56,6 +56,14 @@ test("bearer tokens use URL fragments and are removed from browser history", () 
   assert.match(resetPage, /window\.history\.replaceState/);
 });
 
+test("incomplete reset links explain recovery instead of leaving a disabled form", () => {
+  assert.match(resetPage, /const \[token, setToken\] = useState<string \| null>\(null\)/);
+  assert.match(resetPage, /Request a new reset link/);
+  assert.match(resetPage, /href="\/forgot-password"/);
+  assert.match(resetPage, /Checking reset link…/);
+  assert.doesNotMatch(resetPage, /disabled=\{submitting \|\| !token\}/);
+});
+
 test("delivery evidence uses fixed codes without recipients, tokens, or provider bodies", () => {
   assert.match(email, /authEmailErrorCode/);
   assert.match(register, /code: authEmailErrorCode\(error\)/);
