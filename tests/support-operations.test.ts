@@ -38,7 +38,7 @@ test("support scorecard is a first-class package command with no free-text schem
 test("support decisions require complete measured weeks rather than future or partial data", () => {
   assert.match(support, /UTC start date of one seven-day measured interval/);
   assert.match(support, /every listed seven-day interval has ended/);
-  assert.match(support, /supportLoad\.passes.*remains `null` whenever the result is decision-ineligible/s);
+  assert.match(support, /supportLoad\.passes[\s\S]*remains `null` whenever the result is decision-ineligible/);
   assert.match(metrics, /function supportWeekEnd/);
   assert.match(metrics, /incompleteWeekKeys/);
   assert.match(metrics, /all listed support weeks must be complete/);
