@@ -11,7 +11,8 @@ export type PlanningReasonCode =
   | "unknown_effort"
   | "lower_relevance"
   | "minimum_viable"
-  | "bounded_deferral";
+  | "bounded_deferral"
+  | "deadline_conflict";
 
 export interface PlanningItem {
   id: string;
@@ -24,6 +25,7 @@ export interface PlanningItem {
   scheduledAt?: string | null;
   moveTargetAt?: string | null;
   dropUntil?: string | null;
+  updatedAt?: string | null;
 }
 
 export interface PlanningSnapshot {
@@ -80,6 +82,13 @@ function hoursUntil(now: Date, dueAt?: string | null) {
   return (due.getTime() - now.getTime()) / 3_600_000;
 }
 
+function deadlinePreventsMove(item: PlanningItem) {
+  if (!item.dueAt || !item.moveTargetAt) return false;
+  const due = new Date(item.dueAt);
+  const target = new Date(item.moveTargetAt);
+  return !Number.isNaN(due.getTime()) && !Number.isNaN(target.getTime()) && due.getTime() <= target.getTime();
+}
+
 function scoreItem(item: PlanningItem, now: Date) {
   const priority = clampPriority(item.priority);
   const dueHours = hoursUntil(now, item.dueAt);
@@ -110,6 +119,9 @@ function baseReasons(item: PlanningItem, now: Date): PlanningReasonCode[] {
 
 function explain(action: PlanningAction, reasons: PlanningReasonCode[]) {
   if (action === "keep") {
+    if (reasons.includes("deadline_conflict")) {
+      return "Keep this visible because its real deadline arrives before a safe move target, even though the revised day is over capacity.";
+    }
     if (reasons.includes("unknown_effort")) {
       return "Keep this important item, but add an effort estimate before assuming anything else fits.";
     }
@@ -166,8 +178,13 @@ export function buildAdaptivePlan(snapshot: PlanningSnapshot): PlanningProposal 
     const important = reasons.includes("due_soon") || reasons.includes("high_priority");
 
     if (candidate.effort === null) {
-      if (important && available > 0) {
-        const reasonCodes: PlanningReasonCode[] = [...reasons, "unknown_effort"];
+      const deadlineConflict = deadlinePreventsMove(candidate.item);
+      if ((important && available > 0) || deadlineConflict) {
+        const reasonCodes: PlanningReasonCode[] = [
+          ...reasons,
+          "unknown_effort",
+          ...(deadlineConflict ? (["deadline_conflict"] as PlanningReasonCode[]) : []),
+        ];
         recommendations.push({
           itemId: candidate.item.id,
           action: "keep",
@@ -220,6 +237,24 @@ export function buildAdaptivePlan(snapshot: PlanningSnapshot): PlanningProposal 
         score: candidate.score,
         targetEstimatedMinutes: minimum,
       });
+      continue;
+    }
+
+    if (deadlinePreventsMove(candidate.item)) {
+      const reasonCodes: PlanningReasonCode[] = [
+        ...reasons,
+        "insufficient_time",
+        "deadline_conflict",
+        ...(snapshot.capacity === "low" ? (["low_capacity"] as PlanningReasonCode[]) : []),
+      ];
+      recommendations.push({
+        itemId: candidate.item.id,
+        action: "keep",
+        reasonCodes,
+        explanation: explain("keep", reasonCodes),
+        score: candidate.score,
+      });
+      available = 0;
       continue;
     }
 
