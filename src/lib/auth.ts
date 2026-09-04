@@ -52,7 +52,7 @@ export const authOptions: NextAuthOptions = {
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) {
-          throw new Error("Invalid email or password");
+          return null;
         }
 
         const email = credentials.email.trim().toLowerCase();
@@ -67,11 +67,13 @@ export const authOptions: NextAuthOptions = {
         const passwordHash = account?.accessToken ?? await dummyPasswordHash;
         const passwordMatch = await bcrypt.compare(credentials.password, passwordHash);
         if (!account?.accessToken || !passwordMatch) {
-          throw new Error("Invalid email or password");
+          return null;
         }
 
+        // Use the same CredentialsSignin result for a correct password on an
+        // unverified account; resend is an explicit, separate generic flow.
         if (await hasPendingVerification(account.user.id)) {
-          throw new Error("Email verification required");
+          return null;
         }
 
         return {
