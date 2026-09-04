@@ -28,6 +28,37 @@ npm run backup
 
 Never pass real credentials in tickets, chat, screenshots, or committed files.
 
+## Transactional authentication email
+
+Credentials accounts remain blocked until their one-time verification marker is
+consumed. Verification and password-reset tokens are random, stored only as SHA-256
+hashes, expire after 30 minutes, and are rejected after successful use. Password reset
+rotates the private credentials-session version so older JWT sessions are rejected on
+their next authenticated server request.
+
+The external adapter uses Resend's HTTPS API. It requires an approved sender, domain,
+mailbox, operator, and any associated spend before configuration:
+
+```bash
+EMAIL_PROVIDER='resend'
+RESEND_API_KEY='operator-supplied-secret'
+EMAIL_FROM='Synapse <no-reply@approved-domain.example>'
+EMAIL_REPLY_TO='approved-support@example.com'
+AUTH_PUBLIC_URL='https://approved-beta-host.example'
+```
+
+`AUTH_PUBLIC_URL` falls back to `NEXTAUTH_URL`. Non-loopback authentication origins
+must use HTTPS. Raw bearer tokens are placed in URL fragments rather than query
+strings, and the browser removes the fragment from its history before submitting the
+token to Synapse. Provider calls have a bounded timeout. Operational logs use fixed
+codes and omit addresses, token values, message bodies, and provider response bodies.
+
+Before external testing, verify SPF, DKIM, and DMARC alignment, then prove both
+registration and password-reset delivery in an operator-controlled mailbox. Exercise
+expiry, replay denial, known/unknown-account response parity, desktop/mobile rendering,
+and delivery-failure observability without copying private evidence into GitHub.
+Configuration alone does not satisfy issue #60.
+
 ## Authenticated lifecycle smoke
 
 The lifecycle smoke creates one randomly credentialed synthetic account, signs in,
@@ -107,8 +138,13 @@ Until all six are evidenced, backup and recovery remain a release blocker.
 - `GET /api/health` is a cache-disabled liveness probe. It proves only that the
   process can answer HTTP and reports uptime plus `RELEASE_REV`.
 - `GET /api/health/ready` is a cache-disabled readiness probe. It returns `200`
-  only after PostgreSQL responds and the uploads directory is readable and writable;
-  otherwise it returns `503` without exposing connection or filesystem details.
+  only after PostgreSQL responds, the uploads directory is readable and writable,
+  and authentication email configuration passes its non-delivery configuration
+  check. Missing or invalid mail configuration therefore keeps the instance out of
+  service, but readiness does not prove that an external provider or mailbox works.
+- Readiness failures report only fixed failed-check names and the release revision;
+  connection strings, provider secrets, recipient addresses, and error messages are
+  excluded.
 - The production image runs the readiness probe every 30 seconds and becomes
   unhealthy after three consecutive failures.
 - Server startup, readiness failures, and uncaught Next.js request errors emit
