@@ -3,6 +3,7 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
+import { hasPendingVerification } from "@/lib/auth-tokens";
 
 declare module "next-auth" {
   interface Session {
@@ -17,9 +18,11 @@ declare module "next-auth" {
 
 declare module "next-auth/jwt" {
   interface JWT {
-    id: string;
-    xp: number;
-    level: number;
+    id?: string;
+    xp?: number;
+    level?: number;
+    credentialVersion?: string | null;
+    credentialsInvalidated?: boolean;
   }
 }
 
@@ -38,10 +41,11 @@ export const authOptions: NextAuthOptions = {
           throw new Error("Email and password are required");
         }
 
+        const email = credentials.email.trim().toLowerCase();
         const account = await prisma.account.findFirst({
           where: {
             provider: "credentials",
-            providerAccountId: credentials.email,
+            providerAccountId: email,
           },
           include: { user: true },
         });
@@ -50,13 +54,13 @@ export const authOptions: NextAuthOptions = {
           throw new Error("Invalid email or password");
         }
 
-        const passwordMatch = await bcrypt.compare(
-          credentials.password,
-          account.accessToken
-        );
-
+        const passwordMatch = await bcrypt.compare(credentials.password, account.accessToken);
         if (!passwordMatch) {
           throw new Error("Invalid email or password");
+        }
+
+        if (await hasPendingVerification(account.user.id)) {
+          throw new Error("Email verification required");
         }
 
         return {
@@ -77,21 +81,49 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
-        const dbUser = await prisma.user.findUnique({
-          where: { id: user.id },
-          select: { xp: true, level: true },
-        });
+        token.credentialsInvalidated = false;
+        const [dbUser, credentialsAccount] = await Promise.all([
+          prisma.user.findUnique({
+            where: { id: user.id },
+            select: { xp: true, level: true },
+          }),
+          prisma.account.findFirst({
+            where: { userId: user.id, provider: "credentials" },
+            select: { refreshToken: true },
+          }),
+        ]);
         token.xp = dbUser?.xp ?? 0;
         token.level = dbUser?.level ?? 1;
+        token.credentialVersion = credentialsAccount?.refreshToken ?? null;
+        return token;
       }
+
+      if (token.id && !token.credentialsInvalidated) {
+        const credentialsAccount = await prisma.account.findFirst({
+          where: { userId: token.id, provider: "credentials" },
+          select: { refreshToken: true },
+        });
+
+        if (credentialsAccount) {
+          const currentVersion = credentialsAccount.refreshToken ?? null;
+          if (token.credentialVersion === undefined) {
+            // Backward-compatible adoption for sessions issued before versioning.
+            token.credentialVersion = currentVersion;
+          } else if (token.credentialVersion !== currentVersion) {
+            token.id = "";
+            token.credentialsInvalidated = true;
+          }
+        }
+      }
+
       return token;
     },
 
     async session({ session, token }) {
       if (token && session.user) {
-        session.user.id = token.id;
-        (session as unknown as Record<string, unknown>).xp = token.xp;
-        (session as unknown as Record<string, unknown>).level = token.level;
+        session.user.id = token.credentialsInvalidated ? "" : token.id ?? "";
+        (session as unknown as Record<string, unknown>).xp = token.xp ?? 0;
+        (session as unknown as Record<string, unknown>).level = token.level ?? 1;
       }
       return session;
     },
