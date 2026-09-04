@@ -37,8 +37,8 @@ export async function POST(request: Request) {
     if (!ipLimit.allowed) return rateLimitResponse(ipLimit.retryAfterSeconds);
   }
 
-  const user = await prisma.user.findUnique({
-    where: { email },
+  const user = await prisma.user.findFirst({
+    where: { email: { equals: email, mode: "insensitive" } },
     include: {
       accounts: {
         where: { provider: "credentials" },
