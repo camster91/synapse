@@ -21,6 +21,7 @@
     "backup": "bash scripts/backup.sh",
     "restore:drill": "bash scripts/restore-drill.sh",
     "metrics:pilot": "tsx scripts/pilot-metrics.ts",
+    "metrics:support": "tsx scripts/support-metrics.ts",
     "metrics:ai-actions": "tsx scripts/ai-action-metrics.ts",
     "eval:ai-actions": "tsx scripts/evaluate-ai-actions.ts",
     "economics:managed-beta": "tsx scripts/product-economics.ts",
