@@ -21,7 +21,6 @@ on:
       - 'docker/**'
       - 'package.json'
       - 'package-lock.json'
-      - '.github/workflows/build-and-push.yml'
   workflow_call:
     inputs:
       image_name:
