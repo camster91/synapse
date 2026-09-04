@@ -29,5 +29,7 @@ test("lifecycle smoke verifies zero remaining authentication rows", () => {
   assert.match(lifecycle, /verification_tokens/);
   assert.match(lifecycle, /'verify:' \|\| \$1/);
   assert.match(lifecycle, /'reset:' \|\| \$1/);
-  assert.match(lifecycle, /database still contains disposable account rows/);
+  assert.match(lifecycle, /sessions where "userId" = \$1/);
+  assert.match(lifecycle, /database still contains disposable account or authentication rows/);
+  assert.match(lifecycle, /verified-zero-owned-and-authentication-rows/);
 });
