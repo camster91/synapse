@@ -77,6 +77,7 @@ export default function AdaptivePlanningPanel({ onPlanChanged }: { onPlanChanged
   const dialogRef = useRef<HTMLDivElement>(null);
 
   const busy = loading || applying || undoing || savingEffortId !== null;
+  const busyRef = useRef(busy);
   const closePanel = useCallback(() => setOpen(false), []);
   const invalidatePreview = useCallback(() => {
     setPreview(null);
@@ -86,6 +87,10 @@ export default function AdaptivePlanningPanel({ onPlanChanged }: { onPlanChanged
     setMessage(null);
     setError(null);
   }, []);
+
+  useEffect(() => {
+    busyRef.current = busy;
+  }, [busy]);
 
   useEffect(() => {
     if (!open) return;
@@ -103,6 +108,7 @@ export default function AdaptivePlanningPanel({ onPlanChanged }: { onPlanChanged
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
+        if (busyRef.current) return;
         event.preventDefault();
         closePanel();
         return;
@@ -304,6 +310,7 @@ export default function AdaptivePlanningPanel({ onPlanChanged }: { onPlanChanged
             ref={dialogRef}
             role="dialog"
             aria-modal="true"
+            aria-busy={busy}
             aria-labelledby="adaptive-planning-title"
             aria-describedby="adaptive-planning-description"
             className="relative z-10 max-h-[92vh] w-full overflow-y-auto rounded-t-2xl border border-border bg-card shadow-xl sm:max-w-2xl sm:rounded-2xl"
