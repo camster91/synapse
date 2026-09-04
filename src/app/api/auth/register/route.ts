@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { z } from "zod/v4";
 import { prisma } from "@/lib/prisma";
@@ -9,7 +9,11 @@ import {
   generateAuthToken,
   hasPendingVerification,
 } from "@/lib/auth-tokens";
-import { emailDeliveryConfigured, sendVerificationEmail } from "@/lib/email";
+import {
+  authEmailErrorCode,
+  emailDeliveryConfigured,
+  sendVerificationEmail,
+} from "@/lib/email";
 import { consumeRateLimit, rateLimitResponse, trustedClientIp } from "@/lib/rate-limit";
 
 const registerSchema = z.object({
@@ -18,21 +22,68 @@ const registerSchema = z.object({
   password: z.string().min(8).max(128),
 });
 
-async function sendExistingVerification(userId: string, email: string) {
-  const token = await createAuthToken("verify", userId);
-  try {
-    await sendVerificationEmail({
-      email,
-      rawToken: token.rawToken,
-      tokenHash: token.token,
-    });
-  } catch (error) {
-    console.error("auth_email_delivery_failed", {
-      type: "verification",
-      provider: "resend",
-      error: error instanceof Error ? error.message : "unknown",
-    });
-  }
+function acceptedResponse() {
+  return NextResponse.json(
+    { accepted: true },
+    { status: 201, headers: { "Cache-Control": "no-store" } },
+  );
+}
+
+function isUniqueConstraintError(error: unknown) {
+  return Boolean(
+    error &&
+    typeof error === "object" &&
+    "code" in error &&
+    error.code === "P2002"
+  );
+}
+
+function scheduleVerificationEmail(input: {
+  email: string;
+  rawToken: string;
+  tokenHash: string;
+}) {
+  after(async () => {
+    try {
+      await sendVerificationEmail(input);
+    } catch (error) {
+      console.error("auth_email_delivery_failed", {
+        type: "verification",
+        provider: "resend",
+        code: authEmailErrorCode(error),
+      });
+    }
+  });
+}
+
+function scheduleExistingVerification(email: string) {
+  after(async () => {
+    try {
+      const user = await prisma.user.findFirst({
+        where: { email: { equals: email, mode: "insensitive" } },
+        include: {
+          accounts: {
+            where: { provider: "credentials" },
+            select: { id: true },
+          },
+        },
+      });
+      if (!user || user.accounts.length === 0 || !await hasPendingVerification(user.id)) {
+        return;
+      }
+
+      const token = await createAuthToken("verify", user.id);
+      await sendVerificationEmail({
+        email: user.email,
+        rawToken: token.rawToken,
+        tokenHash: token.token,
+      });
+    } catch (error) {
+      console.error("auth_verification_issue_failed", {
+        code: authEmailErrorCode(error),
+      });
+    }
+  });
 }
 
 export async function POST(request: Request) {
@@ -40,12 +91,11 @@ export async function POST(request: Request) {
     if (!emailDeliveryConfigured()) {
       return NextResponse.json(
         { error: "Email delivery is not configured" },
-        { status: 503 },
+        { status: 503, headers: { "Cache-Control": "no-store" } },
       );
     }
 
-    const body = await request.json();
-    const parsed = registerSchema.parse(body);
+    const parsed = registerSchema.parse(await request.json());
     const data = {
       ...parsed,
       email: parsed.email.trim().toLowerCase(),
@@ -71,8 +121,8 @@ export async function POST(request: Request) {
       if (!ipLimit.allowed) return rateLimitResponse(ipLimit.retryAfterSeconds);
     }
 
-    // Always do password work before the existence branch so the public timing
-    // contract does not cheaply expose registered accounts.
+    // Perform password work before the account-existence branch so a public
+    // response does not cheaply disclose a registered email through timing.
     const hashedPassword = await bcrypt.hash(data.password, 12);
     const existingUser = await prisma.user.findFirst({
       where: { email: { equals: data.email, mode: "insensitive" } },
@@ -86,95 +136,109 @@ export async function POST(request: Request) {
 
     if (existingUser) {
       if (existingUser.accounts.length > 0 && await hasPendingVerification(existingUser.id)) {
-        await sendExistingVerification(existingUser.id, existingUser.email);
+        scheduleExistingVerification(data.email);
       }
-      return NextResponse.json({ accepted: true }, { status: 201 });
+      return acceptedResponse();
     }
 
-    const created = await prisma.$transaction(async (tx) => {
-      const user = await tx.user.create({
-        data: {
-          email: data.email,
-          name: data.name,
-          lastActiveAt: new Date(),
-        },
-      });
+    let created: {
+      user: { id: string; email: string };
+      verificationToken: ReturnType<typeof generateAuthToken>;
+    };
 
-      await tx.account.create({
-        data: {
-          userId: user.id,
-          provider: "credentials",
-          providerAccountId: data.email,
-          accessToken: hashedPassword,
-          // Credentials accounts use refreshToken only as a random session
-          // invalidation version; it is never sent to an external provider.
-          refreshToken: createCredentialSessionVersion(),
-        },
-      });
+    try {
+      created = await prisma.$transaction(async (tx) => {
+        const user = await tx.user.create({
+          data: {
+            email: data.email,
+            name: data.name,
+            lastActiveAt: new Date(),
+          },
+          select: { id: true, email: true },
+        });
 
-      // Absence of this marker means a credentials account is verified, so the
-      // marker must be committed atomically with the new account.
-      const verificationToken = generateAuthToken("verify", user.id);
-      await tx.verificationToken.create({
-        data: {
-          identifier: verificationToken.identifier,
-          token: verificationToken.token,
-          expires: verificationToken.expires,
-        },
-      });
+        await tx.account.create({
+          data: {
+            userId: user.id,
+            provider: "credentials",
+            providerAccountId: data.email,
+            accessToken: hashedPassword,
+            // Credentials accounts use refreshToken only as a private session
+            // invalidation version; it is never sent to an external provider.
+            refreshToken: createCredentialSessionVersion(),
+          },
+        });
 
-      return { user, verificationToken };
+        // This row is both the hashed one-time token and the durable
+        // unverified-account marker. Link expiry must not activate the account.
+        const verificationToken = generateAuthToken("verify", user.id);
+        await tx.verificationToken.create({
+          data: {
+            identifier: verificationToken.identifier,
+            token: verificationToken.token,
+            expires: verificationToken.expires,
+          },
+        });
+
+        return { user, verificationToken };
+      });
+    } catch (error) {
+      if (isUniqueConstraintError(error)) {
+        // A concurrent registration may have won after the initial lookup.
+        // Preserve the same response and schedule the same safe resend path.
+        scheduleExistingVerification(data.email);
+        return acceptedResponse();
+      }
+      throw error;
+    }
+
+    scheduleVerificationEmail({
+      email: created.user.email,
+      rawToken: created.verificationToken.rawToken,
+      tokenHash: created.verificationToken.token,
     });
 
-    try {
-      await sendVerificationEmail({
-        email: created.user.email,
-        rawToken: created.verificationToken.rawToken,
-        tokenHash: created.verificationToken.token,
-      });
-    } catch (error) {
-      console.error("auth_email_delivery_failed", {
-        type: "verification",
-        provider: "resend",
-        error: error instanceof Error ? error.message : "unknown",
-      });
-    }
+    after(async () => {
+      try {
+        const achievementRecord = await prisma.achievement.upsert({
+          where: { key: "first_steps" },
+          update: {},
+          create: {
+            key: "first_steps",
+            name: "First Steps",
+            description: "Create your account and start your journey",
+            icon: "footprints",
+            category: "explorer",
+            xpReward: 25,
+          },
+        });
 
-    try {
-      const achievementRecord = await prisma.achievement.upsert({
-        where: { key: "first_steps" },
-        update: {},
-        create: {
-          key: "first_steps",
-          name: "First Steps",
-          description: "Create your account and start your journey",
-          icon: "footprints",
-          category: "explorer",
-          xpReward: 25,
-        },
-      });
+        await prisma.userAchievement.create({
+          data: {
+            userId: created.user.id,
+            achievementId: achievementRecord.id,
+          },
+        });
+        await addXp(created.user.id, 25, "achievement:first_steps");
+      } catch {
+        console.error("auth_registration_achievement_failed", {
+          code: "achievement_award_failed",
+        });
+      }
+    });
 
-      await prisma.userAchievement.create({
-        data: {
-          userId: created.user.id,
-          achievementId: achievementRecord.id,
-        },
-      });
-      await addXp(created.user.id, 25, "achievement:first_steps");
-    } catch (error) {
-      console.error("Failed to award first_steps achievement:", error);
-    }
-
-    // Intentionally do not return account-specific data.
-    return NextResponse.json({ accepted: true }, { status: 201 });
+    return acceptedResponse();
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { error: "Validation failed", details: error.issues },
-        { status: 400 },
+        { status: 400, headers: { "Cache-Control": "no-store" } },
       );
     }
-    console.error("Failed to register user:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    console.error("auth_registration_failed", { code: "registration_failed" });
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500, headers: { "Cache-Control": "no-store" } },
+    );
   }
 }
