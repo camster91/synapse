@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { buildAdaptivePlan } from "../src/lib/adaptive-planning";
 import {
   signAdaptiveConfirmation,
   verifyAdaptiveConfirmation,
@@ -13,8 +14,9 @@ const snapshot = {
   remainingMinutes: 90,
   capacity: "normal" as const,
   calendarBusyMinutes: 15,
-  items: [{ id: "task-1", priority: 5, estimatedMinutes: null }],
+  items: [{ id: "task-1", priority: 5, estimatedMinutes: 45 }],
 };
+const plan = buildAdaptivePlan(snapshot);
 
 function token() {
   return signAdaptiveConfirmation({
@@ -22,15 +24,29 @@ function token() {
     proposalId: "proposal-1",
     snapshotHash: "a".repeat(64),
     snapshot,
+    plan,
     expiresAt: "2026-09-03T20:15:00.000Z",
   });
 }
 
-test("signed adaptive confirmation is bound to the intended user and snapshot", () => {
+test("signed confirmation is bound to the user, snapshot, and exact proposal", () => {
   assert.equal(verifyAdaptiveConfirmation(token(), "user-2", now), null);
   const claims = verifyAdaptiveConfirmation(token(), "user-1", now);
   assert.equal(claims?.proposalId, "proposal-1");
   assert.deepEqual(claims?.snapshot, snapshot);
+  assert.deepEqual(claims?.plan, plan);
+});
+
+test("signed claims using an unsupported planner version fail closed", () => {
+  const invalid = signAdaptiveConfirmation({
+    userId: "user-1",
+    proposalId: "proposal-1",
+    snapshotHash: "a".repeat(64),
+    snapshot,
+    plan: { ...plan, plannerVersion: plan.plannerVersion + 1 },
+    expiresAt: "2026-09-03T20:15:00.000Z",
+  });
+  assert.equal(verifyAdaptiveConfirmation(invalid, "user-1", now), null);
 });
 
 test("tampered adaptive confirmation fails closed", () => {
