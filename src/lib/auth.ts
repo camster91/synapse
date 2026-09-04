@@ -114,34 +114,43 @@ export const authOptions: NextAuthOptions = {
         return token;
       }
 
-      // Tokens issued before credentialSession existed can be identified by the
-      // version claim already added by the previous credentials implementation.
-      if (token.credentialSession === undefined && token.credentialVersion !== undefined) {
-        token.credentialSession = true;
+      if (!token.id || token.credentialsInvalidated) return token;
+
+      const legacyUnmarked =
+        token.credentialSession === undefined &&
+        token.credentialVersion === undefined;
+      const credentialLike =
+        legacyUnmarked ||
+        token.credentialSession === true ||
+        token.credentialVersion !== undefined;
+
+      if (!credentialLike) return token;
+
+      const credentialsAccount = await prisma.account.findFirst({
+        where: { userId: token.id, provider: "credentials" },
+        select: { refreshToken: true },
+      });
+      if (!credentialsAccount) {
+        invalidateCredentialToken(token);
+        return token;
       }
 
-      if (token.id && token.credentialSession && !token.credentialsInvalidated) {
-        const credentialsAccount = await prisma.account.findFirst({
-          where: { userId: token.id, provider: "credentials" },
-          select: { refreshToken: true },
-        });
+      token.credentialSession = true;
+      const currentVersion = credentialsAccount.refreshToken ?? null;
 
-        if (!credentialsAccount) {
-          invalidateCredentialToken(token);
+      if (legacyUnmarked) {
+        // Before versioning, Synapse had only the credentials provider. Such a
+        // JWT may adopt only a legacy null account version. A populated version
+        // proves a reset or newer sign-in occurred, so the old token is revoked.
+        if (currentVersion === null) {
+          token.credentialVersion = null;
         } else {
-          const currentVersion = credentialsAccount.refreshToken ?? null;
-          if (token.credentialVersion === undefined) {
-            // A legacy JWT can adopt only the legacy null version. If a random
-            // version already exists, a reset or newer sign-in has occurred.
-            if (currentVersion === null) {
-              token.credentialVersion = null;
-            } else {
-              invalidateCredentialToken(token);
-            }
-          } else if (token.credentialVersion !== currentVersion) {
-            invalidateCredentialToken(token);
-          }
+          invalidateCredentialToken(token);
         }
+      } else if (token.credentialVersion === undefined) {
+        invalidateCredentialToken(token);
+      } else if (token.credentialVersion !== currentVersion) {
+        invalidateCredentialToken(token);
       }
 
       return token;
