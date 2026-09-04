@@ -2,11 +2,19 @@
 
 import { useEffect, useState } from "react";
 
+function takeTokenFromFragment() {
+  const token = new URLSearchParams(window.location.hash.slice(1)).get("token") ?? "";
+  if (token) {
+    window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
+  }
+  return token;
+}
+
 export default function VerifyEmailPage() {
   const [state, setState] = useState<"waiting" | "verifying" | "verified" | "error">("waiting");
 
   useEffect(() => {
-    const token = new URLSearchParams(window.location.search).get("token");
+    const token = takeTokenFromFragment();
     if (!token) return;
 
     setState("verifying");
@@ -22,7 +30,13 @@ export default function VerifyEmailPage() {
       .catch(() => setState("error"));
   }, []);
 
-  const title = state === "verified" ? "Email verified" : state === "error" ? "Verification link unavailable" : state === "verifying" ? "Verifying your email…" : "Check your email";
+  const title = state === "verified"
+    ? "Email verified"
+    : state === "error"
+      ? "Verification link unavailable"
+      : state === "verifying"
+        ? "Verifying your email…"
+        : "Check your email";
   const message = state === "verified"
     ? "Your email is verified. You can sign in to Synapse."
     : state === "error"
@@ -40,11 +54,11 @@ export default function VerifyEmailPage() {
 
         <div className="mt-6 space-y-3">
           {state === "verified" ? (
-            <a href="/login" className="inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90">Sign in</a>
+            <a href="/login" className="inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Sign in</a>
           ) : (
-            <a href="/resend-verification" className="inline-flex min-h-11 w-full items-center justify-center rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-muted">Send a new verification email</a>
+            <a href="/resend-verification" className="inline-flex min-h-11 w-full items-center justify-center rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Send a new verification email</a>
           )}
-          <a href="/login" className="inline-block text-sm text-primary hover:underline">Back to sign in</a>
+          <a href="/login" className="inline-block rounded-sm text-sm text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Back to sign in</a>
         </div>
       </main>
     </div>
