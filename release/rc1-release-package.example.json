@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 1,
+  "candidate": {
+    "commitSha": "0000000000000000000000000000000000000000",
+    "imageDigest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "migrationHead": "replace-with-exact-migration-id"
+  },
+  "validation": {
+    "ciBuildPassed": false,
+    "typecheckPassed": false,
+    "lintPassed": false,
+    "testsPassed": false,
+    "dependencyAuditPassed": false,
+    "secretScanPassed": false,
+    "imageValidationPassed": false,
+    "qualifiedReviewApproved": false,
+    "requiredCheckGovernanceActive": false
+  },
+  "runtime": {
+    "composeDatabaseSmokePassed": false,
+    "readinessPassed": false,
+    "authenticatedLifecyclePassed": false,
+    "backupRestorePassed": false,
+    "rollbackPassed": false,
+    "alertsPassed": false,
+    "supportGatePassed": false
+  },
+  "trust": {
+    "externalEmailPassed": false,
+    "legalPolicyApproved": false,
+    "consentAndDataLifecycleReconciled": false,
+    "accessibilityPassed": false,
+    "performancePassed": false,
+    "securityPrivacyReviewPassed": false
+  },
+  "release": {
+    "releaseNotesReady": false,
+    "knownLimitationsReady": false,
+    "rollbackTriggersReady": false,
+    "responderApproved": false,
+    "postReleaseVerificationReady": false,
+    "stagedRolloutDefined": false
+  },
+  "approvalRequest": {
+    "exactAction": "",
+    "customerImpact": "",
+    "costCad": 0,
+    "riskSummary": "",
+    "rollbackSummary": "",
+    "choices": ["approve", "reject", "request-changes"]
+  },
+  "approval": {
+    "approved": false,
+    "approvedArtifactCommitSha": "",
+    "approvedArtifactImageDigest": ""
+  }
+}

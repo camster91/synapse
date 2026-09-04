@@ -22,6 +22,7 @@
     "restore:drill": "bash scripts/restore-drill.sh",
     "ops:preflight": "tsx scripts/operations-preflight.ts",
     "ops:evidence": "tsx scripts/validate-operations-evidence.ts",
+    "release:validate": "tsx scripts/validate-release-package.ts",
     "metrics:pilot": "tsx scripts/pilot-metrics.ts",
     "metrics:support": "tsx scripts/support-metrics.ts",
     "metrics:ai-actions": "tsx scripts/ai-action-metrics.ts",
