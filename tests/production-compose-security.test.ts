@@ -29,6 +29,23 @@ test("production application secrets and connection settings fail closed", () =>
   }
 });
 
+test("production images receive explicit authentication email settings", () => {
+  for (const variable of [
+    "AUTH_PUBLIC_URL",
+    "EMAIL_PROVIDER",
+    "RESEND_API_KEY",
+    "EMAIL_FROM",
+    "EMAIL_REPLY_TO",
+  ]) {
+    assert.match(prod, new RegExp(`${variable}=\\$\\{${variable}:-\\}`));
+    assert.match(vps, new RegExp(`${variable}: \\$\\{${variable}:-\\}`));
+  }
+  assert.doesNotMatch(prod, /RESEND_API_KEY=[^$\n]+/);
+  assert.doesNotMatch(vps, /RESEND_API_KEY: [^$\n]+/);
+  assert.doesNotMatch(prod, /AUTH_EMAIL_FILE_DIR/);
+  assert.doesNotMatch(vps, /AUTH_EMAIL_FILE_DIR/);
+});
+
 test("production PostgreSQL is not published on a host port", () => {
   const dbService = prod.slice(prod.indexOf("  db:"), prod.indexOf("volumes:", prod.indexOf("  db:")));
   assert.doesNotMatch(dbService, /\n\s+ports:/);
