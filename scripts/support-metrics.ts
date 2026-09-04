@@ -4,6 +4,7 @@ export const SUPPORT_LOAD_THRESHOLD_MINUTES = 15;
 
 const PARTICIPANT_PATTERN = /^P0[1-5]$/;
 const WEEK_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+const SUPPORT_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 const CATEGORIES = [
   "access",
   "reliability",
@@ -187,7 +188,24 @@ function rounded(value: number | null) {
   return value === null ? null : Math.round(value * 10) / 10;
 }
 
-export function buildSupportScorecard(ledger: SupportLedger) {
+function supportWeekEnd(weekKey: string) {
+  return new Date(new Date(`${weekKey}T00:00:00.000Z`).getTime() + SUPPORT_WEEK_MS);
+}
+
+function ineligibleReason(input: {
+  participantCount: number;
+  weekCount: number;
+  incompleteWeekCount: number;
+}) {
+  if (input.participantCount !== 5) return "requires all five pilot participant IDs";
+  if (input.weekCount === 0) return "requires at least one measured week";
+  if (input.incompleteWeekCount > 0) return "all listed support weeks must be complete";
+  return null;
+}
+
+export function buildSupportScorecard(ledger: SupportLedger, now = new Date()) {
+  if (Number.isNaN(now.getTime())) throw new Error("scorecard time is invalid");
+
   const participantWeekMinutes = new Map<string, number>();
   for (const participant of ledger.participants) {
     for (const week of ledger.weeks) participantWeekMinutes.set(`${participant}:${week}`, 0);
@@ -209,16 +227,28 @@ export function buildSupportScorecard(ledger: SupportLedger) {
   );
   const weeklyAccountMinutes = [...participantWeekMinutes.values()];
   const medianOperatorMinutes = rounded(median(weeklyAccountMinutes));
-  const decisionEligible = ledger.participants.length === 5 && ledger.weeks.length > 0;
+  const incompleteWeekKeys = ledger.weeks.filter(
+    (weekKey) => supportWeekEnd(weekKey).getTime() > now.getTime(),
+  );
+  const decisionIneligibleReason = ineligibleReason({
+    participantCount: ledger.participants.length,
+    weekCount: ledger.weeks.length,
+    incompleteWeekCount: incompleteWeekKeys.length,
+  });
+  const decisionEligible = decisionIneligibleReason === null;
 
   return {
     schemaVersion: 1,
     privacyBoundary: "aggregate-support-metrics-only",
+    measurementAsOf: now.toISOString(),
     participantCount: ledger.participants.length,
     weekCount: ledger.weeks.length,
+    completedWeekCount: ledger.weeks.length - incompleteWeekKeys.length,
+    incompleteWeekCount: incompleteWeekKeys.length,
+    incompleteWeekKeys,
     incidentCount: ledger.records.length,
     decisionEligible,
-    decisionIneligibleReason: decisionEligible ? null : "requires five pilot participant IDs and at least one measured week",
+    decisionIneligibleReason,
     supportLoad: {
       thresholdOperatorMinutesPerActiveAccountWeek: SUPPORT_LOAD_THRESHOLD_MINUTES,
       medianOperatorMinutesPerActiveAccountWeek: medianOperatorMinutes,
