@@ -6,6 +6,7 @@ import { addXp } from "@/lib/xp";
 import {
   createAuthToken,
   createCredentialSessionVersion,
+  generateAuthToken,
   hasPendingVerification,
 } from "@/lib/auth-tokens";
 import { emailDeliveryConfigured, sendVerificationEmail } from "@/lib/email";
@@ -17,7 +18,7 @@ const registerSchema = z.object({
   password: z.string().min(8).max(128),
 });
 
-async function sendVerification(userId: string, email: string) {
+async function sendExistingVerification(userId: string, email: string) {
   const token = await createAuthToken("verify", userId);
   try {
     await sendVerificationEmail({
@@ -85,13 +86,13 @@ export async function POST(request: Request) {
 
     if (existingUser) {
       if (existingUser.accounts.length > 0 && await hasPendingVerification(existingUser.id)) {
-        await sendVerification(existingUser.id, existingUser.email);
+        await sendExistingVerification(existingUser.id, existingUser.email);
       }
       return NextResponse.json({ accepted: true }, { status: 201 });
     }
 
-    const user = await prisma.$transaction(async (tx) => {
-      const newUser = await tx.user.create({
+    const created = await prisma.$transaction(async (tx) => {
+      const user = await tx.user.create({
         data: {
           email: data.email,
           name: data.name,
@@ -101,7 +102,7 @@ export async function POST(request: Request) {
 
       await tx.account.create({
         data: {
-          userId: newUser.id,
+          userId: user.id,
           provider: "credentials",
           providerAccountId: data.email,
           accessToken: hashedPassword,
@@ -111,10 +112,33 @@ export async function POST(request: Request) {
         },
       });
 
-      return newUser;
+      // Absence of this marker means a credentials account is verified, so the
+      // marker must be committed atomically with the new account.
+      const verificationToken = generateAuthToken("verify", user.id);
+      await tx.verificationToken.create({
+        data: {
+          identifier: verificationToken.identifier,
+          token: verificationToken.token,
+          expires: verificationToken.expires,
+        },
+      });
+
+      return { user, verificationToken };
     });
 
-    await sendVerification(user.id, user.email);
+    try {
+      await sendVerificationEmail({
+        email: created.user.email,
+        rawToken: created.verificationToken.rawToken,
+        tokenHash: created.verificationToken.token,
+      });
+    } catch (error) {
+      console.error("auth_email_delivery_failed", {
+        type: "verification",
+        provider: "resend",
+        error: error instanceof Error ? error.message : "unknown",
+      });
+    }
 
     try {
       const achievementRecord = await prisma.achievement.upsert({
@@ -132,11 +156,11 @@ export async function POST(request: Request) {
 
       await prisma.userAchievement.create({
         data: {
-          userId: user.id,
+          userId: created.user.id,
           achievementId: achievementRecord.id,
         },
       });
-      await addXp(user.id, 25, "achievement:first_steps");
+      await addXp(created.user.id, 25, "achievement:first_steps");
     } catch (error) {
       console.error("Failed to award first_steps achievement:", error);
     }
