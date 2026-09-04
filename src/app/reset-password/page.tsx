@@ -2,6 +2,14 @@
 
 import { useEffect, useState } from "react";
 
+function takeTokenFromFragment() {
+  const token = new URLSearchParams(window.location.hash.slice(1)).get("token") ?? "";
+  if (token) {
+    window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
+  }
+  return token;
+}
+
 export default function ResetPasswordPage() {
   const [token, setToken] = useState("");
   const [password, setPassword] = useState("");
@@ -12,7 +20,7 @@ export default function ResetPasswordPage() {
   const [complete, setComplete] = useState(false);
 
   useEffect(() => {
-    setToken(new URLSearchParams(window.location.search).get("token") ?? "");
+    setToken(takeTokenFromFragment());
   }, []);
 
   const submit = async (event: React.FormEvent) => {
@@ -28,6 +36,7 @@ export default function ResetPasswordPage() {
       setError("The passwords do not match.");
       return;
     }
+
     setSubmitting(true);
     try {
       const response = await fetch("/api/auth/reset-password", {
@@ -40,6 +49,7 @@ export default function ResetPasswordPage() {
         return;
       }
       setComplete(true);
+      setToken("");
       setPassword("");
       setConfirmPassword("");
       setMessage("Your password has been reset. Previous signed-in sessions will no longer be accepted.");
@@ -59,23 +69,23 @@ export default function ResetPasswordPage() {
           <p className="text-sm text-muted-foreground mt-1">Reset links expire after 30 minutes and can only be used once.</p>
         </div>
 
-        {message && <div role="status" className="mb-4 p-3 text-sm rounded-lg bg-muted text-foreground">{message}</div>}
-        {error && <div role="alert" className="mb-4 p-3 text-sm rounded-lg bg-destructive/10 text-destructive">{error}</div>}
+        {message && <div role="status" aria-live="polite" className="mb-4 p-3 text-sm rounded-lg bg-muted text-foreground">{message}</div>}
+        {error && <div role="alert" aria-live="assertive" className="mb-4 p-3 text-sm rounded-lg bg-destructive/10 text-destructive">{error}</div>}
 
         {!complete ? (
           <form onSubmit={submit} className="space-y-4" aria-busy={submitting}>
             <div>
               <label htmlFor="reset-password" className="block text-sm font-medium text-foreground mb-1">New password</label>
-              <input id="reset-password" type="password" autoComplete="new-password" minLength={8} maxLength={128} required value={password} onChange={(event) => setPassword(event.target.value)} disabled={submitting} className="w-full min-h-11 px-3 py-2 bg-background border border-input rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-60" />
+              <input id="reset-password" name="password" type="password" autoComplete="new-password" minLength={8} maxLength={128} required value={password} onChange={(event) => setPassword(event.target.value)} disabled={submitting} className="w-full min-h-11 px-3 py-2 bg-background border border-input rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-60" />
             </div>
             <div>
               <label htmlFor="reset-password-confirm" className="block text-sm font-medium text-foreground mb-1">Confirm password</label>
-              <input id="reset-password-confirm" type="password" autoComplete="new-password" minLength={8} maxLength={128} required value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} disabled={submitting} className="w-full min-h-11 px-3 py-2 bg-background border border-input rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-60" />
+              <input id="reset-password-confirm" name="confirmPassword" type="password" autoComplete="new-password" minLength={8} maxLength={128} required value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} disabled={submitting} className="w-full min-h-11 px-3 py-2 bg-background border border-input rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-60" />
             </div>
-            <button type="submit" disabled={submitting} className="w-full min-h-11 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium disabled:opacity-60">{submitting ? "Resetting…" : "Reset password"}</button>
+            <button type="submit" disabled={submitting || !token} className="w-full min-h-11 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium disabled:cursor-not-allowed disabled:opacity-60">{submitting ? "Resetting…" : "Reset password"}</button>
           </form>
         ) : (
-          <a href="/login" className="inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90">Sign in</a>
+          <a href="/login" className="inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Sign in</a>
         )}
       </main>
     </div>
