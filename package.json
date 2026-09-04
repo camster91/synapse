@@ -13,6 +13,8 @@
     "lint": "eslint --max-warnings=0",
     "test": "tsx --test tests/*.test.ts",
     "typecheck": "tsc --noEmit",
+    "verify:quick": "npm run typecheck && npm run lint && npm test",
+    "verify": "npm run verify:quick && npm run build",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:push": "prisma db push",
