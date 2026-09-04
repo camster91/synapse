@@ -76,11 +76,32 @@ function nullableNonNegativeNumber(value: unknown, label: string) {
   return nonNegativeNumber(value, label);
 }
 
-function uniqueStrings(value: unknown, label: string, pattern: RegExp) {
-  if (!Array.isArray(value) || value.some((item) => typeof item !== "string" || !pattern.test(item))) {
-    throw new Error(`${label} is invalid`);
+function uniqueParticipantIds(value: unknown) {
+  if (
+    !Array.isArray(value) ||
+    value.some((item) => typeof item !== "string" || !PARTICIPANT_PATTERN.test(item))
+  ) {
+    throw new Error("participants is invalid");
   }
-  if (new Set(value).size !== value.length) throw new Error(`${label} must not contain duplicates`);
+  if (new Set(value).size !== value.length) {
+    throw new Error("participants must not contain duplicates");
+  }
+  return [...value] as string[];
+}
+
+function isValidIsoDate(value: string) {
+  if (!WEEK_PATTERN.test(value)) return false;
+  const parsed = new Date(`${value}T00:00:00.000Z`);
+  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+}
+
+function uniqueWeekKeys(value: unknown) {
+  if (!Array.isArray(value) || value.some((item) => typeof item !== "string" || !isValidIsoDate(item))) {
+    throw new Error("weeks is invalid");
+  }
+  if (new Set(value).size !== value.length) {
+    throw new Error("weeks must not contain duplicates");
+  }
   return [...value] as string[];
 }
 
@@ -89,8 +110,8 @@ export function parseSupportLedger(value: unknown): SupportLedger {
   rejectUnknownKeys(value, LEDGER_KEYS, "support ledger");
 
   if (value.schemaVersion !== 1) throw new Error("unsupported support ledger schema version");
-  const participants = uniqueStrings(value.participants, "participants", PARTICIPANT_PATTERN);
-  const weeks = uniqueStrings(value.weeks, "weeks", WEEK_PATTERN);
+  const participants = uniqueParticipantIds(value.participants);
+  const weeks = uniqueWeekKeys(value.weeks);
   if (!Array.isArray(value.records)) throw new Error("records must be an array");
 
   const participantSet = new Set(participants);
@@ -115,14 +136,36 @@ export function parseSupportLedger(value: unknown): SupportLedger {
       throw new Error(`record ${index + 1} has invalid boolean fields`);
     }
 
+    const firstResponseMinutes = nonNegativeNumber(
+      raw.firstResponseMinutes,
+      `record ${index + 1} firstResponseMinutes`,
+    );
+    const resolutionMinutes = nullableNonNegativeNumber(
+      raw.resolutionMinutes,
+      `record ${index + 1} resolutionMinutes`,
+    );
+
+    if (raw.resolved && resolutionMinutes === null) {
+      throw new Error(`record ${index + 1} resolved incidents require resolutionMinutes`);
+    }
+    if (!raw.resolved && resolutionMinutes !== null) {
+      throw new Error(`record ${index + 1} unresolved incidents require null resolutionMinutes`);
+    }
+    if (resolutionMinutes !== null && resolutionMinutes < firstResponseMinutes) {
+      throw new Error(`record ${index + 1} resolutionMinutes cannot precede first response`);
+    }
+
     return {
       participantId: raw.participantId,
       weekKey: raw.weekKey,
       category: raw.category as Category,
       severity: raw.severity as Severity,
-      firstResponseMinutes: nonNegativeNumber(raw.firstResponseMinutes, `record ${index + 1} firstResponseMinutes`),
-      resolutionMinutes: nullableNonNegativeNumber(raw.resolutionMinutes, `record ${index + 1} resolutionMinutes`),
-      operatorMinutes: nonNegativeNumber(raw.operatorMinutes, `record ${index + 1} operatorMinutes`),
+      firstResponseMinutes,
+      resolutionMinutes,
+      operatorMinutes: nonNegativeNumber(
+        raw.operatorMinutes,
+        `record ${index + 1} operatorMinutes`,
+      ),
       blockedDailyLoop: raw.blockedDailyLoop,
       resolved: raw.resolved,
     };
