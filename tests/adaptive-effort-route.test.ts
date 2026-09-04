@@ -10,6 +10,13 @@ test("effort edits are authenticated and tenant scoped", () => {
   assert.match(route, /updateMany/);
 });
 
+test("effort edits use an optimistic revision guard", () => {
+  assert.match(route, /select: \{ estimatedMinutes: true, minimumMinutes: true, updatedAt: true \}/);
+  assert.match(route, /updatedAt: existing\.updatedAt/);
+  assert.match(route, /status: 409/);
+  assert.match(route, /changed while you were editing it/);
+});
+
 test("minimum effort cannot exceed the estimate", () => {
   assert.match(route, /minimumMinutes > estimatedMinutes/);
   assert.match(route, /Minimum effort must be less than or equal to the estimate/);
