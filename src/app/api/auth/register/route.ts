@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { z } from "zod/v4";
 import { prisma } from "@/lib/prisma";
@@ -9,7 +9,11 @@ import {
   generateAuthToken,
   hasPendingVerification,
 } from "@/lib/auth-tokens";
-import { emailDeliveryConfigured, sendVerificationEmail } from "@/lib/email";
+import {
+  authEmailErrorCode,
+  emailDeliveryConfigured,
+  sendVerificationEmail,
+} from "@/lib/email";
 import { consumeRateLimit, rateLimitResponse, trustedClientIp } from "@/lib/rate-limit";
 
 const registerSchema = z.object({
@@ -18,21 +22,26 @@ const registerSchema = z.object({
   password: z.string().min(8).max(128),
 });
 
-async function sendExistingVerification(userId: string, email: string) {
-  const token = await createAuthToken("verify", userId);
-  try {
-    await sendVerificationEmail({
-      email,
-      rawToken: token.rawToken,
-      tokenHash: token.token,
-    });
-  } catch (error) {
-    console.error("auth_email_delivery_failed", {
-      type: "verification",
-      provider: "resend",
-      error: error instanceof Error ? error.message : "unknown",
-    });
-  }
+function logDeliveryFailure(error: unknown) {
+  console.error("auth_email_delivery_failed", {
+    type: "verification",
+    provider: "resend",
+    code: authEmailErrorCode(error),
+  });
+}
+
+function scheduleVerificationEmail(input: {
+  email: string;
+  rawToken: string;
+  tokenHash: string;
+}) {
+  after(async () => {
+    try {
+      await sendVerificationEmail(input);
+    } catch (error) {
+      logDeliveryFailure(error);
+    }
+  });
 }
 
 export async function POST(request: Request) {
@@ -40,12 +49,11 @@ export async function POST(request: Request) {
     if (!emailDeliveryConfigured()) {
       return NextResponse.json(
         { error: "Email delivery is not configured" },
-        { status: 503 },
+        { status: 503, headers: { "Cache-Control": "no-store" } },
       );
     }
 
-    const body = await request.json();
-    const parsed = registerSchema.parse(body);
+    const parsed = registerSchema.parse(await request.json());
     const data = {
       ...parsed,
       email: parsed.email.trim().toLowerCase(),
@@ -86,9 +94,25 @@ export async function POST(request: Request) {
 
     if (existingUser) {
       if (existingUser.accounts.length > 0 && await hasPendingVerification(existingUser.id)) {
-        await sendExistingVerification(existingUser.id, existingUser.email);
+        try {
+          const token = await createAuthToken("verify", existingUser.id);
+          scheduleVerificationEmail({
+            email: existingUser.email,
+            rawToken: token.rawToken,
+            tokenHash: token.token,
+          });
+        } catch {
+          // Keep token-state failures out of the account-existence response.
+          console.error("auth_verification_issue_failed", {
+            code: "token_issue_failed",
+          });
+        }
       }
-      return NextResponse.json({ accepted: true }, { status: 201 });
+
+      return NextResponse.json(
+        { accepted: true },
+        { status: 201, headers: { "Cache-Control": "no-store" } },
+      );
     }
 
     const created = await prisma.$transaction(async (tx) => {
@@ -112,8 +136,8 @@ export async function POST(request: Request) {
         },
       });
 
-      // Absence of this marker means a credentials account is verified, so the
-      // marker must be committed atomically with the new account.
+      // The verification record is also the durable unverified-account marker.
+      // Expiry invalidates the link but does not permit sign-in; resend replaces it.
       const verificationToken = generateAuthToken("verify", user.id);
       await tx.verificationToken.create({
         data: {
@@ -126,55 +150,56 @@ export async function POST(request: Request) {
       return { user, verificationToken };
     });
 
-    try {
-      await sendVerificationEmail({
-        email: created.user.email,
-        rawToken: created.verificationToken.rawToken,
-        tokenHash: created.verificationToken.token,
-      });
-    } catch (error) {
-      console.error("auth_email_delivery_failed", {
-        type: "verification",
-        provider: "resend",
-        error: error instanceof Error ? error.message : "unknown",
-      });
-    }
+    scheduleVerificationEmail({
+      email: created.user.email,
+      rawToken: created.verificationToken.rawToken,
+      tokenHash: created.verificationToken.token,
+    });
 
-    try {
-      const achievementRecord = await prisma.achievement.upsert({
-        where: { key: "first_steps" },
-        update: {},
-        create: {
-          key: "first_steps",
-          name: "First Steps",
-          description: "Create your account and start your journey",
-          icon: "footprints",
-          category: "explorer",
-          xpReward: 25,
-        },
-      });
+    after(async () => {
+      try {
+        const achievementRecord = await prisma.achievement.upsert({
+          where: { key: "first_steps" },
+          update: {},
+          create: {
+            key: "first_steps",
+            name: "First Steps",
+            description: "Create your account and start your journey",
+            icon: "footprints",
+            category: "explorer",
+            xpReward: 25,
+          },
+        });
 
-      await prisma.userAchievement.create({
-        data: {
-          userId: created.user.id,
-          achievementId: achievementRecord.id,
-        },
-      });
-      await addXp(created.user.id, 25, "achievement:first_steps");
-    } catch (error) {
-      console.error("Failed to award first_steps achievement:", error);
-    }
+        await prisma.userAchievement.create({
+          data: {
+            userId: created.user.id,
+            achievementId: achievementRecord.id,
+          },
+        });
+        await addXp(created.user.id, 25, "achievement:first_steps");
+      } catch {
+        console.error("auth_registration_achievement_failed", {
+          code: "achievement_award_failed",
+        });
+      }
+    });
 
-    // Intentionally do not return account-specific data.
-    return NextResponse.json({ accepted: true }, { status: 201 });
+    return NextResponse.json(
+      { accepted: true },
+      { status: 201, headers: { "Cache-Control": "no-store" } },
+    );
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { error: "Validation failed", details: error.issues },
-        { status: 400 },
+        { status: 400, headers: { "Cache-Control": "no-store" } },
       );
     }
-    console.error("Failed to register user:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    console.error("auth_registration_failed", { code: "registration_failed" });
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500, headers: { "Cache-Control": "no-store" } },
+    );
   }
 }
