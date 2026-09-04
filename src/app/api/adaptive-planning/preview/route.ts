@@ -33,6 +33,7 @@ export async function POST(request: Request) {
     proposalId: proposal.id,
     snapshotHash: proposal.snapshotHash,
     snapshot,
+    plan: proposal.plan,
     expiresAt: proposal.expiresAt,
   });
 
