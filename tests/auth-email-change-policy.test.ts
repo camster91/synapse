@@ -13,6 +13,14 @@ test("settings API refuses changing the verified email identity during RC1", () 
   assert.match(settingsRoute, /data\.email = currentIdentity\.email/);
 });
 
+test("settings identity responses are private and operational errors use fixed codes", () => {
+  assert.match(settingsRoute, /const noStoreHeaders = \{ "Cache-Control": "no-store" \}/);
+  assert.match(settingsRoute, /headers: noStoreHeaders/);
+  assert.match(settingsRoute, /settings_fetch_failed/);
+  assert.match(settingsRoute, /settings_update_failed/);
+  assert.doesNotMatch(settingsRoute, /console\.error\("Failed to (?:fetch|update) settings:", error\)/);
+});
+
 test("settings UI presents email as read-only instead of inviting an unsupported mutation", () => {
   assert.match(settingsPage, /type="email"/);
   assert.match(settingsPage, /readOnly/);
