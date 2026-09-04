@@ -30,6 +30,7 @@ test("email adapter uses the fixed Resend REST contract without an SDK dependenc
   assert.match(email, /Authorization: `Bearer \$\{config\.apiKey\}`/);
   assert.match(email, /"Content-Type": "application\/json"/);
   assert.match(email, /"Idempotency-Key": message\.idempotencyKey/);
+  assert.match(email, /AbortSignal\.timeout\(EMAIL_REQUEST_TIMEOUT_MS\)/);
   assert.doesNotMatch(email, /await response\.text/);
 });
 
@@ -38,7 +39,10 @@ test("disposable local sink requires exact opt-in and a loopback public URL", ()
   assert.match(email, /provider === "local-sink"/);
   assert.match(email, /AUTH_EMAIL_LOCAL_SINK !== LOCAL_SINK_OPT_IN/);
   assert.match(email, /isLoopbackHost\(baseUrl\.hostname\)/);
-  assert.match(email, /No recipient, body, or bearer token is written to logs or files/);
+  assert.match(
+    email,
+    /if \(config\.provider === "local-sink"\)[\s\S]*return \{ provider: config\.provider, id: null \}/,
+  );
 });
 
 test("bearer tokens use URL fragments and are removed from browser history", () => {
