@@ -74,8 +74,8 @@ export async function POST(request: Request) {
     // Always do password work before the existence branch so the public timing
     // contract does not cheaply expose registered accounts.
     const hashedPassword = await bcrypt.hash(data.password, 12);
-    const existingUser = await prisma.user.findUnique({
-      where: { email: data.email },
+    const existingUser = await prisma.user.findFirst({
+      where: { email: { equals: data.email, mode: "insensitive" } },
       include: {
         accounts: {
           where: { provider: "credentials" },
