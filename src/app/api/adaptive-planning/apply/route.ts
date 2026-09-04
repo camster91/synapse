@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { rebuildAdaptiveSnapshot } from "@/lib/adaptive-current-snapshot";
+import type { AdaptiveAcceptedRecommendation } from "@/lib/adaptive-mutations";
 import { buildAdaptivePlan } from "@/lib/adaptive-planning";
 import { hashPlanningSnapshot } from "@/lib/adaptive-proposals";
 import { applyAdaptiveChange } from "@/lib/adaptive-storage";
@@ -41,7 +42,7 @@ export async function POST(request: Request) {
 
   const proposal = buildAdaptivePlan(claims.snapshot);
   const proposedById = new Map(proposal.recommendations.map((item) => [item.itemId, item]));
-  const recommendations = [];
+  const recommendations: AdaptiveAcceptedRecommendation[] = [];
   for (const itemId of parsed.data.selectedItemIds) {
     const recommendation = proposedById.get(itemId);
     if (!recommendation || recommendation.action === "keep") {
