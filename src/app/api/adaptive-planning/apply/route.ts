@@ -2,9 +2,11 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { rebuildAdaptiveSnapshot } from "@/lib/adaptive-current-snapshot";
-import type { AdaptiveAcceptedRecommendation } from "@/lib/adaptive-mutations";
 import { hashPlanningSnapshot } from "@/lib/adaptive-proposals";
-import { applyAdaptiveChange } from "@/lib/adaptive-storage";
+import {
+  applyAdaptiveChange,
+  type AdaptiveApplyRecommendation,
+} from "@/lib/adaptive-storage";
 import { verifyAdaptiveConfirmation } from "@/lib/adaptive-token";
 
 const inputSchema = z.object({
@@ -40,10 +42,16 @@ export async function POST(request: Request) {
   }
 
   const proposedById = new Map(claims.plan.recommendations.map((item) => [item.itemId, item]));
-  const recommendations: AdaptiveAcceptedRecommendation[] = [];
+  const snapshotById = new Map(claims.snapshot.items.map((item) => [item.id, item]));
+  const recommendations: AdaptiveApplyRecommendation[] = [];
   for (const itemId of parsed.data.selectedItemIds) {
     const recommendation = proposedById.get(itemId);
-    if (!recommendation || recommendation.action === "keep") {
+    const snapshotItem = snapshotById.get(itemId);
+    if (
+      !recommendation ||
+      recommendation.action === "keep" ||
+      !snapshotItem?.updatedAt
+    ) {
       return NextResponse.json(
         { error: "Selected item is not an applicable signed recommendation" },
         { status: 409 },
@@ -55,6 +63,7 @@ export async function POST(request: Request) {
       targetScheduledAt: recommendation.targetScheduledAt,
       targetDeferredUntil: recommendation.targetDeferredUntil,
       targetEstimatedMinutes: recommendation.targetEstimatedMinutes,
+      expectedUpdatedAt: snapshotItem.updatedAt,
     });
   }
 
