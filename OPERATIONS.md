@@ -28,27 +28,69 @@ npm run backup
 
 Never pass real credentials in tickets, chat, screenshots, or committed files.
 
-## Authenticated lifecycle smoke
+## Transactional authentication email
 
-The lifecycle smoke creates one randomly credentialed synthetic account, signs in,
-creates a goal/habit/priority through onboarding, validates a portable export, proves
-wrong-password deletion fails without data loss, deletes with the correct credential,
-and proves the deleted credential cannot sign in again. When `DATABASE_URL` is
-provided, it also verifies zero remaining user and representative owned rows.
+Credentials accounts remain unable to sign in until their one-time verification
+marker is consumed. Verification and password-reset links expire after 30 minutes,
+are stored only as SHA-256 hashes, and are denied after their first successful use.
+A successful password reset rotates the private credentials-session version so older
+JWT sessions are rejected on their next authenticated server request.
 
-Run it against a disposable local database first:
+Production delivery uses the fixed Resend REST endpoint and must be explicitly
+configured. `AUTH_PUBLIC_URL` is the externally reachable origin placed in email
+links; it falls back to `NEXTAUTH_URL`. Raw bearer tokens are placed in URL fragments,
+not query strings, and delivery logs contain fixed event/error codes rather than
+addresses, token values, message bodies, or provider response bodies.
 
 ```bash
+EMAIL_PROVIDER='resend' \
+RESEND_API_KEY='operator-supplied-secret' \
+EMAIL_FROM='Synapse <no-reply@approved-domain.example>' \
+EMAIL_REPLY_TO='approved-support@example.com' \
+AUTH_PUBLIC_URL='https://approved-beta-host.example'
+```
+
+Before external testing, the owner must approve the provider, sender domain, mailbox,
+operator, and any spend. Verify SPF, DKIM, and DMARC alignment; deliver registration
+and password-reset messages to an operator-controlled mailbox; test expiry and replay
+denial; and retain only content-free evidence. Do not copy addresses, links, raw
+tokens, headers, or message content into issues or release notes.
+
+For disposable local QA only, `EMAIL_PROVIDER=file` writes private JSON messages to
+`AUTH_EMAIL_FILE_DIR`. The application refuses that provider when `NODE_ENV=production`
+and refuses any outbox inside `public/`. Treat the directory as secret material,
+restrict it to the operator, and delete it after the run.
+
+## Authenticated lifecycle smoke
+
+The lifecycle smoke creates one randomly credentialed synthetic account and now
+exercises the complete credentials journey: generic registration response, captured
+verification email, single-use verification, sign-in, onboarding, portable export,
+password-reset delivery, reset replay denial, old-session invalidation, old-password
+rejection, new-password sign-in, wrong-password deletion denial, confirmed deletion,
+and failed reauthentication. When `DATABASE_URL` is provided, it also verifies zero
+remaining user, authentication-token, session, and representative owned rows.
+
+Run it against a disposable local database. The application and smoke process must
+share the same private outbox directory:
+
+```bash
+EMAIL_PROVIDER='file' \
+AUTH_EMAIL_FILE_DIR='/absolute/private/path/synapse-auth-outbox' \
+NEXTAUTH_URL='http://127.0.0.1:3000' \
 LIFECYCLE_SMOKE_BASE_URL='http://127.0.0.1:3000' \
 LIFECYCLE_SMOKE_CONFIRM='create-and-delete-disposable-account' \
 DATABASE_URL='postgresql://…/synapse_disposable' \
 npm run smoke:lifecycle
 ```
 
+The command consumes and deletes the captured token files it uses, but the operator
+must still remove any residual outbox files and the disposable database afterward.
 The command refuses remote targets by default. A remote run creates and deletes an
 account in that deployment and therefore requires explicit release/operator approval
 immediately beforehand plus `LIFECYCLE_SMOKE_ALLOW_REMOTE=true`. Never point the
-database assertion at a different deployment from the HTTP target.
+database assertion at a different deployment from the HTTP target. This automated
+file-outbox run does not replace the separate external sender/mailbox evidence above.
 
 ## Restore drill
 
