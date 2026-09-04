@@ -37,7 +37,14 @@ export async function createAuthToken(
   const generated = generateAuthToken(purpose, userId, now);
 
   await prisma.$transaction(async (tx) => {
-    await tx.verificationToken.deleteMany({ where: { identifier: generated.identifier } });
+    // Keep still-valid links usable. Anonymous resend/recovery requests must not
+    // invalidate a link already delivered to the account owner's mailbox.
+    await tx.verificationToken.deleteMany({
+      where: {
+        identifier: generated.identifier,
+        expires: { lte: now },
+      },
+    });
     await tx.verificationToken.create({
       data: {
         identifier: generated.identifier,
