@@ -5,6 +5,10 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { hasPendingVerification } from "@/lib/auth-tokens";
 
+// Missing accounts still perform password work so credential responses do not
+// cheaply expose account existence through a timing difference.
+const dummyPasswordHash = bcrypt.hash("synapse-invalid-credentials", 12);
+
 declare module "next-auth" {
   interface Session {
     user: {
@@ -21,9 +25,18 @@ declare module "next-auth/jwt" {
     id?: string;
     xp?: number;
     level?: number;
+    credentialSession?: boolean;
     credentialVersion?: string | null;
     credentialsInvalidated?: boolean;
   }
+}
+
+function invalidateCredentialToken(token: {
+  id?: string;
+  credentialsInvalidated?: boolean;
+}) {
+  token.id = "";
+  token.credentialsInvalidated = true;
 }
 
 export const authOptions: NextAuthOptions = {
@@ -38,7 +51,7 @@ export const authOptions: NextAuthOptions = {
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) {
-          throw new Error("Email and password are required");
+          throw new Error("Invalid email or password");
         }
 
         const email = credentials.email.trim().toLowerCase();
@@ -50,12 +63,9 @@ export const authOptions: NextAuthOptions = {
           include: { user: true },
         });
 
-        if (!account || !account.accessToken) {
-          throw new Error("Invalid email or password");
-        }
-
-        const passwordMatch = await bcrypt.compare(credentials.password, account.accessToken);
-        if (!passwordMatch) {
+        const passwordHash = account?.accessToken ?? await dummyPasswordHash;
+        const passwordMatch = await bcrypt.compare(credentials.password, passwordHash);
+        if (!account?.accessToken || !passwordMatch) {
           throw new Error("Invalid email or password");
         }
 
@@ -78,47 +88,58 @@ export const authOptions: NextAuthOptions = {
   },
 
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, account }) {
       if (user) {
+        const credentialSession = account?.provider === "credentials";
         token.id = user.id;
+        token.credentialSession = credentialSession;
         token.credentialsInvalidated = false;
-        const [dbUser, credentialsAccount] = await Promise.all([
-          prisma.user.findUnique({
-            where: { id: user.id },
-            select: { xp: true, level: true },
-          }),
-          prisma.account.findFirst({
-            where: { userId: user.id, provider: "credentials" },
-            select: { refreshToken: true },
-          }),
-        ]);
+
+        const dbUser = await prisma.user.findUnique({
+          where: { id: user.id },
+          select: { xp: true, level: true },
+        });
         token.xp = dbUser?.xp ?? 0;
         token.level = dbUser?.level ?? 1;
-        token.credentialVersion = credentialsAccount?.refreshToken ?? null;
+
+        if (credentialSession) {
+          const credentialsAccount = await prisma.account.findFirst({
+            where: { userId: user.id, provider: "credentials" },
+            select: { refreshToken: true },
+          });
+          token.credentialVersion = credentialsAccount?.refreshToken ?? null;
+        } else {
+          delete token.credentialVersion;
+        }
         return token;
       }
 
-      if (token.id && !token.credentialsInvalidated) {
+      // Tokens issued before credentialSession existed can be identified by the
+      // version claim already added by the previous credentials implementation.
+      if (token.credentialSession === undefined && token.credentialVersion !== undefined) {
+        token.credentialSession = true;
+      }
+
+      if (token.id && token.credentialSession && !token.credentialsInvalidated) {
         const credentialsAccount = await prisma.account.findFirst({
           where: { userId: token.id, provider: "credentials" },
           select: { refreshToken: true },
         });
 
-        if (credentialsAccount) {
+        if (!credentialsAccount) {
+          invalidateCredentialToken(token);
+        } else {
           const currentVersion = credentialsAccount.refreshToken ?? null;
           if (token.credentialVersion === undefined) {
-            // A legacy JWT can adopt the legacy null version, but if the
-            // credentials row already has a version then a reset/new login has
-            // happened and this old JWT must not adopt it retroactively.
+            // A legacy JWT can adopt only the legacy null version. If a random
+            // version already exists, a reset or newer sign-in has occurred.
             if (currentVersion === null) {
               token.credentialVersion = null;
             } else {
-              token.id = "";
-              token.credentialsInvalidated = true;
+              invalidateCredentialToken(token);
             }
           } else if (token.credentialVersion !== currentVersion) {
-            token.id = "";
-            token.credentialsInvalidated = true;
+            invalidateCredentialToken(token);
           }
         }
       }
@@ -128,9 +149,15 @@ export const authOptions: NextAuthOptions = {
 
     async session({ session, token }) {
       if (token && session.user) {
-        session.user.id = token.credentialsInvalidated ? "" : token.id ?? "";
-        (session as unknown as Record<string, unknown>).xp = token.xp ?? 0;
-        (session as unknown as Record<string, unknown>).level = token.level ?? 1;
+        const invalidated = Boolean(token.credentialsInvalidated || !token.id);
+        session.user.id = invalidated ? "" : token.id ?? "";
+        if (invalidated) {
+          session.user.name = null;
+          session.user.email = null;
+          session.user.image = null;
+        }
+        (session as unknown as Record<string, unknown>).xp = invalidated ? 0 : token.xp ?? 0;
+        (session as unknown as Record<string, unknown>).level = invalidated ? 0 : token.level ?? 1;
       }
       return session;
     },
@@ -143,12 +170,10 @@ export const authOptions: NextAuthOptions = {
   secret: process.env.NEXTAUTH_SECRET,
 };
 
-/**
- * Get the current session on the server side (App Router).
- * Use this in server components and API routes.
- */
+/** Get the current App Router session, excluding revoked credential tokens. */
 export async function auth() {
-  return getServerSession(authOptions);
+  const session = await getServerSession(authOptions);
+  return session?.user?.id ? session : null;
 }
 
 export default NextAuth(authOptions);
