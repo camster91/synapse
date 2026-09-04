@@ -36,7 +36,26 @@ wrong-password deletion fails without data loss, deletes with the correct creden
 and proves the deleted credential cannot sign in again. When `DATABASE_URL` is
 provided, it also verifies zero remaining user and representative owned rows.
 
-Run it against a disposable local database first:
+Email verification is deliberately separated from this #29 runtime/database exercise.
+For a loopback disposable deployment only, the application may use the built-in local
+email sink and the smoke command removes only its randomly generated account's pending
+verification marker directly from the same disposable database. The sink discards the
+email without logging or writing the recipient, body, or raw bearer token. This proves
+neither external delivery nor the verification-link journey and **does not satisfy #60**.
+
+For the disposable app process/container only, configure:
+
+```bash
+EMAIL_PROVIDER='local-sink'
+AUTH_EMAIL_LOCAL_SINK='disposable-lifecycle-only'
+NEXTAUTH_URL='http://127.0.0.1:3000'
+```
+
+`AUTH_PUBLIC_URL`, when supplied instead of `NEXTAUTH_URL` for authentication links,
+must also be loopback for the local sink to activate. Never use the local sink on an
+approved beta/public hostname.
+
+Run the lifecycle command against the same disposable database:
 
 ```bash
 LIFECYCLE_SMOKE_BASE_URL='http://127.0.0.1:3000' \
@@ -45,10 +64,11 @@ DATABASE_URL='postgresql://…/synapse_disposable' \
 npm run smoke:lifecycle
 ```
 
-The command refuses remote targets by default. A remote run creates and deletes an
-account in that deployment and therefore requires explicit release/operator approval
-immediately beforehand plus `LIFECYCLE_SMOKE_ALLOW_REMOTE=true`. Never point the
-database assertion at a different deployment from the HTTP target.
+The command refuses remote targets by default. Although remote authorization still
+requires `LIFECYCLE_SMOKE_ALLOW_REMOTE=true` and explicit release/operator approval,
+the script will not bypass email verification for a remote hostname. Complete the
+approved external-email journey separately under #60 instead of weakening that gate.
+Never point the database assertion at a different deployment from the HTTP target.
 
 ## Restore drill
 
