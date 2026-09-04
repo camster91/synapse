@@ -9,6 +9,10 @@ import {
   type AdaptiveTodoStatus,
 } from "@/lib/adaptive-mutations";
 
+export interface AdaptiveApplyRecommendation extends AdaptiveAcceptedRecommendation {
+  expectedUpdatedAt: string;
+}
+
 const todoStateSelect = {
   id: true,
   status: true,
@@ -69,7 +73,7 @@ export async function loadAdaptiveTodoStates(userId: string, itemIds: string[]) 
 export async function applyAdaptiveChange(input: {
   userId: string;
   proposalId: string;
-  recommendations: AdaptiveAcceptedRecommendation[];
+  recommendations: AdaptiveApplyRecommendation[];
   undoWindowMinutes?: number;
 }) {
   if (input.recommendations.length === 0) {
@@ -100,6 +104,24 @@ export async function applyAdaptiveChange(input: {
         select: todoStateSelect,
       });
       const current = rows.map(serializeTodo);
+      const expectedRevisionById = new Map(
+        input.recommendations.map((recommendation) => [
+          recommendation.itemId,
+          recommendation.expectedUpdatedAt,
+        ]),
+      );
+      for (const todo of current) {
+        const expectedUpdatedAt = expectedRevisionById.get(todo.id);
+        const expectedDate = expectedUpdatedAt ? new Date(expectedUpdatedAt) : null;
+        if (
+          !expectedDate ||
+          Number.isNaN(expectedDate.getTime()) ||
+          todo.updatedAt !== expectedDate.toISOString()
+        ) {
+          throw new Error("Adaptive plan changed before apply");
+        }
+      }
+
       const mutations = buildAdaptiveMutations(current, input.recommendations);
       const appliedAt = new Date();
       const undoExpiresAt = new Date(
@@ -111,11 +133,13 @@ export async function applyAdaptiveChange(input: {
       }));
 
       for (const mutation of resolvedMutations) {
+        const expectedUpdatedAt = expectedRevisionById.get(mutation.itemId);
+        if (!expectedUpdatedAt) throw new Error("Adaptive plan changed before apply");
         const updated = await tx.todo.updateMany({
           where: {
             id: mutation.itemId,
             userId: input.userId,
-            updatedAt: new Date(mutation.before.updatedAt),
+            updatedAt: new Date(expectedUpdatedAt),
           },
           data: {
             scheduledAt: mutation.after.scheduledAt ? new Date(mutation.after.scheduledAt) : null,
@@ -202,14 +226,14 @@ export async function undoAdaptiveChange(input: { userId: string; changeId: stri
 
     for (const prior of before) {
       const applied = afterById.get(prior.id);
-      const current = currentById.get(prior.id);
-      if (!applied || !current) throw new Error("Adaptive undo state is incomplete");
-      const undo = buildUndoState({ itemId: prior.id, before: prior, after: applied }, current);
+      const currentTodo = currentById.get(prior.id);
+      if (!applied || !currentTodo) throw new Error("Adaptive undo state is incomplete");
+      const undo = buildUndoState({ itemId: prior.id, before: prior, after: applied }, currentTodo);
       const updated = await tx.todo.updateMany({
         where: {
           id: prior.id,
           userId: input.userId,
-          updatedAt: new Date(current.updatedAt),
+          updatedAt: new Date(currentTodo.updatedAt),
         },
         data: {
           status: undo.status,
