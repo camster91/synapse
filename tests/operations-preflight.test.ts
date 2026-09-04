@@ -33,7 +33,7 @@ function withEnv(values: Record<string, string | undefined>, run: () => void) {
 }
 
 const valid = {
-  SYNAPSE_MANAGED_HOST_URL: "https://synapse.example.test",
+  SYNAPSE_MANAGED_HOST_URL: "https://beta.synapse.ashbi.ca",
   SYNAPSE_BACKUP_DESTINATION_ID: "encrypted-offsite-primary",
   SYNAPSE_BACKUP_OFFSITE_CONFIRMED: "true",
   SYNAPSE_BACKUP_ENCRYPTION_CONFIRMED: "true",
@@ -51,12 +51,45 @@ test("operations preflight fails closed on missing decisions or attestations", (
   });
 });
 
-test("operations preflight rejects unsafe or placeholder host decisions", () => {
-  withEnv({ ...valid, SYNAPSE_MANAGED_HOST_URL: "http://example.test" }, () => {
-    assert.throws(() => buildOperationsPreflight(), /HTTPS URL/);
+test("operations preflight accepts only an approved HTTPS origin", () => {
+  for (const unsafeHost of [
+    "http://beta.synapse.ashbi.ca",
+    "https://user:secret@beta.synapse.ashbi.ca",
+    "https://beta.synapse.ashbi.ca/path",
+    "https://beta.synapse.ashbi.ca/?token=secret",
+    "https://localhost",
+    "https://beta.example.test",
+  ]) {
+    withEnv({ ...valid, SYNAPSE_MANAGED_HOST_URL: unsafeHost }, () => {
+      assert.throws(() => buildOperationsPreflight(), /approved HTTPS origin|absolute HTTPS origin/);
+    });
+  }
+});
+
+test("operations preflight rejects placeholder or unsafe decision identifiers", () => {
+  for (const responderId of ["TBD", "test-operator", "ab", "route?token=secret", "operator name"]) {
+    withEnv({ ...valid, SYNAPSE_RESPONDER_ID: responderId }, () => {
+      assert.throws(
+        () => buildOperationsPreflight(),
+        /not approved\/configured|opaque identifier/,
+      );
+    });
+  }
+});
+
+test("operations preflight enforces bounded objectives and retention consistency", () => {
+  withEnv({ ...valid, SYNAPSE_BACKUP_RETENTION_DAYS: "0" }, () => {
+    assert.throws(() => buildOperationsPreflight(), /supported operating range/);
   });
-  withEnv({ ...valid, SYNAPSE_RESPONDER_ID: "TBD" }, () => {
-    assert.throws(() => buildOperationsPreflight(), /not approved\/configured/);
+  withEnv({ ...valid, SYNAPSE_RTO_MINUTES: "10081" }, () => {
+    assert.throws(() => buildOperationsPreflight(), /supported operating range/);
+  });
+  withEnv({
+    ...valid,
+    SYNAPSE_BACKUP_RETENTION_DAYS: "1",
+    SYNAPSE_RPO_MINUTES: "1441",
+  }, () => {
+    assert.throws(() => buildOperationsPreflight(), /cannot exceed the approved retention window/);
   });
 });
 
@@ -65,12 +98,20 @@ test("operations preflight reports only non-sensitive readiness aggregates", () 
     const result = buildOperationsPreflight();
     assert.equal(result.decisionReady, true);
     assert.equal(result.operationalEvidenceVerified, false);
-    assert.equal(result.retentionDays, 30);
-    assert.equal(result.rpoMinutes, 1440);
-    assert.equal(result.rtoMinutes, 240);
+    assert.equal(result.objectives.retentionDays, 30);
+    assert.equal(result.objectives.rpoMinutes, 1440);
+    assert.equal(result.objectives.rtoMinutes, 240);
+    assert.deepEqual(result.configured, {
+      managedHost: true,
+      backupDestination: true,
+      alertDestination: true,
+      responder: true,
+      offsiteBackup: true,
+      encryptedBackup: true,
+    });
 
     const serialized = JSON.stringify(result);
-    assert.doesNotMatch(serialized, /synapse\.example\.test/);
+    assert.doesNotMatch(serialized, /beta\.synapse\.ashbi\.ca/);
     assert.doesNotMatch(serialized, /encrypted-offsite-primary/);
     assert.doesNotMatch(serialized, /managed-beta-alert-route/);
     assert.doesNotMatch(serialized, /primary-operator/);
