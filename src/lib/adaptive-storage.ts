@@ -147,7 +147,10 @@ export async function applyAdaptiveChange(input: {
       };
     });
   } catch (error) {
-    if (hasPrismaCode(error, "P2002")) {
+    // A concurrent replay may either hit the unique proposal index or lose the
+    // optimistic Todo update after the first transaction commits. In both cases,
+    // return the already-persisted result instead of reporting a false conflict.
+    if (hasPrismaCode(error, "P2002") || (error instanceof Error && error.message === "Adaptive plan changed before apply")) {
       const existing = await prisma.adaptivePlanChange.findFirst({
         where: { proposalId: input.proposalId, userId: input.userId },
         select: { id: true, afterState: true, undoExpiresAt: true },
