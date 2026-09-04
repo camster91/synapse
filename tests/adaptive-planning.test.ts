@@ -138,7 +138,10 @@ test("returns noChange when all remaining work fits", () => {
       { id: "two", priority: 2, estimatedMinutes: 45, ...targets() },
     ],
   });
+  assert.equal(proposal.plannerVersion, 1);
+  assert.equal(proposal.reasonCodeVersion, 1);
   assert.equal(proposal.noChange, true);
+  assert.equal(proposal.requiresAttention, false);
   assert.ok(proposal.recommendations.every((item) => item.action === "keep"));
 });
 
@@ -155,6 +158,9 @@ test("keeps a task visible when its deadline arrives before the safe move target
       moveTargetAt: "2026-09-04T09:00:00-04:00",
     }],
   });
+
   assert.equal(proposal.recommendations[0]?.action, "keep");
   assert.ok(proposal.recommendations[0]?.reasonCodes.includes("deadline_conflict"));
+  assert.equal(proposal.requiresAttention, true);
+  assert.equal(proposal.noChange, false);
 });
