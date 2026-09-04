@@ -48,6 +48,23 @@ test("authentication tokens are random, hashed at rest, time limited, and single
   assert.match(resetRoute, /expires: \{ gt: now \}/);
 });
 
+test("anonymous reissue keeps delivered valid links usable until one succeeds", () => {
+  assert.match(tokens, /expires: \{ lte: now \}/);
+  assert.doesNotMatch(
+    tokens,
+    /deleteMany\(\{ where: \{ identifier: generated\.identifier \} \}\)/,
+  );
+  assert.match(verifyRoute, /await prisma\.\$transaction\(async \(tx\) =>/);
+  assert.match(
+    verifyRoute,
+    /await tx\.verificationToken\.deleteMany\(\{\s+where: \{ identifier: token\.identifier \}/,
+  );
+  assert.match(
+    resetRoute,
+    /await tx\.verificationToken\.deleteMany\(\{\s+where: \{ identifier: token\.identifier \}/,
+  );
+});
+
 test("registration, login, resend, and recovery keep generic public failures", () => {
   assert.match(registerRoute, /\{ accepted: true \}/);
   assert.match(resendRoute, /\{ accepted: true \}/);
