@@ -1,5 +1,5 @@
 export type PlanningCapacity = "low" | "normal" | "high";
-export type PlanningAction = "keep" | "move" | "drop";
+export type PlanningAction = "keep" | "shorten" | "move" | "drop";
 
 export type PlanningReasonCode =
   | "due_soon"
@@ -9,16 +9,21 @@ export type PlanningReasonCode =
   | "insufficient_time"
   | "low_capacity"
   | "unknown_effort"
-  | "lower_relevance";
+  | "lower_relevance"
+  | "minimum_viable"
+  | "bounded_deferral";
 
 export interface PlanningItem {
   id: string;
   priority: number;
   dueAt?: string | null;
   estimatedMinutes?: number | null;
+  minimumMinutes?: number | null;
   goalId?: string | null;
   completed?: boolean;
   scheduledAt?: string | null;
+  moveTargetAt?: string | null;
+  dropUntil?: string | null;
 }
 
 export interface PlanningSnapshot {
@@ -35,6 +40,9 @@ export interface PlanningRecommendation {
   reasonCodes: PlanningReasonCode[];
   explanation: string;
   score: number;
+  targetScheduledAt?: string | null;
+  targetDeferredUntil?: string | null;
+  targetEstimatedMinutes?: number | null;
 }
 
 export interface PlanningProposal {
@@ -60,6 +68,11 @@ function validEffort(minutes: number | null | undefined) {
     : null;
 }
 
+function validMinimum(item: PlanningItem, effort: number) {
+  const minimum = validEffort(item.minimumMinutes);
+  return minimum !== null && minimum < effort ? minimum : null;
+}
+
 function hoursUntil(now: Date, dueAt?: string | null) {
   if (!dueAt) return null;
   const due = new Date(dueAt);
@@ -81,7 +94,6 @@ function scoreItem(item: PlanningItem, now: Date) {
 
   if (item.goalId) score += 12;
   if (item.scheduledAt) score += 8;
-
   return score;
 }
 
@@ -93,16 +105,22 @@ function baseReasons(item: PlanningItem, now: Date): PlanningReasonCode[] {
   if (dueHours !== null && dueHours <= 72) reasons.push("due_soon");
   if (priority >= 4) reasons.push("high_priority");
   if (item.goalId) reasons.push("goal_linked");
-
   return reasons;
 }
 
 function explain(action: PlanningAction, reasons: PlanningReasonCode[]) {
   if (action === "keep") {
+    if (reasons.includes("unknown_effort")) {
+      return "Keep this important item, but add an effort estimate before assuming anything else fits.";
+    }
     if (reasons.includes("due_soon")) return "Keep this because its deadline is close and it still fits the revised day.";
     if (reasons.includes("high_priority")) return "Keep this because it is one of the highest-priority remaining items.";
     if (reasons.includes("goal_linked")) return "Keep this because it directly advances an active goal and still fits.";
     return "Keep this because it fits the remaining time better than lower-ranked work.";
+  }
+
+  if (action === "shorten") {
+    return "Use the minimum version you explicitly defined so the intent still fits today.";
   }
 
   if (action === "move") {
@@ -111,12 +129,13 @@ function explain(action: PlanningAction, reasons: PlanningReasonCode[]) {
     return "Move this because the revised day does not have enough reliable capacity for it.";
   }
 
-  return "Remove this from Today because higher-value work already consumes the remaining capacity.";
+  return "Remove this from Today until tomorrow because higher-value work consumes the remaining capacity.";
 }
 
 export function buildAdaptivePlan(snapshot: PlanningSnapshot): PlanningProposal {
   const now = new Date(snapshot.now);
   if (Number.isNaN(now.getTime())) throw new Error("Invalid planning snapshot time");
+  if (!(snapshot.capacity in CAPACITY_MULTIPLIER)) throw new Error("Invalid planning capacity");
 
   const remainingMinutes = Number.isFinite(snapshot.remainingMinutes)
     ? Math.max(0, Math.round(snapshot.remainingMinutes))
@@ -144,17 +163,30 @@ export function buildAdaptivePlan(snapshot: PlanningSnapshot): PlanningProposal 
 
   for (const candidate of candidates) {
     const reasons = baseReasons(candidate.item, now);
+    const important = reasons.includes("due_soon") || reasons.includes("high_priority");
 
     if (candidate.effort === null) {
-      const action: PlanningAction = reasons.includes("due_soon") || reasons.includes("high_priority") ? "keep" : "move";
-      const reasonCodes = action === "keep" ? [...reasons, "unknown_effort"] : [...reasons, "unknown_effort"];
-      recommendations.push({
-        itemId: candidate.item.id,
-        action,
-        reasonCodes,
-        explanation: explain(action, reasonCodes),
-        score: candidate.score,
-      });
+      if (important && available > 0) {
+        const reasonCodes: PlanningReasonCode[] = [...reasons, "unknown_effort"];
+        recommendations.push({
+          itemId: candidate.item.id,
+          action: "keep",
+          reasonCodes,
+          explanation: explain("keep", reasonCodes),
+          score: candidate.score,
+        });
+        available = 0;
+      } else {
+        const reasonCodes: PlanningReasonCode[] = [...reasons, "unknown_effort", "insufficient_time"];
+        recommendations.push({
+          itemId: candidate.item.id,
+          action: "move",
+          reasonCodes,
+          explanation: explain("move", reasonCodes),
+          score: candidate.score,
+          targetScheduledAt: candidate.item.moveTargetAt ?? null,
+        });
+      }
       continue;
     }
 
@@ -171,13 +203,32 @@ export function buildAdaptivePlan(snapshot: PlanningSnapshot): PlanningProposal 
       continue;
     }
 
-    const important = reasons.includes("due_soon") || reasons.includes("high_priority");
+    const minimum = validMinimum(candidate.item, candidate.effort);
+    if (minimum !== null && minimum <= available) {
+      available -= minimum;
+      const reasonCodes: PlanningReasonCode[] = [
+        ...reasons,
+        "insufficient_time",
+        "minimum_viable",
+        ...(snapshot.capacity === "low" ? (["low_capacity"] as PlanningReasonCode[]) : []),
+      ];
+      recommendations.push({
+        itemId: candidate.item.id,
+        action: "shorten",
+        reasonCodes,
+        explanation: explain("shorten", reasonCodes),
+        score: candidate.score,
+        targetEstimatedMinutes: minimum,
+      });
+      continue;
+    }
+
     const action: PlanningAction = important ? "move" : "drop";
     const reasonCodes: PlanningReasonCode[] = [
       ...reasons,
       "insufficient_time",
       ...(snapshot.capacity === "low" ? (["low_capacity"] as PlanningReasonCode[]) : []),
-      ...(important ? [] : (["lower_relevance"] as PlanningReasonCode[])),
+      ...(important ? [] : (["lower_relevance", "bounded_deferral"] as PlanningReasonCode[])),
     ];
     recommendations.push({
       itemId: candidate.item.id,
@@ -185,10 +236,14 @@ export function buildAdaptivePlan(snapshot: PlanningSnapshot): PlanningProposal 
       reasonCodes,
       explanation: explain(action, reasonCodes),
       score: candidate.score,
+      targetScheduledAt: action === "move" ? candidate.item.moveTargetAt ?? null : undefined,
+      targetDeferredUntil: action === "drop" ? candidate.item.dropUntil ?? null : undefined,
     });
   }
 
-  const noChange = recommendations.every((recommendation) => recommendation.action === "keep");
-
-  return { effectiveMinutes, recommendations, noChange };
+  return {
+    effectiveMinutes,
+    recommendations,
+    noChange: recommendations.every((recommendation) => recommendation.action === "keep"),
+  };
 }
