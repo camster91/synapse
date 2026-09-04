@@ -34,7 +34,7 @@ test("local lifecycle bypasses only its disposable marker under the explicit sin
   assert.match(operations, /does not satisfy #60/);
   assert.match(operations, /EMAIL_PROVIDER='local-sink'/);
   assert.match(operations, /AUTH_EMAIL_LOCAL_SINK='disposable-lifecycle-only'/);
-  assert.match(operations, /Never use the local sink on an approved beta\/public hostname/);
+  assert.match(operations, /Never use the local sink on an\s+approved beta\/public hostname/);
 });
 
 test("lifecycle smoke fails closed without confirmation and remote authorization", () => {
