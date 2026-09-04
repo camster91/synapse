@@ -19,7 +19,11 @@ test("new credentials registrations remain blocked until their durable marker is
   assert.match(registerRoute, /tx\.account\.create/);
   assert.match(registerRoute, /durable[\s\S]*unverified-account marker/);
   assert.match(auth, /hasPendingVerification/);
-  assert.match(auth, /Email verification required/);
+  assert.match(
+    auth,
+    /if \(await hasPendingVerification\(account\.user\.id\)\) \{\s+return null;\s+\}/,
+  );
+  assert.doesNotMatch(auth, /Email verification required/);
   assert.match(registerRoute, /\{ accepted: true \}/);
   assert.doesNotMatch(registerRoute, /createdAt: user\.createdAt/);
   assert.doesNotMatch(registerPage, /signIn\("credentials"/);
@@ -44,13 +48,15 @@ test("authentication tokens are random, hashed at rest, time limited, and single
   assert.match(resetRoute, /expires: \{ gt: now \}/);
 });
 
-test("registration, resend, and recovery keep generic public responses", () => {
+test("registration, login, resend, and recovery keep generic public failures", () => {
   assert.match(registerRoute, /\{ accepted: true \}/);
   assert.match(resendRoute, /\{ accepted: true \}/);
   assert.match(forgotRoute, /\{ accepted: true \}/);
   assert.doesNotMatch(registerRoute, /account with this email already exists/i);
   assert.doesNotMatch(resendRoute, /User not found/);
   assert.doesNotMatch(forgotRoute, /User not found/);
+  assert.match(auth, /if \(!credentials\?\.email \|\| !credentials\?\.password\) \{\s+return null/);
+  assert.match(auth, /if \(!account\?\.accessToken \|\| !passwordMatch\) \{\s+return null/);
 });
 
 test("provider work runs after the response path and logs only fixed codes", () => {
