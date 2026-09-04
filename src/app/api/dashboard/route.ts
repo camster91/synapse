@@ -46,14 +46,14 @@ export async function GET() {
             {
               OR: [
                 { scheduledAt: { gte: today, lt: tomorrow } },
-                { dueDate: { lt: habitTomorrow } },
+                { dueDate: { lt: tomorrow } },
                 { scheduledAt: null, dueDate: null, priority: { gte: 3 } },
               ],
             },
             { OR: [{ deferredUntil: null }, { deferredUntil: { lte: now } }] },
           ],
         },
-        orderBy: [{ priority: "desc" }, { sortOrder: "asc" }],
+        orderBy: [{ priority: "desc" }, { sortOrder: "asc" }, { id: "asc" }],
         take: 10,
         include: {
           tags: { select: { id: true, name: true, color: true } },
