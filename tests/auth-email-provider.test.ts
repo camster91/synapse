@@ -29,6 +29,14 @@ test("email adapter uses the documented Resend REST contract without an SDK depe
   assert.match(email, /"Idempotency-Key": message\.idempotencyKey/);
 });
 
+test("disposable local email sink requires exact opt-in and loopback public URL", () => {
+  assert.match(email, /LOCAL_SINK_OPT_IN = "disposable-lifecycle-only"/);
+  assert.match(email, /provider === "local-sink"/);
+  assert.match(email, /AUTH_EMAIL_LOCAL_SINK !== LOCAL_SINK_OPT_IN/);
+  assert.match(email, /isLoopbackHost\(baseUrl\.hostname\)/);
+  assert.match(email, /No recipient, body, or bearer token is written to logs or files/);
+});
+
 test("authentication links keep bearer tokens in URL fragments rather than request query strings", () => {
   assert.match(email, /url\.hash = new URLSearchParams\(\{ token: rawToken \}\)\.toString\(\)/);
   assert.match(email, /input\.tokenHash\.slice\(0, 24\)/);
