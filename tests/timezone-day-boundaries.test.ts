@@ -31,7 +31,9 @@ test("Today and habit logging use the account timezone for customer-visible days
   const dashboard = readFileSync("src/components/DashboardPage.tsx", "utf8");
   const habitLog = readFileSync("src/app/api/habits/[id]/log/route.ts", "utf8");
 
-  assert.match(dashboardApi, /localDayBounds\(new Date\(\), timezone\)/);
+  assert.match(dashboardApi, /const now = new Date\(\)/);
+  assert.match(dashboardApi, /localDayBounds\(now, timezone\)/);
+  assert.match(dashboardApi, /dueDate: \{ lt: tomorrow \}/);
   assert.match(dashboardApi, /timezone,/);
   assert.match(dashboard, /localDayKey\(new Date\(\), data\.timezone\)/);
   assert.match(dashboard, /zonedDateTimeToUtc\(tomorrowDay, \{ hour: 9 \}, data\.timezone\)/);

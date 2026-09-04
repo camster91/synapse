@@ -12,25 +12,18 @@ export async function GET() {
   }
 
   const userId = session.user.id;
-
   try {
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: {
-        xp: true,
-        level: true,
-        streakDays: true,
-        name: true,
-        timezone: true,
-      },
+      select: { xp: true, level: true, streakDays: true, name: true, timezone: true },
     });
     const timezone = safeTimeZone(user?.timezone ?? "UTC");
-    const { dayKey, start: today, end: tomorrow } = localDayBounds(new Date(), timezone);
+    const now = new Date();
+    const { dayKey, start: today, end: tomorrow } = localDayBounds(now, timezone);
     const habitToday = dateOnlyToUtc(dayKey);
     const habitTomorrow = dateOnlyToUtc(addDaysToDayKey(dayKey, 1));
     const threeDaysAgo = dateOnlyToUtc(addDaysToDayKey(dayKey, -3));
 
-    // Run all queries in parallel
     const [
       habitsWithLogs,
       activeTodos,
@@ -40,68 +33,48 @@ export async function GET() {
       activeGoals,
       inboxItems,
     ] = await Promise.all([
-      // Today's habits with today's logs
       prisma.habit.findMany({
         where: { userId, archived: false },
-        include: {
-          logs: {
-            where: {
-              date: { gte: habitToday, lt: habitTomorrow },
-            },
-          },
-        },
+        include: { logs: { where: { date: { gte: habitToday, lt: habitTomorrow } } } },
         orderBy: { sortOrder: "asc" },
       }),
-
-      // Active todos (top 10 by priority)
       prisma.todo.findMany({
         where: {
           userId,
           status: { in: ["INBOX", "TODO", "IN_PROGRESS"] },
-          OR: [
-            { scheduledAt: { gte: today, lt: tomorrow } },
-            { dueDate: { lt: habitTomorrow } },
-            { scheduledAt: null, dueDate: null, priority: { gte: 3 } },
+          AND: [
+            {
+              OR: [
+                { scheduledAt: { gte: today, lt: tomorrow } },
+                { dueDate: { lt: tomorrow } },
+                { scheduledAt: null, dueDate: null, priority: { gte: 3 } },
+              ],
+            },
+            { OR: [{ deferredUntil: null }, { deferredUntil: { lte: now } }] },
           ],
         },
-        orderBy: [{ priority: "desc" }, { sortOrder: "asc" }],
+        orderBy: [{ priority: "desc" }, { sortOrder: "asc" }, { id: "asc" }],
         take: 10,
         include: {
           tags: { select: { id: true, name: true, color: true } },
           goal: { select: { id: true, title: true } },
         },
       }),
-
-      // Today's calendar events
       prisma.calendarEvent.findMany({
-        where: {
-          userId,
-          startAt: { gte: today, lt: tomorrow },
-        },
+        where: { userId, startAt: { gte: today, lt: tomorrow } },
         orderBy: { startAt: "asc" },
       }),
-
-      // Recent journal entry (last 3 days)
       prisma.journal.findFirst({
-        where: {
-          userId,
-          date: { gte: threeDaysAgo },
-        },
+        where: { userId, date: { gte: threeDaysAgo } },
         orderBy: { date: "desc" },
       }),
-
-      // Unprocessed inbox count
-      prisma.inboxItem.count({
-        where: { userId, processed: false },
-      }),
-
+      prisma.inboxItem.count({ where: { userId, processed: false } }),
       prisma.goal.findMany({
         where: { userId, status: "ACTIVE" },
         orderBy: [{ level: "asc" }, { createdAt: "desc" }],
         take: 3,
         select: { id: true, title: true, level: true, progress: true },
       }),
-
       prisma.inboxItem.findMany({
         where: { userId, processed: false },
         orderBy: { createdAt: "desc" },
@@ -110,24 +83,14 @@ export async function GET() {
       }),
     ]);
 
-    // Calculate habits completed / total for today
     const habitsCompleted = habitsWithLogs.filter(
-      (h) => h.logs.length > 0 && h.logs.some((log) => log.count >= h.targetCount)
+      (habit) => habit.logs.some((log) => log.count >= habit.targetCount),
     ).length;
-    const habitsTotal = habitsWithLogs.length;
 
-    await recordProductEvent({
-      userId,
-      name: "TODAY_OPENED",
-      timezone,
-    });
+    await recordProductEvent({ userId, name: "TODAY_OPENED", timezone });
 
     return NextResponse.json({
-      habits: {
-        items: habitsWithLogs,
-        completed: habitsCompleted,
-        total: habitsTotal,
-      },
+      habits: { items: habitsWithLogs, completed: habitsCompleted, total: habitsWithLogs.length },
       todos: activeTodos,
       events: todayEvents,
       user: {
@@ -144,9 +107,6 @@ export async function GET() {
     });
   } catch (error) {
     console.error("Failed to load dashboard:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

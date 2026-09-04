@@ -7,7 +7,7 @@ import {
   type PlanningSnapshot,
 } from "@/lib/adaptive-planning";
 
-export const ADAPTIVE_PROPOSAL_VERSION = 1;
+export const ADAPTIVE_PROPOSAL_VERSION = 2;
 export const ADAPTIVE_PROPOSAL_TTL_MS = 15 * 60 * 1000;
 
 export interface AdaptiveProposalInput {
@@ -38,9 +38,13 @@ function canonicalSnapshot(snapshot: PlanningSnapshot) {
       priority: item.priority,
       dueAt: item.dueAt ?? null,
       estimatedMinutes: item.estimatedMinutes ?? null,
+      minimumMinutes: item.minimumMinutes ?? null,
       goalId: item.goalId ?? null,
       completed: item.completed ?? false,
       scheduledAt: item.scheduledAt ?? null,
+      moveTargetAt: item.moveTargetAt ?? null,
+      dropUntil: item.dropUntil ?? null,
+      updatedAt: item.updatedAt ?? null,
     })),
   });
 }
