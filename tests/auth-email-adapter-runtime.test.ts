@@ -18,16 +18,20 @@ const managedKeys = [
   "AUTH_EMAIL_LOCAL_SINK",
 ] as const;
 
+type ManagedKey = (typeof managedKeys)[number];
+
+function setEnvironment(key: ManagedKey, value: string | undefined) {
+  const mutableEnvironment = process.env as Record<string, string | undefined>;
+  if (value === undefined) delete mutableEnvironment[key];
+  else mutableEnvironment[key] = value;
+}
+
 function captureEnvironment() {
   return Object.fromEntries(managedKeys.map((key) => [key, process.env[key]]));
 }
 
 function restoreEnvironment(previous: Record<string, string | undefined>) {
-  for (const key of managedKeys) {
-    const value = previous[key];
-    if (value === undefined) delete process.env[key];
-    else process.env[key] = value;
-  }
+  for (const key of managedKeys) setEnvironment(key, previous[key]);
 }
 
 test("Resend adapter emits fragment links, escaped HTML, idempotency metadata, and a timeout", async () => {
@@ -37,7 +41,7 @@ test("Resend adapter emits fragment links, escaped HTML, idempotency metadata, a
   let capturedInit: RequestInit | undefined;
 
   try {
-    process.env.NODE_ENV = "test";
+    setEnvironment("NODE_ENV", "test");
     process.env.EMAIL_PROVIDER = "resend";
     process.env.RESEND_API_KEY = "test-key";
     process.env.EMAIL_FROM = "Synapse <no-reply@example.test>";
@@ -86,7 +90,7 @@ test("provider failures expose a fixed code instead of the response body", async
   const originalFetch = globalThis.fetch;
 
   try {
-    process.env.NODE_ENV = "test";
+    setEnvironment("NODE_ENV", "test");
     process.env.EMAIL_PROVIDER = "resend";
     process.env.RESEND_API_KEY = "test-key";
     process.env.EMAIL_FROM = "Synapse <no-reply@example.test>";
@@ -115,7 +119,7 @@ test("local sink requires exact opt-in and a loopback authentication origin", as
   try {
     // The production image is used for #29's disposable runtime smoke, so the
     // safety boundary is explicit opt-in plus a loopback auth origin—not NODE_ENV.
-    process.env.NODE_ENV = "production";
+    setEnvironment("NODE_ENV", "production");
     process.env.EMAIL_PROVIDER = "local-sink";
     process.env.AUTH_EMAIL_LOCAL_SINK = "disposable-lifecycle-only";
     process.env.NEXTAUTH_URL = "http://127.0.0.1:3000";
