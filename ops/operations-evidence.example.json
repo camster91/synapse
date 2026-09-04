@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "candidate": {
+    "commitSha": "0000000000000000000000000000000000000000",
+    "imageDigest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "migrationHead": "replace-with-exact-migration-id"
+  },
+  "runtime": {
+    "readinessCheckedAt": "1970-01-01T00:00:00.000Z",
+    "backupCreatedAt": "1970-01-01T00:00:00.000Z",
+    "restoreDrillCompletedAt": "1970-01-01T00:00:00.000Z",
+    "restoreElapsedSeconds": 0,
+    "rollbackRehearsedAt": "1970-01-01T00:00:00.000Z"
+  },
+  "verifiedSignals": {
+    "databaseAndUploadsRestored": false,
+    "backupFailureAlertDelivered": false,
+    "unhealthyInstanceAlertDelivered": false,
+    "errorRateAlertDelivered": false,
+    "diskAlertDelivered": false,
+    "rollbackReturnedToHealthyReadiness": false
+  },
+  "privacy": {
+    "containsCredentials": false,
+    "containsCustomerContent": false,
+    "containsCustomerIdentifiers": false
+  }
+}
