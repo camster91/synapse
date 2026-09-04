@@ -46,4 +46,7 @@ test("password reset consumes its token, rotates credential sessions, and proves
   assert.match(resetRoute, /session\.deleteMany/);
   assert.match(auth, /token\.credentialVersion !== currentVersion/);
   assert.match(auth, /credentialsInvalidated = true/);
+  assert.match(auth, /token\.credentialVersion === undefined/);
+  assert.match(auth, /currentVersion === null/);
+  assert.match(auth, /token\.id = ""/);
 });
