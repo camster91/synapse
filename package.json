@@ -31,7 +31,8 @@
     "smoke:lifecycle": "tsx scripts/authenticated-lifecycle-smoke.ts",
     "db:studio": "prisma studio",
     "db:reset": "prisma migrate reset",
-    "setup": "npm run db:generate && npm run db:migrate && npm run db:seed"
+    "setup": "npm run db:generate && npm run db:migrate && npm run db:seed",
+    "verify": "npm run typecheck && npm run lint && npm test && npm run build"
   },
   "prisma": {
     "seed": "npx tsx prisma/seed.ts"
@@ -85,5 +86,6 @@
     "next-auth": {
       "uuid": ">=11.1.1"
     }
-  }
+  },
+  "packageManager": "npm@11.6.0"
 }
