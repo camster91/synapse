@@ -29,7 +29,7 @@ export async function PUT(
   const { id } = await params;
   const existing = await prisma.todo.findFirst({
     where: { id, userId: session.user.id },
-    select: { estimatedMinutes: true, minimumMinutes: true },
+    select: { estimatedMinutes: true, minimumMinutes: true, updatedAt: true },
   });
   if (!existing) {
     return NextResponse.json({ error: "Todo not found" }, { status: 404 });
@@ -51,11 +51,14 @@ export async function PUT(
   }
 
   const updated = await prisma.todo.updateMany({
-    where: { id, userId: session.user.id },
+    where: { id, userId: session.user.id, updatedAt: existing.updatedAt },
     data: { estimatedMinutes, minimumMinutes },
   });
   if (updated.count !== 1) {
-    return NextResponse.json({ error: "Todo not found" }, { status: 404 });
+    return NextResponse.json(
+      { error: "This task changed while you were editing it. Refresh and try again." },
+      { status: 409 },
+    );
   }
   const todo = await prisma.todo.findFirst({
     where: { id, userId: session.user.id },
