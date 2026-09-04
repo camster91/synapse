@@ -66,6 +66,7 @@ export async function loadAdaptivePlanningContext(input: {
         completedAt: true,
         estimatedMinutes: true,
         minimumMinutes: true,
+        updatedAt: true,
         goalId: true,
         goal: { select: { title: true } },
       },
@@ -100,6 +101,7 @@ export async function loadAdaptivePlanningContext(input: {
       scheduledAt: todo.scheduledAt?.toISOString() ?? null,
       moveTargetAt,
       dropUntil,
+      updatedAt: todo.updatedAt.toISOString(),
     })),
   };
 
