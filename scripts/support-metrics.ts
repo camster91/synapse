@@ -58,10 +58,10 @@ function assertPlainObject(value: unknown, label: string): asserts value is Reco
 }
 
 function rejectUnknownKeys(value: Record<string, unknown>, allowed: Set<string>, label: string) {
-  for (const key of Object.keys(value)) {
-    if (!allowed.has(key)) {
-      throw new Error(`${label} contains unsupported field: ${key}`);
-    }
+  if (Object.keys(value).some((key) => !allowed.has(key))) {
+    // Keep arbitrary JSON keys out of CLI/log output because a malformed ledger
+    // could otherwise place names, addresses, or private content in a key.
+    throw new Error(`${label} contains unsupported fields`);
   }
 }
 
