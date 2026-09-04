@@ -107,13 +107,15 @@ test("provider failures expose a fixed code instead of the response body", async
   }
 });
 
-test("local sink requires exact opt-in, non-production mode, and a loopback authentication origin", async () => {
+test("local sink requires exact opt-in and a loopback authentication origin", async () => {
   const previous = captureEnvironment();
   const originalFetch = globalThis.fetch;
   let fetchCalled = false;
 
   try {
-    process.env.NODE_ENV = "test";
+    // The production image is used for #29's disposable runtime smoke, so the
+    // safety boundary is explicit opt-in plus a loopback auth origin—not NODE_ENV.
+    process.env.NODE_ENV = "production";
     process.env.EMAIL_PROVIDER = "local-sink";
     process.env.AUTH_EMAIL_LOCAL_SINK = "disposable-lifecycle-only";
     process.env.NEXTAUTH_URL = "http://127.0.0.1:3000";
@@ -144,7 +146,7 @@ test("local sink requires exact opt-in, non-production mode, and a loopback auth
     );
 
     process.env.AUTH_PUBLIC_URL = "http://127.0.0.1:3000";
-    process.env.NODE_ENV = "production";
+    process.env.AUTH_EMAIL_LOCAL_SINK = "wrong-value";
     assert.equal(emailDeliveryConfigured(), false);
     await assert.rejects(
       sendVerificationEmail({
