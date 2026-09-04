@@ -63,12 +63,13 @@ export default function AdaptivePlanningPanel({ onPlanChanged }: { onPlanChanged
   const [capacity, setCapacity] = useState<"low" | "normal" | "high">("normal");
   const [contextNote, setContextNote] = useState("");
   const [preview, setPreview] = useState<PreviewResponse | null>(null);
-  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [selected, setSelected] = useState<Set<string>>(new Set<string>());
   const [effortDrafts, setEffortDrafts] = useState<Record<string, EffortDraft>>({});
   const [loading, setLoading] = useState(false);
   const [applying, setApplying] = useState(false);
   const [savingEffortId, setSavingEffortId] = useState<string | null>(null);
   const [changeId, setChangeId] = useState<string | null>(null);
+  const [undoExpiresAt, setUndoExpiresAt] = useState<string | null>(null);
   const [undoing, setUndoing] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -79,8 +80,9 @@ export default function AdaptivePlanningPanel({ onPlanChanged }: { onPlanChanged
   const closePanel = useCallback(() => setOpen(false), []);
   const invalidatePreview = useCallback(() => {
     setPreview(null);
-    setSelected(new Set());
+    setSelected(new Set<string>());
     setChangeId(null);
+    setUndoExpiresAt(null);
     setMessage(null);
     setError(null);
   }, []);
@@ -139,6 +141,7 @@ export default function AdaptivePlanningPanel({ onPlanChanged }: { onPlanChanged
     setError(null);
     setMessage(null);
     setChangeId(null);
+    setUndoExpiresAt(null);
     try {
       const response = await fetch("/api/adaptive-planning/preview", {
         method: "POST",
@@ -149,7 +152,7 @@ export default function AdaptivePlanningPanel({ onPlanChanged }: { onPlanChanged
       if (!response.ok) throw new Error(readError(payload, "We could not revise your plan."));
       const next = payload as PreviewResponse;
       setPreview(next);
-      setSelected(new Set(
+      setSelected(new Set<string>(
         next.proposal.plan.recommendations
           .filter((recommendation) => recommendation.action !== "keep")
           .map((recommendation) => recommendation.itemId),
@@ -215,8 +218,9 @@ export default function AdaptivePlanningPanel({ onPlanChanged }: { onPlanChanged
       });
       const payload: unknown = await response.json().catch(() => null);
       if (!response.ok) throw new Error(readError(payload, "We could not apply the revised plan."));
-      const result = payload as { changeId: string | null; appliedCount: number };
+      const result = payload as { changeId: string | null; appliedCount: number; undoExpiresAt: string | null };
       setChangeId(result.changeId);
+      setUndoExpiresAt(result.undoExpiresAt);
       setMessage(
         result.appliedCount > 0
           ? `Your plan was updated for ${result.appliedCount} ${result.appliedCount === 1 ? "item" : "items"}.`
@@ -243,8 +247,9 @@ export default function AdaptivePlanningPanel({ onPlanChanged }: { onPlanChanged
       const payload: unknown = await response.json().catch(() => null);
       if (!response.ok) throw new Error(readError(payload, "We could not undo that revision."));
       setChangeId(null);
+      setUndoExpiresAt(null);
       setPreview(null);
-      setSelected(new Set());
+      setSelected(new Set<string>());
       setMessage("The previous Today plan was restored.");
       onPlanChanged();
     } catch (caught) {
@@ -256,7 +261,7 @@ export default function AdaptivePlanningPanel({ onPlanChanged }: { onPlanChanged
 
   const toggleSelected = (itemId: string) => {
     setSelected((current) => {
-      const next = new Set(current);
+      const next = new Set<string>(current);
       if (next.has(itemId)) next.delete(itemId);
       else next.add(itemId);
       return next;
@@ -323,7 +328,7 @@ export default function AdaptivePlanningPanel({ onPlanChanged }: { onPlanChanged
               {!changeId && (
                 <>
                   <fieldset className="space-y-3">
-                    <legend className="text-sm font-semibold text-foreground">How much usable time is left?</legend>
+                    <legend className="text-sm font-semibold text-foreground">How much time remains before you are done today?</legend>
                     <div className="grid grid-cols-4 gap-2">
                       {[30, 60, 120, 240].map((minutes) => (
                         <button
@@ -456,7 +461,7 @@ export default function AdaptivePlanningPanel({ onPlanChanged }: { onPlanChanged
 
                                   {item && (
                                     <details className="mt-3 border-t border-border pt-3">
-                                      <summary className="cursor-pointer text-sm font-medium text-primary">{item.estimatedMinutes === null ? "Add an effort estimate for better planning" : "Edit effort estimates"}</summary>
+                                      <summary className="flex min-h-11 cursor-pointer items-center text-sm font-medium text-primary">{item.estimatedMinutes === null ? "Add an effort estimate for better planning" : "Edit effort estimates"}</summary>
                                       <div className="mt-3 grid gap-3 sm:grid-cols-2">
                                         <label className="text-sm text-foreground">
                                           Expected minutes
@@ -516,7 +521,11 @@ export default function AdaptivePlanningPanel({ onPlanChanged }: { onPlanChanged
               {changeId && (
                 <div className="rounded-xl border border-primary/30 bg-primary/5 p-4">
                   <p className="font-semibold text-foreground">Your revised plan is active.</p>
-                  <p className="mt-1 text-sm text-muted-foreground">You can undo it for a short period, provided none of those tasks have been edited again.</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {undoExpiresAt
+                      ? `Undo is available until ${formatTarget(undoExpiresAt)}, provided none of those tasks are edited again.`
+                      : "Undo is available for a short period, provided none of those tasks are edited again."}
+                  </p>
                   <button
                     type="button"
                     onClick={() => void undoPlan()}
