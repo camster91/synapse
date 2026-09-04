@@ -20,6 +20,8 @@
     "uploads:reconcile": "tsx scripts/reconcile-uploads.ts",
     "backup": "bash scripts/backup.sh",
     "restore:drill": "bash scripts/restore-drill.sh",
+    "ops:preflight": "tsx scripts/operations-preflight.ts",
+    "ops:evidence": "tsx scripts/validate-operations-evidence.ts",
     "metrics:pilot": "tsx scripts/pilot-metrics.ts",
     "metrics:support": "tsx scripts/support-metrics.ts",
     "metrics:ai-actions": "tsx scripts/ai-action-metrics.ts",
