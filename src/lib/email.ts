@@ -19,25 +19,7 @@ export class TransactionalEmailError extends Error {
   }
 }
 
-function emailProviderConfig() {
-  const provider = process.env.EMAIL_PROVIDER?.trim().toLowerCase();
-  const apiKey = process.env.RESEND_API_KEY?.trim();
-  const from = process.env.EMAIL_FROM?.trim();
-
-  if (provider !== "resend" || !apiKey || !from) {
-    throw new TransactionalEmailError(
-      "email_provider_unconfigured",
-      "Transactional email delivery is not configured",
-    );
-  }
-
-  return {
-    provider,
-    apiKey,
-    from,
-    replyTo: process.env.EMAIL_REPLY_TO?.trim() || null,
-  } as const;
-}
+const LOCAL_SINK_OPT_IN = "disposable-lifecycle-only";
 
 function publicAuthBaseUrl() {
   const configured = process.env.AUTH_PUBLIC_URL?.trim() || process.env.NEXTAUTH_URL?.trim();
@@ -66,6 +48,47 @@ function publicAuthBaseUrl() {
   return new URL("/", parsed.origin);
 }
 
+function isLoopbackHost(hostname: string) {
+  return ["127.0.0.1", "localhost", "::1", "[::1]"].includes(hostname);
+}
+
+function emailProviderConfig() {
+  const provider = process.env.EMAIL_PROVIDER?.trim().toLowerCase();
+
+  if (provider === "local-sink") {
+    const baseUrl = publicAuthBaseUrl();
+    if (
+      process.env.AUTH_EMAIL_LOCAL_SINK !== LOCAL_SINK_OPT_IN ||
+      !isLoopbackHost(baseUrl.hostname)
+    ) {
+      throw new TransactionalEmailError("email_local_sink_not_allowed");
+    }
+
+    return {
+      provider: "local-sink" as const,
+      apiKey: null,
+      from: "Synapse Local Smoke <no-reply@synapse.invalid>",
+      replyTo: null,
+    };
+  }
+
+  const apiKey = process.env.RESEND_API_KEY?.trim();
+  const from = process.env.EMAIL_FROM?.trim();
+  if (provider !== "resend" || !apiKey || !from) {
+    throw new TransactionalEmailError(
+      "email_provider_unconfigured",
+      "Transactional email delivery is not configured",
+    );
+  }
+
+  return {
+    provider: "resend" as const,
+    apiKey,
+    from,
+    replyTo: process.env.EMAIL_REPLY_TO?.trim() || null,
+  };
+}
+
 export function emailDeliveryConfigured() {
   try {
     emailProviderConfig();
@@ -84,6 +107,12 @@ export function authEmailErrorCode(error: unknown) {
 
 export async function sendTransactionalEmail(message: TransactionalEmail) {
   const config = emailProviderConfig();
+
+  // Deliberately discard the message in disposable loopback smoke environments.
+  // No recipient, body, or bearer token is written to logs or files.
+  if (config.provider === "local-sink") {
+    return { provider: config.provider, id: null };
+  }
 
   let response: Response;
   try {
