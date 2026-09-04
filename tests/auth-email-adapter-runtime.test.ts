@@ -8,6 +8,7 @@ import {
 } from "../src/lib/email";
 
 const managedKeys = [
+  "NODE_ENV",
   "EMAIL_PROVIDER",
   "RESEND_API_KEY",
   "EMAIL_FROM",
@@ -29,13 +30,14 @@ function restoreEnvironment(previous: Record<string, string | undefined>) {
   }
 }
 
-test("Resend adapter emits fragment links, escaped HTML, and idempotency metadata", async () => {
+test("Resend adapter emits fragment links, escaped HTML, idempotency metadata, and a timeout", async () => {
   const previous = captureEnvironment();
   const originalFetch = globalThis.fetch;
   let capturedUrl = "";
   let capturedInit: RequestInit | undefined;
 
   try {
+    process.env.NODE_ENV = "test";
     process.env.EMAIL_PROVIDER = "resend";
     process.env.RESEND_API_KEY = "test-key";
     process.env.EMAIL_FROM = "Synapse <no-reply@example.test>";
@@ -59,6 +61,7 @@ test("Resend adapter emits fragment links, escaped HTML, and idempotency metadat
     const headers = new Headers(capturedInit?.headers);
     assert.equal(headers.get("Authorization"), "Bearer test-key");
     assert.equal(headers.get("Idempotency-Key"), `synapse-verify-${"a".repeat(24)}`);
+    assert.ok(capturedInit?.signal instanceof AbortSignal);
 
     const payload = JSON.parse(String(capturedInit?.body)) as {
       to?: string[];
@@ -83,6 +86,7 @@ test("provider failures expose a fixed code instead of the response body", async
   const originalFetch = globalThis.fetch;
 
   try {
+    process.env.NODE_ENV = "test";
     process.env.EMAIL_PROVIDER = "resend";
     process.env.RESEND_API_KEY = "test-key";
     process.env.EMAIL_FROM = "Synapse <no-reply@example.test>";
@@ -103,12 +107,13 @@ test("provider failures expose a fixed code instead of the response body", async
   }
 });
 
-test("local sink requires exact opt-in and a loopback authentication origin", async () => {
+test("local sink requires exact opt-in, non-production mode, and a loopback authentication origin", async () => {
   const previous = captureEnvironment();
   const originalFetch = globalThis.fetch;
   let fetchCalled = false;
 
   try {
+    process.env.NODE_ENV = "test";
     process.env.EMAIL_PROVIDER = "local-sink";
     process.env.AUTH_EMAIL_LOCAL_SINK = "disposable-lifecycle-only";
     process.env.NEXTAUTH_URL = "http://127.0.0.1:3000";
@@ -134,6 +139,18 @@ test("local sink requires exact opt-in and a loopback authentication origin", as
         email: "disposable@synapse.invalid",
         rawToken: "discarded-token",
         tokenHash: "d".repeat(64),
+      }),
+      (error: unknown) => authEmailErrorCode(error) === "email_local_sink_not_allowed",
+    );
+
+    process.env.AUTH_PUBLIC_URL = "http://127.0.0.1:3000";
+    process.env.NODE_ENV = "production";
+    assert.equal(emailDeliveryConfigured(), false);
+    await assert.rejects(
+      sendVerificationEmail({
+        email: "disposable@synapse.invalid",
+        rawToken: "discarded-token",
+        tokenHash: "e".repeat(64),
       }),
       (error: unknown) => authEmailErrorCode(error) === "email_local_sink_not_allowed",
     );
