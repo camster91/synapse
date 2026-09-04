@@ -77,6 +77,13 @@ export default function AdaptivePlanningPanel({ onPlanChanged }: { onPlanChanged
 
   const busy = loading || applying || undoing || savingEffortId !== null;
   const closePanel = useCallback(() => setOpen(false), []);
+  const invalidatePreview = useCallback(() => {
+    setPreview(null);
+    setSelected(new Set());
+    setChangeId(null);
+    setMessage(null);
+    setError(null);
+  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -167,6 +174,7 @@ export default function AdaptivePlanningPanel({ onPlanChanged }: { onPlanChanged
     const minimum = draft.minimumMinutes.trim() ? Number(draft.minimumMinutes) : null;
     if ((estimate !== null && (!Number.isInteger(estimate) || estimate <= 0)) ||
         (minimum !== null && (!Number.isInteger(minimum) || minimum <= 0)) ||
+        (minimum !== null && estimate === null) ||
         (estimate !== null && minimum !== null && minimum > estimate)) {
       setError("Use whole positive minutes, with the minimum no longer than the estimate.");
       return;
@@ -282,10 +290,9 @@ export default function AdaptivePlanningPanel({ onPlanChanged }: { onPlanChanged
 
       {open && (
         <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4">
-          <button
-            type="button"
-            aria-label="Close adaptive planning"
-            onClick={closePanel}
+          <div
+            aria-hidden="true"
+            onClick={() => { if (!busy) closePanel(); }}
             className="absolute inset-0 bg-black/50"
           />
           <div
@@ -293,12 +300,13 @@ export default function AdaptivePlanningPanel({ onPlanChanged }: { onPlanChanged
             role="dialog"
             aria-modal="true"
             aria-labelledby="adaptive-planning-title"
+            aria-describedby="adaptive-planning-description"
             className="relative z-10 max-h-[92vh] w-full overflow-y-auto rounded-t-2xl border border-border bg-card shadow-xl sm:max-w-2xl sm:rounded-2xl"
           >
             <div className="sticky top-0 z-10 flex items-start justify-between border-b border-border bg-card px-4 py-4 sm:px-6">
               <div>
                 <h2 id="adaptive-planning-title" className="text-lg font-semibold text-foreground">My day changed</h2>
-                <p className="mt-1 text-sm text-muted-foreground">Revise what remains without treating the original plan as a failure.</p>
+                <p id="adaptive-planning-description" className="mt-1 text-sm text-muted-foreground">Revise what remains without treating the original plan as a failure.</p>
               </div>
               <button
                 type="button"
@@ -322,7 +330,7 @@ export default function AdaptivePlanningPanel({ onPlanChanged }: { onPlanChanged
                           key={minutes}
                           type="button"
                           aria-pressed={remainingMinutes === minutes}
-                          onClick={() => setRemainingMinutes(minutes)}
+                          onClick={() => { setRemainingMinutes(minutes); invalidatePreview(); }}
                           className={`min-h-11 rounded-lg border px-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-ring ${remainingMinutes === minutes ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background text-foreground hover:bg-muted"}`}
                         >
                           {formatMinutes(minutes)}
@@ -339,7 +347,10 @@ export default function AdaptivePlanningPanel({ onPlanChanged }: { onPlanChanged
                       max={1440}
                       step={5}
                       value={remainingMinutes}
-                      onChange={(event) => setRemainingMinutes(Math.max(0, Math.min(1440, Number(event.target.value) || 0)))}
+                      onChange={(event) => {
+                        setRemainingMinutes(Math.max(0, Math.min(1440, Number(event.target.value) || 0)));
+                        invalidatePreview();
+                      }}
                       className="min-h-11 w-full rounded-lg border border-input bg-background px-3 text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                     />
                   </fieldset>
@@ -352,7 +363,7 @@ export default function AdaptivePlanningPanel({ onPlanChanged }: { onPlanChanged
                           key={option}
                           type="button"
                           aria-pressed={capacity === option}
-                          onClick={() => setCapacity(option)}
+                          onClick={() => { setCapacity(option); invalidatePreview(); }}
                           className={`min-h-11 rounded-lg border px-3 text-sm font-medium capitalize focus:outline-none focus:ring-2 focus:ring-ring ${capacity === option ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background text-foreground hover:bg-muted"}`}
                         >
                           {option}
@@ -378,7 +389,7 @@ export default function AdaptivePlanningPanel({ onPlanChanged }: { onPlanChanged
                   <button
                     type="button"
                     onClick={() => void generatePreview()}
-                    disabled={loading}
+                    disabled={busy}
                     className="min-h-11 w-full rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
                   >
                     {loading ? "Revising your day…" : preview ? "Regenerate proposal" : "Review a revised plan"}
@@ -473,7 +484,7 @@ export default function AdaptivePlanningPanel({ onPlanChanged }: { onPlanChanged
                                       <button
                                         type="button"
                                         onClick={() => void saveEffort(recommendation.itemId)}
-                                        disabled={savingEffortId === recommendation.itemId}
+                                        disabled={busy}
                                         className="mt-3 min-h-11 rounded-lg border border-border px-4 text-sm font-medium text-foreground hover:bg-muted focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
                                       >
                                         {savingEffortId === recommendation.itemId ? "Saving…" : "Save and refresh proposal"}
@@ -493,7 +504,7 @@ export default function AdaptivePlanningPanel({ onPlanChanged }: { onPlanChanged
                     <button
                       type="button"
                       onClick={() => void applyPlan()}
-                      disabled={applying || selected.size === 0}
+                      disabled={busy || selected.size === 0}
                       className="min-h-11 w-full rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
                     >
                       {applying ? "Applying revision…" : `Apply ${selected.size} selected ${selected.size === 1 ? "change" : "changes"}`}
