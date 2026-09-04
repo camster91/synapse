@@ -135,9 +135,9 @@ export async function POST(request: Request) {
     });
 
     if (existingUser) {
-      if (existingUser.accounts.length > 0 && await hasPendingVerification(existingUser.id)) {
-        scheduleExistingVerification(data.email);
-      }
+      // Any pending-state lookup and delivery work happens after the response,
+      // so verified and unverified existing accounts share the same public path.
+      if (existingUser.accounts.length > 0) scheduleExistingVerification(data.email);
       return acceptedResponse();
     }
 
