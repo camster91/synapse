@@ -6,31 +6,39 @@ bring-your-own AI.
 
 ## Quick Start
 
+Use Node 24 (the same major version used by CI) and npm with the committed
+`package-lock.json`.
+
 ```bash
-# 1. Install dependencies
+# 1. Select the supported runtime when using nvm
+nvm use
+
+# 2. Install locked dependencies
 npm ci
 
-# 2. Start PostgreSQL
+# 3. Start the local-only PostgreSQL service
 docker compose up -d
 
-# 3. Copy env file and configure (macOS/Linux)
-cp .env.example .env
-# PowerShell: Copy-Item .env.example .env
-# Edit .env with your database URL, auth secret, and 32-byte encryption key
+# 4. Create local configuration without overwriting an existing file
+test -e .env || cp .env.example .env
+# PowerShell: if (-not (Test-Path .env)) { Copy-Item .env.example .env }
+# Replace the placeholder auth/encryption values before starting the app.
 
-# 4. Set up database (generate, migrate, and seed)
+# 5. Generate Prisma, apply development migrations, and seed the local database
 npm run setup
 
-# 5. Start dev server
+# 6. Start the representative developer server
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000)
+Open [http://localhost:3000](http://localhost:3000). PostgreSQL listens on
+`localhost:5432`. The default Compose credentials and database are for local
+development only.
 
 ## Tech Stack
 
 - **Framework**: Next.js 16 (App Router)
-- **Database**: PostgreSQL + Prisma ORM
+- **Database**: PostgreSQL 16 + Prisma ORM
 - **Auth**: NextAuth.js v4
 - **Styling**: Tailwind CSS v4
 - **AI**: Multi-provider (Anthropic, OpenAI, Ollama)
@@ -40,20 +48,28 @@ Open [http://localhost:3000](http://localhost:3000)
 
 ```bash
 npm run db:generate    # Generate Prisma client
-npm run db:migrate     # Run migrations
-npm run db:seed        # Seed achievements & plugins
-npm run db:studio      # Open Prisma Studio GUI
-npm run db:reset       # Reset database
+npm run db:migrate     # Apply/create migrations against the configured development database
+npm run db:seed        # Seed achievements and plugins
+npm run db:studio      # Open Prisma Studio
+npm run db:reset       # DESTRUCTIVE: erase and recreate the configured database
 ```
+
+Run database commands only after confirming `DATABASE_URL` points to a
+disposable local or test database. Do not run `db:reset` against shared,
+staging, or production data.
 
 ## Validation
 
 ```bash
-npm test               # Contract and regression tests
-npm run typecheck      # TypeScript validation
-npm run lint           # ESLint with zero warnings allowed
-npm run build          # Production Next.js build
+npm run verify:quick   # Typecheck, lint, and contract/regression tests
+npm run verify         # Merge-level gate: quick checks plus production build
 ```
+
+CI additionally starts disposable PostgreSQL, generates Prisma, and applies
+migrations before running the same underlying typecheck, lint, test, and build
+checks. The standard source/build verification does not require AI provider
+keys. Release, lifecycle-smoke, backup, and restore checks remain separate
+environment-specific gates.
 
 Production Compose files fail closed when required secrets are absent. Before a
 real deployment, keep browser push disabled until a standards-compliant sender is
@@ -101,7 +117,7 @@ synapse/
 │       ├── prisma.ts      # DB client
 │       ├── validators.ts  # Zod schemas
 │       └── xp.ts          # Gamification logic
-└── docker-compose.yml     # PostgreSQL
+└── docker-compose.yml     # Local PostgreSQL
 ```
 
 ## Features
