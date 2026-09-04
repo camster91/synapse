@@ -54,11 +54,18 @@ test("explicit non-credential tokens remain outside password revocation", () => 
   );
 });
 
-test("partially marked credential token fails closed", () => {
+test("inconsistent or partially marked claims fail closed", () => {
   assert.deepEqual(
     reconcileCredentialSession(
       { credentialSession: true },
       null,
+    ),
+    { kind: "invalid" },
+  );
+  assert.deepEqual(
+    reconcileCredentialSession(
+      { credentialSession: false, credentialVersion: "unexpected-version" },
+      "unexpected-version",
     ),
     { kind: "invalid" },
   );
