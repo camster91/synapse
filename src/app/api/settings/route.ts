@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { z } from "zod/v4";
 import { encryptSecret } from "@/lib/security/secrets";
 
+const noStoreHeaders = { "Cache-Control": "no-store" };
+
 const updateSettingsSchema = z.object({
   name: z.string().min(1).max(100).optional(),
   email: z.string().email().optional(),
@@ -18,7 +20,10 @@ const updateSettingsSchema = z.object({
 export async function GET() {
   const session = await auth();
   if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json(
+      { error: "Unauthorized" },
+      { status: 401, headers: noStoreHeaders },
+    );
   }
 
   try {
@@ -38,7 +43,10 @@ export async function GET() {
     });
 
     if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
+      return NextResponse.json(
+        { error: "User not found" },
+        { status: 404, headers: noStoreHeaders },
+      );
     }
 
     const encryptionKey = process.env.SYNAPSE_ENCRYPTION_KEY;
@@ -56,30 +64,38 @@ export async function GET() {
         where: { id: session.user.id },
         data: legacyUpdates,
         select: {
-          name: true, email: true, timezone: true, avatarUrl: true,
-          anthropicApiKey: true, openaiApiKey: true, ollamaBaseUrl: true, preferredAiProvider: true,
+          name: true,
+          email: true,
+          timezone: true,
+          avatarUrl: true,
+          anthropicApiKey: true,
+          openaiApiKey: true,
+          ollamaBaseUrl: true,
+          preferredAiProvider: true,
           productAnalyticsConsent: true,
         },
       });
     }
 
-    // Never return API keys in any form — only expose whether they are configured
-    return NextResponse.json({
-      name: user.name,
-      email: user.email,
-      timezone: user.timezone,
-      avatarUrl: user.avatarUrl,
-      preferredAiProvider: user.preferredAiProvider,
-      hasAnthropicKey: Boolean(user.anthropicApiKey),
-      hasOpenaiKey: Boolean(user.openaiApiKey),
-      ollamaAvailable: Boolean(process.env.OLLAMA_BASE_URL),
-      productAnalyticsConsent: user.productAnalyticsConsent,
-    });
-  } catch (error) {
-    console.error("Failed to fetch settings:", error);
+    return NextResponse.json(
+      {
+        name: user.name,
+        email: user.email,
+        timezone: user.timezone,
+        avatarUrl: user.avatarUrl,
+        preferredAiProvider: user.preferredAiProvider,
+        hasAnthropicKey: Boolean(user.anthropicApiKey),
+        hasOpenaiKey: Boolean(user.openaiApiKey),
+        ollamaAvailable: Boolean(process.env.OLLAMA_BASE_URL),
+        productAnalyticsConsent: user.productAnalyticsConsent,
+      },
+      { headers: noStoreHeaders },
+    );
+  } catch {
+    console.error("settings_fetch_failed", { code: "settings_fetch_failed" });
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500, headers: noStoreHeaders },
     );
   }
 }
@@ -87,7 +103,10 @@ export async function GET() {
 export async function PUT(request: Request) {
   const session = await auth();
   if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json(
+      { error: "Unauthorized" },
+      { status: 401, headers: noStoreHeaders },
+    );
   }
 
   try {
@@ -100,7 +119,10 @@ export async function PUT(request: Request) {
         select: { email: true },
       });
       if (!currentIdentity) {
-        return NextResponse.json({ error: "User not found" }, { status: 404 });
+        return NextResponse.json(
+          { error: "User not found" },
+          { status: 404, headers: noStoreHeaders },
+        );
       }
 
       const requestedEmail = data.email.trim().toLowerCase();
@@ -111,7 +133,7 @@ export async function PUT(request: Request) {
             error: "Email changes require verification and are unavailable during the managed beta.",
             code: "EMAIL_CHANGE_REQUIRES_VERIFICATION",
           },
-          { status: 409 },
+          { status: 409, headers: noStoreHeaders },
         );
       }
 
@@ -123,7 +145,7 @@ export async function PUT(request: Request) {
     if ((data.anthropicApiKey || data.openaiApiKey) && !encryptionKey) {
       return NextResponse.json(
         { error: "AI key storage is unavailable. Contact the beta administrator." },
-        { status: 503 }
+        { status: 503, headers: noStoreHeaders },
       );
     }
 
@@ -136,7 +158,7 @@ export async function PUT(request: Request) {
         } else if (value === "" || value === null) {
           updateData[key] = null;
         }
-        // else: "****" or undefined — skip, keep existing
+        // "****" or undefined keeps the existing value.
       } else if (value !== undefined) {
         updateData[key] = value;
       }
@@ -164,29 +186,31 @@ export async function PUT(request: Request) {
       return updated;
     });
 
-    // Never return API keys in the response — only expose whether they are configured
-    return NextResponse.json({
-      name: user.name,
-      email: user.email,
-      timezone: user.timezone,
-      avatarUrl: user.avatarUrl,
-      preferredAiProvider: user.preferredAiProvider,
-      hasAnthropicKey: Boolean(user.anthropicApiKey),
-      hasOpenaiKey: Boolean(user.openaiApiKey),
-      ollamaAvailable: Boolean(process.env.OLLAMA_BASE_URL),
-      productAnalyticsConsent: user.productAnalyticsConsent,
-    });
+    return NextResponse.json(
+      {
+        name: user.name,
+        email: user.email,
+        timezone: user.timezone,
+        avatarUrl: user.avatarUrl,
+        preferredAiProvider: user.preferredAiProvider,
+        hasAnthropicKey: Boolean(user.anthropicApiKey),
+        hasOpenaiKey: Boolean(user.openaiApiKey),
+        ollamaAvailable: Boolean(process.env.OLLAMA_BASE_URL),
+        productAnalyticsConsent: user.productAnalyticsConsent,
+      },
+      { headers: noStoreHeaders },
+    );
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { error: "Validation failed", details: error.issues },
-        { status: 400 }
+        { status: 400, headers: noStoreHeaders },
       );
     }
-    console.error("Failed to update settings:", error);
+    console.error("settings_update_failed", { code: "settings_update_failed" });
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500, headers: noStoreHeaders },
     );
   }
 }
