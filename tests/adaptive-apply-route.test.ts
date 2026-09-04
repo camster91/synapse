@@ -22,12 +22,14 @@ test("the browser selects item ids but cannot substitute action targets", () => 
   assert.match(applyRoute, /targetScheduledAt: recommendation\.targetScheduledAt/);
   assert.match(applyRoute, /targetDeferredUntil: recommendation\.targetDeferredUntil/);
   assert.match(applyRoute, /targetEstimatedMinutes: recommendation\.targetEstimatedMinutes/);
+  assert.match(applyRoute, /expectedUpdatedAt: snapshotItem\.updatedAt/);
 });
 
 test("storage applies all task changes and the change record in one transaction", () => {
   assert.match(storage, /prisma\.\$transaction/);
   assert.match(storage, /tx\.todo\.updateMany/);
   assert.match(storage, /tx\.adaptivePlanChange\.create/);
+  assert.match(storage, /expectedRevisionById/);
   assert.match(storage, /Adaptive plan changed before apply/);
 });
 
@@ -43,7 +45,7 @@ test("undo is authenticated, bounded, tenant scoped, and fails on newer edits", 
   assert.match(storage, /Adaptive undo expired/);
   assert.match(storage, /Adaptive undo conflicts with newer edits/);
   assert.match(storage, /userId: input\.userId/);
-  assert.match(storage, /updatedAt: new Date\(current\.updatedAt\)/);
+  assert.match(storage, /updatedAt: new Date\(currentTodo\.updatedAt\)/);
 });
 
 test("migration is additive and preserves existing deadlines", () => {
