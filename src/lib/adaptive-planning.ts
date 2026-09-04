@@ -1,3 +1,6 @@
+export const ADAPTIVE_PLANNER_VERSION = 1;
+export const PLANNING_REASON_CODE_VERSION = 1;
+
 export type PlanningCapacity = "low" | "normal" | "high";
 export type PlanningAction = "keep" | "shorten" | "move" | "drop";
 
@@ -48,9 +51,12 @@ export interface PlanningRecommendation {
 }
 
 export interface PlanningProposal {
+  plannerVersion: number;
+  reasonCodeVersion: number;
   effectiveMinutes: number;
   recommendations: PlanningRecommendation[];
   noChange: boolean;
+  requiresAttention: boolean;
 }
 
 const CAPACITY_MULTIPLIER: Record<PlanningCapacity, number> = {
@@ -276,9 +282,18 @@ export function buildAdaptivePlan(snapshot: PlanningSnapshot): PlanningProposal 
     });
   }
 
+  const requiresAttention = recommendations.some(
+    (recommendation) =>
+      recommendation.reasonCodes.includes("unknown_effort") ||
+      recommendation.reasonCodes.includes("deadline_conflict"),
+  );
+
   return {
+    plannerVersion: ADAPTIVE_PLANNER_VERSION,
+    reasonCodeVersion: PLANNING_REASON_CODE_VERSION,
     effectiveMinutes,
     recommendations,
     noChange: recommendations.every((recommendation) => recommendation.action === "keep"),
+    requiresAttention,
   };
 }
