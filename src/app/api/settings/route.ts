@@ -94,20 +94,29 @@ export async function PUT(request: Request) {
     const body = await request.json();
     const data = updateSettingsSchema.parse(body);
 
-    // If email is changing, check it's not already taken
     if (data.email) {
-      const existing = await prisma.user.findFirst({
-        where: {
-          email: data.email,
-          id: { not: session.user.id },
-        },
+      const currentIdentity = await prisma.user.findUnique({
+        where: { id: session.user.id },
+        select: { email: true },
       });
-      if (existing) {
+      if (!currentIdentity) {
+        return NextResponse.json({ error: "User not found" }, { status: 404 });
+      }
+
+      const requestedEmail = data.email.trim().toLowerCase();
+      const currentEmail = currentIdentity.email.trim().toLowerCase();
+      if (requestedEmail !== currentEmail) {
         return NextResponse.json(
-          { error: "Email is already in use" },
-          { status: 409 }
+          {
+            error: "Email changes require verification and are unavailable during the managed beta.",
+            code: "EMAIL_CHANGE_REQUIRES_VERIFICATION",
+          },
+          { status: 409 },
         );
       }
+
+      // Preserve the stored identity exactly for case-only/no-op submissions.
+      data.email = currentIdentity.email;
     }
 
     const encryptionKey = process.env.SYNAPSE_ENCRYPTION_KEY;
