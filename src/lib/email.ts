@@ -20,6 +20,7 @@ export class TransactionalEmailError extends Error {
 }
 
 const LOCAL_SINK_OPT_IN = "disposable-lifecycle-only";
+const EMAIL_REQUEST_TIMEOUT_MS = 10_000;
 
 function isLoopbackHost(hostname: string) {
   return ["127.0.0.1", "localhost", "::1", "[::1]"].includes(hostname);
@@ -62,6 +63,7 @@ function emailProviderConfig() {
   if (provider === "local-sink") {
     const baseUrl = publicAuthBaseUrl();
     if (
+      process.env.NODE_ENV === "production" ||
       process.env.AUTH_EMAIL_LOCAL_SINK !== LOCAL_SINK_OPT_IN ||
       !isLoopbackHost(baseUrl.hostname)
     ) {
@@ -135,6 +137,7 @@ export async function sendTransactionalEmail(message: TransactionalEmail) {
         text: message.text,
         ...(config.replyTo ? { reply_to: config.replyTo } : {}),
       }),
+      signal: AbortSignal.timeout(EMAIL_REQUEST_TIMEOUT_MS),
     });
   } catch {
     throw new TransactionalEmailError("email_provider_network_error");
