@@ -18,7 +18,19 @@ test("authenticated lifecycle smoke is explicit, complete, and remote-safe", () 
   assert.match(smoke, /deleted credentials still authenticate/);
   assert.match(smoke, /database still contains disposable account rows/);
   assert.match(operations, /Authenticated lifecycle smoke/);
-  assert.match(operations, /requires explicit release\/operator approval/);
+  assert.match(operations, /explicit release\/operator approval/);
+});
+
+test("local lifecycle bypasses only its disposable verification marker and does not claim email proof", () => {
+  assert.match(smoke, /locallyVerifyDisposableAccount/);
+  assert.match(smoke, /delete from verification_tokens where identifier = \$1/);
+  assert.match(smoke, /verify:\$\{userId\}/);
+  assert.match(smoke, /remote lifecycle smoke cannot bypass email verification/);
+  assert.match(smoke, /loopback-disposable-db-marker-bypass-not-external-email-proof/);
+  assert.match(operations, /does not satisfy #60/);
+  assert.match(operations, /EMAIL_PROVIDER='local-sink'/);
+  assert.match(operations, /AUTH_EMAIL_LOCAL_SINK='disposable-lifecycle-only'/);
+  assert.match(operations, /Never use the local sink on an approved beta\/public hostname/);
 });
 
 test("lifecycle smoke fails closed without confirmation and remote authorization", () => {
