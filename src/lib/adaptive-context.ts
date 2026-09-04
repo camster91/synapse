@@ -3,7 +3,7 @@ import { calculateAdaptiveBusyMinutes } from "@/lib/adaptive-calendar";
 import type { PlanningCapacity, PlanningSnapshot } from "@/lib/adaptive-planning";
 import {
   addDaysToDayKey,
-  localDayKey,
+  localDayBounds,
   safeTimeZone,
   zonedDateTimeToUtc,
 } from "@/lib/timezone";
@@ -29,8 +29,13 @@ export async function loadAdaptivePlanningContext(input: {
     select: { timezone: true },
   });
   const timezone = safeTimeZone(user?.timezone ?? "UTC");
-  const horizon = new Date(input.now.getTime() + input.remainingMinutes * 60_000);
-  const nextDayKey = addDaysToDayKey(localDayKey(input.now, timezone), 1);
+  const { dayKey, start: todayStart, end: todayEnd } = localDayBounds(input.now, timezone);
+  const remainingWindowMinutes = Math.max(
+    0,
+    Math.min(input.remainingMinutes, Math.floor((todayEnd.getTime() - input.now.getTime()) / 60_000)),
+  );
+  const horizon = new Date(input.now.getTime() + remainingWindowMinutes * 60_000);
+  const nextDayKey = addDaysToDayKey(dayKey, 1);
   const moveTargetAt = zonedDateTimeToUtc(nextDayKey, { hour: 9 }, timezone).toISOString();
   const dropUntil = zonedDateTimeToUtc(nextDayKey, { hour: 0 }, timezone).toISOString();
 
@@ -42,8 +47,8 @@ export async function loadAdaptivePlanningContext(input: {
         AND: [
           {
             OR: [
-              { scheduledAt: { lte: horizon } },
-              { dueDate: { lte: horizon } },
+              { scheduledAt: { gte: todayStart, lt: todayEnd } },
+              { dueDate: { lt: todayEnd } },
               { scheduledAt: null, dueDate: null, priority: { gte: 3 } },
             ],
           },
@@ -56,7 +61,7 @@ export async function loadAdaptivePlanningContext(input: {
         ],
       },
       orderBy: [{ priority: "desc" }, { sortOrder: "asc" }, { id: "asc" }],
-      take: 50,
+      take: 10,
       select: {
         id: true,
         title: true,
@@ -87,7 +92,7 @@ export async function loadAdaptivePlanningContext(input: {
 
   const snapshot: PlanningSnapshot = {
     now: input.now.toISOString(),
-    remainingMinutes: input.remainingMinutes,
+    remainingMinutes: remainingWindowMinutes,
     capacity: input.capacity,
     calendarBusyMinutes: calculateAdaptiveBusyMinutes(events, input.now, horizon),
     items: todos.map((todo) => ({
