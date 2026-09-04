@@ -34,3 +34,22 @@ test("support scorecard is a first-class package command with no free-text schem
   assert.match(metrics, /unsupported field/);
   assert.doesNotMatch(metrics, /description|messageBody|notes|emailAddress|participantName/);
 });
+
+test("support decisions require complete measured weeks rather than future or partial data", () => {
+  assert.match(support, /UTC start date of one seven-day measured interval/);
+  assert.match(support, /every listed seven-day interval has ended/);
+  assert.match(support, /supportLoad\.passes.*remains `null` whenever the result is decision-ineligible/s);
+  assert.match(metrics, /function supportWeekEnd/);
+  assert.match(metrics, /incompleteWeekKeys/);
+  assert.match(metrics, /all listed support weeks must be complete/);
+  assert.match(metrics, /passes: decisionEligible/);
+});
+
+test("support ledger documentation and parser reject contradictory resolution records", () => {
+  assert.match(support, /resolved incidents without a resolution time/);
+  assert.match(support, /unresolved incidents with a resolution time/);
+  assert.match(support, /resolution times earlier than first response/);
+  assert.match(metrics, /resolved incidents require resolutionMinutes/);
+  assert.match(metrics, /unresolved incidents require null resolutionMinutes/);
+  assert.match(metrics, /resolutionMinutes cannot precede first response/);
+});
