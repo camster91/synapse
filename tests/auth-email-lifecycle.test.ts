@@ -8,6 +8,7 @@ const resendRoute = readFileSync("src/app/api/auth/resend-verification/route.ts"
 const forgotRoute = readFileSync("src/app/api/auth/forgot-password/route.ts", "utf8");
 const resetRoute = readFileSync("src/app/api/auth/reset-password/route.ts", "utf8");
 const auth = readFileSync("src/lib/auth.ts", "utf8");
+const credentialSessions = readFileSync("src/lib/credential-session.ts", "utf8");
 const tokens = readFileSync("src/lib/auth-tokens.ts", "utf8");
 const proxy = readFileSync("src/proxy.ts", "utf8");
 const registerPage = readFileSync("src/app/register/page.tsx", "utf8");
@@ -64,11 +65,11 @@ test("password reset consumes its token, rotates only credential sessions, and p
   assert.match(resetRoute, /refreshToken: sessionVersion/);
   assert.match(resetRoute, /identifier: `verify:\$\{token\.userId\}`/);
   assert.match(resetRoute, /session\.deleteMany/);
-  assert.match(auth, /credentialSession/);
-  assert.match(auth, /token\.credentialVersion !== currentVersion/);
+  assert.match(auth, /reconcileCredentialSession/);
   assert.match(auth, /credentialsInvalidated = true/);
-  assert.match(auth, /token\.credentialVersion === undefined/);
-  assert.match(auth, /currentVersion === null/);
+  assert.match(credentialSessions, /legacyUnmarked/);
+  assert.match(credentialSessions, /claims\.credentialVersion === accountVersion/);
+  assert.match(credentialSessions, /accountVersion === null/);
   assert.match(auth, /session\.user\.email = null/);
   assert.match(proxy, /token\?\.id && !token\.credentialsInvalidated/);
 });
