@@ -16,13 +16,17 @@ test("authenticated lifecycle smoke is explicit, complete, and remote-safe", () 
   assert.match(smoke, /portable export contract failed/);
   assert.match(smoke, /wrong-password deletion did not return 403/);
   assert.match(smoke, /deleted credentials still authenticate/);
-  assert.match(smoke, /database still contains disposable account rows/);
+  assert.match(smoke, /database still contains disposable account or authentication rows/);
+  assert.match(smoke, /verification_tokens where identifier in/);
+  assert.match(smoke, /sessions where "userId" = \$1/);
   assert.match(operations, /Authenticated lifecycle smoke/);
   assert.match(operations, /explicit release\/operator approval/);
 });
 
-test("local lifecycle bypasses only its disposable verification marker and does not claim email proof", () => {
+test("local lifecycle bypasses only its disposable marker under the explicit sink contract", () => {
   assert.match(smoke, /locallyVerifyDisposableAccount/);
+  assert.match(smoke, /process\.env\.EMAIL_PROVIDER !== "local-sink"/);
+  assert.match(smoke, /AUTH_EMAIL_LOCAL_SINK !== REQUIRED_LOCAL_SINK_CONFIRMATION/);
   assert.match(smoke, /delete from verification_tokens where identifier = \$1/);
   assert.match(smoke, /verify:\$\{userId\}/);
   assert.match(smoke, /remote lifecycle smoke cannot bypass email verification/);
