@@ -2,36 +2,53 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-test("backup captures database, uploads, manifest, and checksums without secrets", async () => {
+test("backup captures only a canonical regular upload tree with integrity metadata", async () => {
   const script = await readFile("scripts/backup.sh", "utf8");
 
+  assert.match(script, /canonical_existing_directory/);
+  assert.match(script, /fs\.realpathSync\(resolved\)/);
+  assert.match(script, /Directory path must not contain symbolic-link components/);
+  assert.match(script, /stat\.isSymbolicLink\(\)/);
+  assert.match(script, /stat\.nlink !== 1/);
+  assert.match(script, /hard-linked file/);
   assert.match(script, /pg_dump --format=custom --no-owner --no-privileges/);
   assert.match(script, /url\.searchParams\.delete\("schema"\)/);
-  assert.match(script, /SYNAPSE_UPLOAD_DIR must be absolute/);
-  assert.match(script, /Refusing unsafe upload root/);
-  assert.match(script, /Upload directory must not be a symbolic link/);
-  assert.match(script, /find "\$upload_dir" -type l -print -quit/);
   assert.match(script, /tar -czf .*uploads\.tar\.gz/);
   assert.match(script, /secrets_included=false/);
   assert.match(script, /shasum -a 256 database\.dump uploads\.tar\.gz manifest\.txt/);
   assert.match(script, /trap cleanup_failed_backup ERR INT TERM/);
 });
 
-test("restore drill is explicit, integrity-checked, and validates application state", async () => {
+test("restore drill fails closed on archive, target path, and database state", async () => {
   const script = await readFile("scripts/restore-drill.sh", "utf8");
   const reconcile = await readFile("scripts/reconcile-uploads.ts", "utf8");
 
   assert.match(script, /RESTORE_CONFIRM:-.*EMPTY_DISPOSABLE_DATABASE/);
   assert.match(script, /shasum -a 256 -c checksums\.sha256/);
-  assert.match(script, /tar -tvzf .*grep -Eq '\^\[lh\]'/);
+  assert.match(script, /fs\.realpathSync\(existing\) !== existing/);
+  assert.match(script, /symbolic-link components/);
+  assert.match(script, /archive_listing="\$\(mktemp\)"/);
+  assert.match(script, /tar -tvzf .* > "\$archive_listing"/);
+  assert.match(script, /grep -Eq '\^\[lh\]' "\$archive_listing"/);
+  assert.doesNotMatch(script, /tar -tvzf[^\n]*\|[^\n]*grep -q/);
   assert.match(script, /symbolic or hard links/);
   assert.match(script, /psql .*--set=ON_ERROR_STOP=1/);
+  for (const catalog of [
+    "pg_namespace",
+    "pg_class",
+    "pg_proc",
+    "pg_type",
+    "pg_extension",
+    "pg_event_trigger",
+    "pg_publication",
+  ]) {
+    assert.match(script, new RegExp(catalog));
+  }
   assert.match(script, /Restore database must be empty/);
   assert.match(script, /pg_restore --exit-on-error --no-owner --no-privileges/);
   assert.doesNotMatch(script, /pg_restore[^\n]*--clean/);
   assert.match(script, /url\.searchParams\.delete\("schema"\)/);
   assert.match(script, /prisma migrate status/);
-  assert.match(script, /Restore upload target must not be a symbolic link/);
   assert.match(
     script,
     /SYNAPSE_UPLOAD_DIR_CONFIRM='restore-drill-disposable-upload-target'[\s\S]*npm run uploads:reconcile -- "\$RESTORE_UPLOAD_DIR"/
