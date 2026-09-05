@@ -51,6 +51,8 @@ mkdir -p "$RESTORE_UPLOAD_DIR"
 tar -xzf "$SYNAPSE_BACKUP_PATH/uploads.tar.gz" -C "$RESTORE_UPLOAD_DIR"
 
 DATABASE_URL="$RESTORE_DATABASE_URL" npx prisma migrate status >/dev/null
-DATABASE_URL="$RESTORE_DATABASE_URL" npm run uploads:reconcile >/dev/null
+SYNAPSE_UPLOAD_DIR="$RESTORE_UPLOAD_DIR" \
+DATABASE_URL="$RESTORE_DATABASE_URL" \
+npm run uploads:reconcile >/dev/null
 
 echo "Restore drill passed: database migrations and upload reconciliation are healthy"
