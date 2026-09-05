@@ -39,6 +39,11 @@ while IFS= read -r entry; do
   esac
 done < <(tar -tzf "$SYNAPSE_BACKUP_PATH/uploads.tar.gz")
 
+if tar -tvzf "$SYNAPSE_BACKUP_PATH/uploads.tar.gz" | grep -Eq '^[lh]'; then
+  echo "Upload archive contains symbolic or hard links; refusing unsafe restore" >&2
+  exit 2
+fi
+
 if [[ -d "$RESTORE_UPLOAD_DIR" && -n "$(find "$RESTORE_UPLOAD_DIR" -mindepth 1 -maxdepth 1 -print -quit)" ]]; then
   echo "Restore upload target must be empty" >&2
   exit 2
