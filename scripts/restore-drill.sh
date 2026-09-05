@@ -161,6 +161,8 @@ existing_objects="$(
         UNION ALL
         SELECT 1 FROM pg_largeobject_metadata
         UNION ALL
+        SELECT 1 FROM pg_am WHERE oid >= 16384
+        UNION ALL
         SELECT 1 FROM pg_cast WHERE oid >= 16384
         UNION ALL
         SELECT 1 FROM pg_language
