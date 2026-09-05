@@ -16,6 +16,10 @@ if [[ "$RESTORE_UPLOAD_DIR" == "/" || "$RESTORE_UPLOAD_DIR" == "$HOME" ]]; then
   echo "Refusing unsafe restore upload target" >&2
   exit 2
 fi
+if [[ -L "$RESTORE_UPLOAD_DIR" ]]; then
+  echo "Restore upload target must not be a symbolic link" >&2
+  exit 2
+fi
 
 for file in database.dump uploads.tar.gz manifest.txt checksums.sha256; do
   if [[ ! -f "$SYNAPSE_BACKUP_PATH/$file" ]]; then
@@ -52,6 +56,7 @@ tar -xzf "$SYNAPSE_BACKUP_PATH/uploads.tar.gz" -C "$RESTORE_UPLOAD_DIR"
 
 DATABASE_URL="$RESTORE_DATABASE_URL" npx prisma migrate status >/dev/null
 SYNAPSE_UPLOAD_DIR="$RESTORE_UPLOAD_DIR" \
+SYNAPSE_UPLOAD_DIR_CONFIRM='restore-drill-disposable-upload-target' \
 DATABASE_URL="$RESTORE_DATABASE_URL" \
 npm run uploads:reconcile >/dev/null
 
