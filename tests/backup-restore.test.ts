@@ -7,6 +7,10 @@ test("backup captures database, uploads, manifest, and checksums without secrets
 
   assert.match(script, /pg_dump --format=custom --no-owner --no-privileges/);
   assert.match(script, /url\.searchParams\.delete\("schema"\)/);
+  assert.match(script, /SYNAPSE_UPLOAD_DIR must be absolute/);
+  assert.match(script, /Refusing unsafe upload root/);
+  assert.match(script, /Upload directory must not be a symbolic link/);
+  assert.match(script, /find "\$upload_dir" -type l -print -quit/);
   assert.match(script, /tar -czf .*uploads\.tar\.gz/);
   assert.match(script, /secrets_included=false/);
   assert.match(script, /shasum -a 256 database\.dump uploads\.tar\.gz manifest\.txt/);
@@ -19,6 +23,8 @@ test("restore drill is explicit, integrity-checked, and validates application st
 
   assert.match(script, /RESTORE_CONFIRM:-.*EMPTY_DISPOSABLE_DATABASE/);
   assert.match(script, /shasum -a 256 -c checksums\.sha256/);
+  assert.match(script, /tar -tvzf .*grep -Eq '\^\[lh\]'/);
+  assert.match(script, /symbolic or hard links/);
   assert.match(script, /psql .*--set=ON_ERROR_STOP=1/);
   assert.match(script, /Restore database must be empty/);
   assert.match(script, /pg_restore --exit-on-error --no-owner --no-privileges/);
