@@ -21,7 +21,7 @@ test("backup captures only a canonical regular upload tree with integrity metada
   assert.match(script, /trap cleanup_failed_backup ERR INT TERM/);
 });
 
-test("restore drill fails closed on archive, target path, database state, and concurrent access", async () => {
+test("restore drill fails closed on archive, target path, database state, concurrent access, and missing uploads", async () => {
   const script = await readFile("scripts/restore-drill.sh", "utf8");
   const reconcile = await readFile("scripts/reconcile-uploads.ts", "utf8");
 
@@ -109,6 +109,9 @@ test("restore drill fails closed on archive, target path, database state, and co
   assert.match(reconcile, /resolved === homedir\(\)/);
   assert.match(reconcile, /resolved === process\.cwd\(\)/);
   assert.match(reconcile, /path\.join\(process\.cwd\(\), "uploads"\)/);
+  assert.match(reconcile, /explicitRestoreTarget = Boolean\(process\.argv\[2\]\)/);
+  assert.match(reconcile, /missingReferenced/);
+  assert.match(reconcile, /restore upload target is missing .* referenced attachment file/);
 });
 
 test("runbook keeps production recovery gated on owner and operator evidence", async () => {
@@ -117,5 +120,6 @@ test("runbook keeps production recovery gated on owner and operator evidence", a
   assert.match(runbook, /encrypted off-site destination/);
   assert.match(runbook, /target recovery point and recovery time objectives/);
   assert.match(runbook, /prepared transactions/);
+  assert.match(runbook, /every restored attachment row/);
   assert.match(runbook, /backup and recovery remain a release blocker/);
 });
