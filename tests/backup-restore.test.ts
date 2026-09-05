@@ -48,6 +48,31 @@ test("restore drill fails closed on archive, target path, database state, concur
   assert.match(script, /aclexplode\(COALESCE\(n\.nspacl, acldefault\('n', n\.nspowner\)\)\)/);
   assert.match(script, /public schema has unexpected privileges/);
 
+  const systemSchemaStart = script.indexOf("INTO system_schema_objects");
+  const existingObjectsStart = script.indexOf("INTO existing_objects");
+  assert.ok(systemSchemaStart >= 0 && existingObjectsStart > systemSchemaStart);
+  const systemSchemaBlock = script.slice(systemSchemaStart, existingObjectsStart);
+  assert.match(systemSchemaBlock, /n\.nspname IN \('pg_catalog', 'information_schema'\)/);
+  assert.match(systemSchemaBlock, /oid >= 16384/);
+  for (const catalog of [
+    "pg_class",
+    "pg_proc",
+    "pg_type",
+    "pg_collation",
+    "pg_conversion",
+    "pg_operator",
+    "pg_opclass",
+    "pg_opfamily",
+    "pg_ts_config",
+    "pg_ts_dict",
+    "pg_ts_parser",
+    "pg_ts_template",
+    "pg_statistic_ext",
+  ]) {
+    assert.match(systemSchemaBlock, new RegExp(catalog));
+  }
+  assert.match(script, /system schemas contain % user-created object/);
+
   for (const catalog of [
     "pg_namespace",
     "pg_class",
@@ -120,6 +145,7 @@ test("runbook keeps production recovery gated on owner and operator evidence", a
   assert.match(runbook, /encrypted off-site destination/);
   assert.match(runbook, /target recovery point and recovery time objectives/);
   assert.match(runbook, /prepared transactions/);
+  assert.match(runbook, /system-named schemas/);
   assert.match(runbook, /every restored attachment row/);
   assert.match(runbook, /backup and recovery remain a release blocker/);
 });
