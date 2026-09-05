@@ -12,14 +12,45 @@ fi
 
 case "$SYNAPSE_BACKUP_PATH" in /*) ;; *) echo "SYNAPSE_BACKUP_PATH must be absolute" >&2; exit 2 ;; esac
 case "$RESTORE_UPLOAD_DIR" in /*) ;; *) echo "RESTORE_UPLOAD_DIR must be absolute" >&2; exit 2 ;; esac
-if [[ "$RESTORE_UPLOAD_DIR" == "/" || "$RESTORE_UPLOAD_DIR" == "$HOME" ]]; then
-  echo "Refusing unsafe restore upload target" >&2
-  exit 2
-fi
-if [[ -L "$RESTORE_UPLOAD_DIR" ]]; then
-  echo "Restore upload target must not be a symbolic link" >&2
-  exit 2
-fi
+
+RESTORE_UPLOAD_DIR="$(TARGET_PATH="$RESTORE_UPLOAD_DIR" node <<'NODE'
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+
+const resolved = path.resolve(process.env.TARGET_PATH);
+if (resolved === path.parse(resolved).root || resolved === os.homedir() || resolved === process.cwd()) {
+  console.error(`Refusing unsafe restore upload target: ${resolved}`);
+  process.exit(2);
+}
+
+let existing = resolved;
+while (!fs.existsSync(existing)) {
+  const parent = path.dirname(existing);
+  if (parent === existing) {
+    console.error(`Could not locate an existing restore-target ancestor: ${resolved}`);
+    process.exit(2);
+  }
+  existing = parent;
+}
+if (fs.realpathSync(existing) !== existing) {
+  console.error(`Restore upload target path must not contain symbolic-link components: ${resolved}`);
+  process.exit(2);
+}
+if (fs.existsSync(resolved)) {
+  const stat = fs.lstatSync(resolved);
+  if (!stat.isDirectory()) {
+    console.error(`Restore upload target is not a directory: ${resolved}`);
+    process.exit(2);
+  }
+  if (fs.realpathSync(resolved) !== resolved) {
+    console.error(`Restore upload target must not resolve through a symbolic link: ${resolved}`);
+    process.exit(2);
+  }
+}
+process.stdout.write(resolved);
+NODE
+)"
 
 for file in database.dump uploads.tar.gz manifest.txt checksums.sha256; do
   if [[ ! -f "$SYNAPSE_BACKUP_PATH/$file" ]]; then
@@ -33,13 +64,22 @@ done
   shasum -a 256 -c checksums.sha256
 )
 
+archive_names="$(mktemp)"
+archive_listing="$(mktemp)"
+cleanup_archive_inspection() {
+  rm -f -- "$archive_names" "$archive_listing"
+}
+trap cleanup_archive_inspection EXIT
+
+tar -tzf "$SYNAPSE_BACKUP_PATH/uploads.tar.gz" > "$archive_names"
 while IFS= read -r entry; do
   case "$entry" in
     /*|../*|*/../*|*/..) echo "Unsafe upload archive entry: $entry" >&2; exit 2 ;;
   esac
-done < <(tar -tzf "$SYNAPSE_BACKUP_PATH/uploads.tar.gz")
+done < "$archive_names"
 
-if tar -tvzf "$SYNAPSE_BACKUP_PATH/uploads.tar.gz" | grep -Eq '^[lh]'; then
+tar -tvzf "$SYNAPSE_BACKUP_PATH/uploads.tar.gz" > "$archive_listing"
+if grep -Eq '^[lh]' "$archive_listing"; then
   echo "Upload archive contains symbolic or hard links; refusing unsafe restore" >&2
   exit 2
 fi
@@ -57,11 +97,46 @@ postgres_restore_url="$(RESTORE_DATABASE_URL="$RESTORE_DATABASE_URL" node -e '
 
 existing_objects="$(
   psql "$postgres_restore_url" --no-psqlrc --tuples-only --no-align --set=ON_ERROR_STOP=1 \
-    --command "SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname NOT IN ('pg_catalog', 'information_schema') AND n.nspname !~ '^pg_toast' AND c.relkind IN ('r','p','v','m','S','f');" \
-    | tr -d '[:space:]'
+    --command "
+      SELECT count(*) FROM (
+        SELECT 1 FROM pg_namespace
+          WHERE nspname NOT IN ('pg_catalog', 'information_schema', 'public')
+            AND nspname !~ '^pg_(toast|temp)'
+        UNION ALL
+        SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+          WHERE n.nspname = 'public'
+        UNION ALL
+        SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+          WHERE n.nspname = 'public'
+        UNION ALL
+        SELECT 1 FROM pg_type t JOIN pg_namespace n ON n.oid = t.typnamespace
+          WHERE n.nspname = 'public'
+        UNION ALL
+        SELECT 1 FROM pg_collation c JOIN pg_namespace n ON n.oid = c.collnamespace
+          WHERE n.nspname = 'public'
+        UNION ALL
+        SELECT 1 FROM pg_conversion c JOIN pg_namespace n ON n.oid = c.connamespace
+          WHERE n.nspname = 'public'
+        UNION ALL
+        SELECT 1 FROM pg_operator o JOIN pg_namespace n ON n.oid = o.oprnamespace
+          WHERE n.nspname = 'public'
+        UNION ALL
+        SELECT 1 FROM pg_ts_config c JOIN pg_namespace n ON n.oid = c.cfgnamespace
+          WHERE n.nspname = 'public'
+        UNION ALL
+        SELECT 1 FROM pg_ts_dict d JOIN pg_namespace n ON n.oid = d.dictnamespace
+          WHERE n.nspname = 'public'
+        UNION ALL
+        SELECT 1 FROM pg_extension WHERE extname <> 'plpgsql'
+        UNION ALL
+        SELECT 1 FROM pg_event_trigger
+        UNION ALL
+        SELECT 1 FROM pg_publication
+      ) AS user_defined_objects;
+    " | tr -d '[:space:]'
 )"
 if [[ "$existing_objects" != "0" ]]; then
-  echo "Restore database must be empty; found $existing_objects existing object(s)" >&2
+  echo "Restore database must be empty; found $existing_objects user-defined object(s)" >&2
   exit 2
 fi
 
