@@ -38,12 +38,34 @@ test("restore drill fails closed on archive, target path, and database state", a
     "pg_class",
     "pg_proc",
     "pg_type",
+    "pg_collation",
+    "pg_conversion",
+    "pg_operator",
+    "pg_opclass",
+    "pg_opfamily",
+    "pg_ts_config",
+    "pg_ts_dict",
+    "pg_ts_parser",
+    "pg_ts_template",
+    "pg_statistic_ext",
     "pg_extension",
     "pg_event_trigger",
     "pg_publication",
+    "pg_subscription",
+    "pg_foreign_data_wrapper",
+    "pg_foreign_server",
+    "pg_user_mapping",
+    "pg_transform",
+    "pg_largeobject_metadata",
+    "pg_cast",
+    "pg_language",
   ]) {
     assert.match(script, new RegExp(catalog));
   }
+  assert.match(
+    script,
+    /pg_subscription[\s\S]*subdbid = \(SELECT oid FROM pg_database WHERE datname = current_database\(\)\)/
+  );
   assert.match(script, /Restore database must be empty/);
   assert.match(script, /pg_restore --exit-on-error --no-owner --no-privileges/);
   assert.doesNotMatch(script, /pg_restore[^\n]*--clean/);
