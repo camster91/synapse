@@ -110,25 +110,41 @@ Never point the database assertion at a different deployment from the HTTP targe
 
 ## Restore drill
 
-Use a newly created, empty disposable database and an empty disposable uploads
-directory. The drill refuses to run without the exact confirmation value. It
-canonicalizes the restore upload target and rejects linked path components, then
-verifies backup checksums and fully materializes archive name/type listings before
-checking traversal and member types. Only ordinary regular-file and directory archive
-members are accepted; symbolic links, hard links, FIFOs, devices, and other special
-members fail closed before extraction. The complete listing is consumed from a file,
-so validation cannot be short-circuited by a producer receiving SIGPIPE.
+Use a newly created, dedicated disposable database and an empty disposable uploads
+directory. Do not target `postgres`, `template0`, or `template1`. The drill refuses to
+run without the exact confirmation value. It canonicalizes the restore upload target
+and rejects linked path components, then verifies backup checksums and fully
+materializes archive name/type listings before checking traversal and member types.
+Only ordinary regular-file and directory archive members are accepted; symbolic links,
+hard links, FIFOs, devices, and other special members fail closed before extraction.
+The complete listing is consumed from a file, so validation cannot be short-circuited
+by a producer receiving SIGPIPE.
 
-Before import, the drill queries PostgreSQL across user schemas, namespace-owned
-relations/functions/types/operators/text-search objects, extensions, event triggers,
-publications/subscriptions, foreign-data objects, transforms, large objects, custom
-access methods/casts, non-default languages, and pre-existing default ACL rows. Any
-detected user-defined object or default privilege fails the empty-DB gate. Because the
-target is independently verified empty, restore does not use `pg_restore --clean` and
-does not intentionally drop existing objects.
+Before import, the drill creates one protected PostgreSQL session. That session disables
+new connections to the disposable target, terminates other target sessions, and refuses
+to continue if any competing connection remains. The same protected session then runs
+the database preflight and applies SQL generated from the backup, eliminating the race
+between an emptiness check and restore. A cleanup path reconnects through the standard
+`postgres` administrative database to re-enable target connections if the protected
+session fails after closing them.
 
-The drill then restores both stores, confirms Prisma migration state, and reconciles
-the exact restored upload directory through a restore-only explicit argument. Normal
+The database preflight requires exactly one standard `public` schema owned by
+`pg_database_owner`. It rejects unexpected `public` schema ACLs; outside the owner,
+only ordinary non-grantable `USAGE` for `PUBLIC` is accepted. It also queries user
+schemas, namespace-owned relations/functions/types/operators/text-search objects,
+extensions, event triggers, publications/subscriptions, foreign-data objects,
+transforms, large objects, custom access methods/casts, non-default languages, and
+pre-existing default ACL rows. Any detected user-defined object, unsafe `public` schema
+metadata, default privilege, or competing session fails the empty-target gate.
+
+Because the target is independently verified and isolated, restore does not use
+`pg_restore --clean` and does not intentionally drop existing objects. The archive is
+rendered to SQL with owner/privilege restoration disabled, then applied with psql
+`ON_ERROR_STOP` inside the protected target session. Connections are re-enabled only
+after that protected restore completes.
+
+The drill then restores uploads, confirms Prisma migration state, and reconciles the
+exact restored upload directory through a restore-only explicit argument. Normal
 production startup still reconciles only its standard `./uploads` directory.
 
 ```bash
