@@ -19,7 +19,10 @@ test("restore drill is explicit, integrity-checked, and validates application st
 
   assert.match(script, /RESTORE_CONFIRM:-.*EMPTY_DISPOSABLE_DATABASE/);
   assert.match(script, /shasum -a 256 -c checksums\.sha256/);
-  assert.match(script, /pg_restore --exit-on-error --clean --if-exists/);
+  assert.match(script, /psql .*--set=ON_ERROR_STOP=1/);
+  assert.match(script, /Restore database must be empty/);
+  assert.match(script, /pg_restore --exit-on-error --no-owner --no-privileges/);
+  assert.doesNotMatch(script, /pg_restore[^\n]*--clean/);
   assert.match(script, /url\.searchParams\.delete\("schema"\)/);
   assert.match(script, /prisma migrate status/);
   assert.match(script, /Restore upload target must not be a symbolic link/);
