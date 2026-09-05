@@ -114,15 +114,18 @@ Use a newly created, empty disposable database and an empty disposable uploads
 directory. The drill refuses to run without the exact confirmation value. It
 canonicalizes the restore upload target and rejects linked path components, then
 verifies backup checksums and fully materializes archive name/type listings before
-checking traversal and symbolic/hard-link entries. Link checks therefore cannot be
-short-circuited by a producer receiving SIGPIPE.
+checking traversal and member types. Only ordinary regular-file and directory archive
+members are accepted; symbolic links, hard links, FIFOs, devices, and other special
+members fail closed before extraction. The complete listing is consumed from a file,
+so validation cannot be short-circuited by a producer receiving SIGPIPE.
 
 Before import, the drill queries PostgreSQL across user schemas, namespace-owned
 relations/functions/types/operators/text-search objects, extensions, event triggers,
 publications/subscriptions, foreign-data objects, transforms, large objects, custom
-casts, and non-default languages. Any detected user-defined object fails the empty-DB
-gate. Because the target is independently verified empty, restore does not use
-`pg_restore --clean` and does not intentionally drop existing objects.
+access methods/casts, non-default languages, and pre-existing default ACL rows. Any
+detected user-defined object or default privilege fails the empty-DB gate. Because the
+target is independently verified empty, restore does not use `pg_restore --clean` and
+does not intentionally drop existing objects.
 
 The drill then restores both stores, confirms Prisma migration state, and reconciles
 the exact restored upload directory through a restore-only explicit argument. Normal
