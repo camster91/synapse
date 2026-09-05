@@ -266,6 +266,8 @@ BEGIN
       UNION ALL
       SELECT 1 FROM pg_default_acl
       UNION ALL
+      SELECT 1 FROM pg_prepared_xacts WHERE database = current_database()
+      UNION ALL
       SELECT 1 FROM pg_language
         WHERE lanname NOT IN ('internal', 'c', 'sql', 'plpgsql')
     ) AS user_defined_objects;
