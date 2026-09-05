@@ -25,9 +25,10 @@ test("restore drill is explicit, integrity-checked, and validates application st
   assert.match(script, /Restore upload target must not be a symbolic link/);
   assert.match(
     script,
-    /SYNAPSE_UPLOAD_DIR="\$RESTORE_UPLOAD_DIR"[\s\S]*SYNAPSE_UPLOAD_DIR_CONFIRM='restore-drill-disposable-upload-target'[\s\S]*npm run uploads:reconcile/
+    /SYNAPSE_UPLOAD_DIR_CONFIRM='restore-drill-disposable-upload-target'[\s\S]*npm run uploads:reconcile -- "\$RESTORE_UPLOAD_DIR"/
   );
-  assert.match(reconcile, /process\.env\.SYNAPSE_UPLOAD_DIR/);
+  assert.doesNotMatch(reconcile, /process\.env\.SYNAPSE_UPLOAD_DIR/);
+  assert.match(reconcile, /process\.argv\[2\]/);
   assert.match(reconcile, /SYNAPSE_UPLOAD_DIR_CONFIRM/);
   assert.match(reconcile, /restore-drill-disposable-upload-target/);
   assert.match(reconcile, /path\.isAbsolute\(configured\)/);
