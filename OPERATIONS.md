@@ -144,9 +144,16 @@ rendered to SQL with owner/privilege restoration disabled, then applied with psq
 `ON_ERROR_STOP` inside the protected target session. Connections are re-enabled only
 after that protected restore completes.
 
-The drill then restores uploads, confirms Prisma migration state, and reconciles the
-exact restored upload directory through a restore-only explicit argument. Normal
-production startup still reconciles only its standard `./uploads` directory.
+After the upload archive is extracted, restore-only upload reconciliation verifies
+that every restored attachment row has a matching regular file in the restored upload
+directory before removing orphan files or rebuilding quota accounting. A database dump
+that references a file missing from the archive therefore fails the drill instead of
+being reported healthy. Normal production startup does not enable this completeness
+check; it retains the standard `./uploads` reconciliation behaviour.
+
+The drill then confirms Prisma migration state and reconciles the exact restored upload
+directory through the restore-only explicit argument. Normal production startup still
+reconciles only its standard `./uploads` directory.
 
 ```bash
 SYNAPSE_BACKUP_PATH='/absolute/path/to/one/synapse-backup' \
