@@ -79,8 +79,8 @@ while IFS= read -r entry; do
 done < "$archive_names"
 
 tar -tvzf "$SYNAPSE_BACKUP_PATH/uploads.tar.gz" > "$archive_listing"
-if grep -Eq '^[lh]' "$archive_listing"; then
-  echo "Upload archive contains symbolic or hard links; refusing unsafe restore" >&2
+if grep -Evq '^[-d]' "$archive_listing"; then
+  echo "Upload archive contains non-regular or non-directory entries; refusing unsafe restore" >&2
   exit 2
 fi
 
@@ -164,6 +164,8 @@ existing_objects="$(
         SELECT 1 FROM pg_am WHERE oid >= 16384
         UNION ALL
         SELECT 1 FROM pg_cast WHERE oid >= 16384
+        UNION ALL
+        SELECT 1 FROM pg_default_acl
         UNION ALL
         SELECT 1 FROM pg_language
           WHERE lanname NOT IN ('internal', 'c', 'sql', 'plpgsql')
