@@ -14,17 +14,22 @@ The backup command creates a private, timestamped directory containing:
 - `manifest.txt`: format, timestamp, revision, and an explicit no-secrets claim;
 - `checksums.sha256`: integrity hashes for every artifact.
 
-The backup destination and upload root must be absolute paths. The command refuses
-filesystem root, the operator's home directory, the current working directory as an
-upload root, linked backup/upload roots, and any symbolic links inside the upload tree.
-It removes a partial destination if creation fails. It does not encrypt artifacts,
-upload them off-site, or choose retention; use an approved encrypted backup target
-with access controls before production.
+The approved backup root and upload root must already exist as absolute canonical
+directories. The command rejects filesystem root, the operator home directory, the
+current working directory, any root whose literal path resolves through a symbolic-link
+component, symbolic links anywhere inside the upload tree, hard-linked upload files,
+and non-regular upload entries. This prevents a successful backup from referring to
+files outside the intended upload tree or producing an archive that its own restore
+workflow cannot safely consume. A partial timestamped destination is removed if backup
+creation fails.
+
+The command does not encrypt artifacts, upload them off-site, or choose retention;
+use an approved encrypted backup target with least-privilege access before production.
 
 ```bash
 DATABASE_URL='postgresql://…' \
-SYNAPSE_UPLOAD_DIR='/absolute/path/to/uploads' \
-SYNAPSE_BACKUP_DIR='/absolute/path/to/private/backups' \
+SYNAPSE_UPLOAD_DIR='/absolute/canonical/path/to/uploads' \
+SYNAPSE_BACKUP_DIR='/absolute/canonical/path/to/private/backups' \
 npm run backup
 ```
 
@@ -106,18 +111,27 @@ Never point the database assertion at a different deployment from the HTTP targe
 ## Restore drill
 
 Use a newly created, empty disposable database and an empty disposable uploads
-directory. The drill refuses to run without the exact confirmation value, verifies
-checksums and archive paths, rejects symbolic/hard-link archive entries, independently
-proves the target database has no non-system objects, and refuses linked or non-empty
-upload targets. Because the database is verified empty, restore does not use
-`pg_restore --clean` and therefore does not drop existing database objects. It then
-restores both stores, confirms Prisma migration state, and reconciles the exact restored
-upload directory through a restore-only explicit target argument.
+directory. The drill refuses to run without the exact confirmation value. It
+canonicalizes the restore upload target and rejects linked path components, then
+verifies backup checksums and fully materializes archive name/type listings before
+checking traversal and symbolic/hard-link entries. Link checks therefore cannot be
+short-circuited by a producer receiving SIGPIPE.
+
+Before import, the drill queries PostgreSQL across user schemas, namespace-owned
+relations/functions/types/operators/text-search objects, extensions, event triggers,
+publications/subscriptions, foreign-data objects, transforms, large objects, custom
+casts, and non-default languages. Any detected user-defined object fails the empty-DB
+gate. Because the target is independently verified empty, restore does not use
+`pg_restore --clean` and does not intentionally drop existing objects.
+
+The drill then restores both stores, confirms Prisma migration state, and reconciles
+the exact restored upload directory through a restore-only explicit argument. Normal
+production startup still reconciles only its standard `./uploads` directory.
 
 ```bash
 SYNAPSE_BACKUP_PATH='/absolute/path/to/one/synapse-backup' \
 RESTORE_DATABASE_URL='postgresql://…/synapse_restore_drill' \
-RESTORE_UPLOAD_DIR='/absolute/path/to/empty/restore-uploads' \
+RESTORE_UPLOAD_DIR='/absolute/canonical/path/to/empty/restore-uploads' \
 RESTORE_CONFIRM='EMPTY_DISPOSABLE_DATABASE' \
 npm run restore:drill
 ```
