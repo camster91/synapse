@@ -6,22 +6,22 @@ import { prisma } from "../src/lib/prisma";
 const RESTORE_UPLOAD_OVERRIDE_CONFIRM = "restore-drill-disposable-upload-target";
 
 function resolveUploadDir() {
-  const configured = process.env.SYNAPSE_UPLOAD_DIR;
+  const configured = process.argv[2];
   if (!configured) return path.join(process.cwd(), "uploads");
 
   if (process.env.SYNAPSE_UPLOAD_DIR_CONFIRM !== RESTORE_UPLOAD_OVERRIDE_CONFIRM) {
     throw new Error(
-      `SYNAPSE_UPLOAD_DIR override requires SYNAPSE_UPLOAD_DIR_CONFIRM=${RESTORE_UPLOAD_OVERRIDE_CONFIRM}`
+      `explicit upload target requires SYNAPSE_UPLOAD_DIR_CONFIRM=${RESTORE_UPLOAD_OVERRIDE_CONFIRM}`
     );
   }
   if (!path.isAbsolute(configured)) {
-    throw new Error("SYNAPSE_UPLOAD_DIR must be an absolute path when set");
+    throw new Error("explicit upload target must be an absolute path");
   }
 
   const resolved = path.resolve(configured);
   const root = path.parse(resolved).root;
   if (resolved === root || resolved === homedir() || resolved === process.cwd()) {
-    throw new Error("Refusing unsafe SYNAPSE_UPLOAD_DIR override target");
+    throw new Error("Refusing unsafe explicit upload target");
   }
 
   return resolved;
