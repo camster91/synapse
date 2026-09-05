@@ -132,6 +132,23 @@ existing_objects="$(
         SELECT 1 FROM pg_event_trigger
         UNION ALL
         SELECT 1 FROM pg_publication
+        UNION ALL
+        SELECT 1 FROM pg_subscription
+        UNION ALL
+        SELECT 1 FROM pg_foreign_data_wrapper
+        UNION ALL
+        SELECT 1 FROM pg_foreign_server
+        UNION ALL
+        SELECT 1 FROM pg_user_mapping
+        UNION ALL
+        SELECT 1 FROM pg_transform
+        UNION ALL
+        SELECT 1 FROM pg_largeobject_metadata
+        UNION ALL
+        SELECT 1 FROM pg_cast WHERE oid >= 16384
+        UNION ALL
+        SELECT 1 FROM pg_language
+          WHERE lanname NOT IN ('internal', 'c', 'sql', 'plpgsql')
       ) AS user_defined_objects;
     " | tr -d '[:space:]'
 )"
