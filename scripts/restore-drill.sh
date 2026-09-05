@@ -165,6 +165,7 @@ $synapse_connections$;
 DO $synapse_preflight$
 DECLARE
   existing_objects bigint;
+  system_schema_objects bigint;
   public_schema_owner text;
   unsafe_public_acl bigint;
 BEGIN
@@ -193,6 +194,56 @@ BEGIN
       );
   IF unsafe_public_acl <> 0 THEN
     RAISE EXCEPTION 'Restore database public schema has unexpected privileges';
+  END IF;
+
+  -- PostgreSQL reserves OIDs below FirstNormalObjectId (16384) for built-in/initdb
+  -- objects. Any namespace-owned object at or above that boundary inside a system
+  -- schema was created later and makes this supposed disposable target non-pristine.
+  SELECT count(*)
+    INTO system_schema_objects
+    FROM (
+      SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+        WHERE n.nspname IN ('pg_catalog', 'information_schema') AND c.oid >= 16384
+      UNION ALL
+      SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+        WHERE n.nspname IN ('pg_catalog', 'information_schema') AND p.oid >= 16384
+      UNION ALL
+      SELECT 1 FROM pg_type t JOIN pg_namespace n ON n.oid = t.typnamespace
+        WHERE n.nspname IN ('pg_catalog', 'information_schema') AND t.oid >= 16384
+      UNION ALL
+      SELECT 1 FROM pg_collation c JOIN pg_namespace n ON n.oid = c.collnamespace
+        WHERE n.nspname IN ('pg_catalog', 'information_schema') AND c.oid >= 16384
+      UNION ALL
+      SELECT 1 FROM pg_conversion c JOIN pg_namespace n ON n.oid = c.connamespace
+        WHERE n.nspname IN ('pg_catalog', 'information_schema') AND c.oid >= 16384
+      UNION ALL
+      SELECT 1 FROM pg_operator o JOIN pg_namespace n ON n.oid = o.oprnamespace
+        WHERE n.nspname IN ('pg_catalog', 'information_schema') AND o.oid >= 16384
+      UNION ALL
+      SELECT 1 FROM pg_opclass o JOIN pg_namespace n ON n.oid = o.opcnamespace
+        WHERE n.nspname IN ('pg_catalog', 'information_schema') AND o.oid >= 16384
+      UNION ALL
+      SELECT 1 FROM pg_opfamily o JOIN pg_namespace n ON n.oid = o.opfnamespace
+        WHERE n.nspname IN ('pg_catalog', 'information_schema') AND o.oid >= 16384
+      UNION ALL
+      SELECT 1 FROM pg_ts_config c JOIN pg_namespace n ON n.oid = c.cfgnamespace
+        WHERE n.nspname IN ('pg_catalog', 'information_schema') AND c.oid >= 16384
+      UNION ALL
+      SELECT 1 FROM pg_ts_dict d JOIN pg_namespace n ON n.oid = d.dictnamespace
+        WHERE n.nspname IN ('pg_catalog', 'information_schema') AND d.oid >= 16384
+      UNION ALL
+      SELECT 1 FROM pg_ts_parser p JOIN pg_namespace n ON n.oid = p.prsnamespace
+        WHERE n.nspname IN ('pg_catalog', 'information_schema') AND p.oid >= 16384
+      UNION ALL
+      SELECT 1 FROM pg_ts_template t JOIN pg_namespace n ON n.oid = t.tmplnamespace
+        WHERE n.nspname IN ('pg_catalog', 'information_schema') AND t.oid >= 16384
+      UNION ALL
+      SELECT 1 FROM pg_statistic_ext s JOIN pg_namespace n ON n.oid = s.stxnamespace
+        WHERE n.nspname IN ('pg_catalog', 'information_schema') AND s.oid >= 16384
+    ) AS user_created_system_schema_objects;
+
+  IF system_schema_objects <> 0 THEN
+    RAISE EXCEPTION 'Restore database system schemas contain % user-created object(s)', system_schema_objects;
   END IF;
 
   SELECT count(*)
