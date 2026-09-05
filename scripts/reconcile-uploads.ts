@@ -28,6 +28,7 @@ function resolveUploadDir() {
 }
 
 async function main() {
+  const explicitRestoreTarget = Boolean(process.argv[2]);
   const uploadDir = resolveUploadDir();
   const trashDir = path.join(uploadDir, ".trash");
   await mkdir(uploadDir, { recursive: true });
@@ -43,8 +44,28 @@ async function main() {
       .filter((filename): filename is string => Boolean(filename))
   );
 
+  const uploadEntries = await readdir(uploadDir, { withFileTypes: true });
+  const regularFiles = new Set(
+    uploadEntries.filter((entry) => entry.isFile()).map((entry) => entry.name)
+  );
+
+  // The explicit target is available only to the disposable restore drill. In
+  // that mode, reconciliation must prove completeness as well as remove stale
+  // files: every attachment row restored from PostgreSQL must have its matching
+  // regular file before any orphan cleanup can make the result look healthy.
+  if (explicitRestoreTarget) {
+    const missingReferenced = [...referenced].filter(
+      (filename) => !regularFiles.has(filename)
+    );
+    if (missingReferenced.length > 0) {
+      throw new Error(
+        `restore upload target is missing ${missingReferenced.length} referenced attachment file(s)`
+      );
+    }
+  }
+
   let removedOrphans = 0;
-  for (const entry of await readdir(uploadDir, { withFileTypes: true })) {
+  for (const entry of uploadEntries) {
     if (!entry.isFile() || referenced.has(entry.name)) continue;
     await rm(path.join(uploadDir, entry.name), { force: true });
     removedOrphans++;
