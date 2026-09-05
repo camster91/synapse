@@ -1,14 +1,30 @@
 import { mkdir, readdir, rm } from "node:fs/promises";
+import { homedir } from "node:os";
 import path from "node:path";
 import { prisma } from "../src/lib/prisma";
+
+const RESTORE_UPLOAD_OVERRIDE_CONFIRM = "restore-drill-disposable-upload-target";
 
 function resolveUploadDir() {
   const configured = process.env.SYNAPSE_UPLOAD_DIR;
   if (!configured) return path.join(process.cwd(), "uploads");
+
+  if (process.env.SYNAPSE_UPLOAD_DIR_CONFIRM !== RESTORE_UPLOAD_OVERRIDE_CONFIRM) {
+    throw new Error(
+      `SYNAPSE_UPLOAD_DIR override requires SYNAPSE_UPLOAD_DIR_CONFIRM=${RESTORE_UPLOAD_OVERRIDE_CONFIRM}`
+    );
+  }
   if (!path.isAbsolute(configured)) {
     throw new Error("SYNAPSE_UPLOAD_DIR must be an absolute path when set");
   }
-  return configured;
+
+  const resolved = path.resolve(configured);
+  const root = path.parse(resolved).root;
+  if (resolved === root || resolved === homedir() || resolved === process.cwd()) {
+    throw new Error("Refusing unsafe SYNAPSE_UPLOAD_DIR override target");
+  }
+
+  return resolved;
 }
 
 async function main() {
