@@ -133,9 +133,10 @@ The database preflight requires exactly one standard `public` schema owned by
 only ordinary non-grantable `USAGE` for `PUBLIC` is accepted. It also queries user
 schemas, namespace-owned relations/functions/types/operators/text-search objects,
 extensions, event triggers, publications/subscriptions, foreign-data objects,
-transforms, large objects, custom access methods/casts, non-default languages, and
-pre-existing default ACL rows. Any detected user-defined object, unsafe `public` schema
-metadata, default privilege, or competing session fails the empty-target gate.
+transforms, large objects, custom access methods/casts, non-default languages,
+pre-existing default ACL rows, and prepared transactions for the target database. Any
+detected user-defined object, unsafe `public` schema metadata, default privilege,
+prepared transaction, or competing session fails the empty-target gate.
 
 Because the target is independently verified and isolated, restore does not use
 `pg_restore --clean` and does not intentionally drop existing objects. The archive is
