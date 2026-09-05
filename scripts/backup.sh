@@ -13,10 +13,30 @@ if [[ "$SYNAPSE_BACKUP_DIR" == "/" || "$SYNAPSE_BACKUP_DIR" == "$HOME" ]]; then
   echo "Refusing unsafe backup root" >&2
   exit 2
 fi
+if [[ -L "$SYNAPSE_BACKUP_DIR" ]]; then
+  echo "Backup root must not be a symbolic link" >&2
+  exit 2
+fi
 
 upload_dir="${SYNAPSE_UPLOAD_DIR:-$PWD/uploads}"
+case "$upload_dir" in
+  /*) ;;
+  *) echo "SYNAPSE_UPLOAD_DIR must be absolute" >&2; exit 2 ;;
+esac
+if [[ "$upload_dir" == "/" || "$upload_dir" == "$HOME" || "$upload_dir" == "$PWD" ]]; then
+  echo "Refusing unsafe upload root" >&2
+  exit 2
+fi
 if [[ ! -d "$upload_dir" ]]; then
   echo "Upload directory does not exist: $upload_dir" >&2
+  exit 2
+fi
+if [[ -L "$upload_dir" ]]; then
+  echo "Upload directory must not be a symbolic link" >&2
+  exit 2
+fi
+if [[ -n "$(find "$upload_dir" -type l -print -quit)" ]]; then
+  echo "Upload directory contains symbolic links; refusing unsafe backup" >&2
   exit 2
 fi
 
