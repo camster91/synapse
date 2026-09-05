@@ -21,7 +21,7 @@ test("backup captures only a canonical regular upload tree with integrity metada
   assert.match(script, /trap cleanup_failed_backup ERR INT TERM/);
 });
 
-test("restore drill fails closed on archive, target path, and database state", async () => {
+test("restore drill fails closed on archive, target path, database state, and concurrent access", async () => {
   const script = await readFile("scripts/restore-drill.sh", "utf8");
   const reconcile = await readFile("scripts/reconcile-uploads.ts", "utf8");
 
@@ -34,7 +34,20 @@ test("restore drill fails closed on archive, target path, and database state", a
   assert.match(script, /grep -Evq '\^\[-d\]' "\$archive_listing"/);
   assert.doesNotMatch(script, /tar -tvzf[^\n]*\|[^\n]*grep -q/);
   assert.match(script, /non-regular or non-directory entries/);
-  assert.match(script, /psql .*--set=ON_ERROR_STOP=1/);
+
+  assert.match(script, /dedicated disposable database/);
+  assert.match(script, /ALLOW_CONNECTIONS false/);
+  assert.match(script, /ALLOW_CONNECTIONS true/);
+  assert.match(script, /pg_terminate_backend\(pid\)/);
+  assert.match(script, /Restore database still has another active connection/);
+  assert.match(script, /connections_closed=1/);
+  assert.match(script, /reenable_target_connections/);
+  assert.match(script, /postgres_admin_url/);
+
+  assert.match(script, /public_schema_owner <> 'pg_database_owner'/);
+  assert.match(script, /aclexplode\(COALESCE\(n\.nspacl, acldefault\('n', n\.nspowner\)\)\)/);
+  assert.match(script, /public schema has unexpected privileges/);
+
   for (const catalog of [
     "pg_namespace",
     "pg_class",
@@ -73,14 +86,18 @@ test("restore drill fails closed on archive, target path, and database state", a
   assert.match(script, /pg_am WHERE oid >= 16384/);
   assert.match(script, /SELECT 1 FROM pg_default_acl/);
   assert.match(script, /Restore database must be empty/);
-  assert.match(script, /pg_restore --exit-on-error --no-owner --no-privileges/);
+
+  assert.match(script, /pg_restore --no-owner --no-privileges/);
+  assert.match(script, /--file="\$restore_sql"/);
   assert.doesNotMatch(script, /pg_restore[^\n]*--clean/);
-  assert.match(script, /url\.searchParams\.delete\("schema"\)/);
+  assert.match(script, /\\set ON_ERROR_STOP on/);
+  assert.match(script, /url\.searchParams\.delete\('schema'\)|url\.searchParams\.delete\("schema"\)/);
   assert.match(script, /prisma migrate status/);
   assert.match(
     script,
     /SYNAPSE_UPLOAD_DIR_CONFIRM='restore-drill-disposable-upload-target'[\s\S]*npm run uploads:reconcile -- "\$RESTORE_UPLOAD_DIR"/
   );
+
   assert.doesNotMatch(reconcile, /process\.env\.SYNAPSE_UPLOAD_DIR/);
   assert.match(reconcile, /process\.argv\[2\]/);
   assert.match(reconcile, /SYNAPSE_UPLOAD_DIR_CONFIRM/);
