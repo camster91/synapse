@@ -31,9 +31,9 @@ test("restore drill fails closed on archive, target path, and database state", a
   assert.match(script, /symbolic-link components/);
   assert.match(script, /archive_listing="\$\(mktemp\)"/);
   assert.match(script, /tar -tvzf .* > "\$archive_listing"/);
-  assert.match(script, /grep -Eq '\^\[lh\]' "\$archive_listing"/);
+  assert.match(script, /grep -Evq '\^\[-d\]' "\$archive_listing"/);
   assert.doesNotMatch(script, /tar -tvzf[^\n]*\|[^\n]*grep -q/);
-  assert.match(script, /symbolic or hard links/);
+  assert.match(script, /non-regular or non-directory entries/);
   assert.match(script, /psql .*--set=ON_ERROR_STOP=1/);
   for (const catalog of [
     "pg_namespace",
@@ -61,6 +61,7 @@ test("restore drill fails closed on archive, target path, and database state", a
     "pg_largeobject_metadata",
     "pg_am",
     "pg_cast",
+    "pg_default_acl",
     "pg_language",
   ]) {
     assert.match(script, new RegExp(catalog));
@@ -70,6 +71,7 @@ test("restore drill fails closed on archive, target path, and database state", a
     /pg_subscription[\s\S]*subdbid = \(SELECT oid FROM pg_database WHERE datname = current_database\(\)\)/
   );
   assert.match(script, /pg_am WHERE oid >= 16384/);
+  assert.match(script, /SELECT 1 FROM pg_default_acl/);
   assert.match(script, /Restore database must be empty/);
   assert.match(script, /pg_restore --exit-on-error --no-owner --no-privileges/);
   assert.doesNotMatch(script, /pg_restore[^\n]*--clean/);
