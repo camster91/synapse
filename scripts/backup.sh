@@ -11,6 +11,10 @@ const os = require('node:os');
 const path = require('node:path');
 
 const input = process.env.TARGET_PATH;
+if (!path.isAbsolute(input)) {
+  console.error(`Directory path must be absolute: ${input}`);
+  process.exit(2);
+}
 const resolved = path.resolve(input);
 let stat;
 try {
