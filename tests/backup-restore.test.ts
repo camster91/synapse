@@ -75,6 +75,7 @@ test("restore drill fails closed on archive, target path, database state, and co
     "pg_am",
     "pg_cast",
     "pg_default_acl",
+    "pg_prepared_xacts",
     "pg_language",
   ]) {
     assert.match(script, new RegExp(catalog));
@@ -85,6 +86,7 @@ test("restore drill fails closed on archive, target path, database state, and co
   );
   assert.match(script, /pg_am WHERE oid >= 16384/);
   assert.match(script, /SELECT 1 FROM pg_default_acl/);
+  assert.match(script, /pg_prepared_xacts WHERE database = current_database\(\)/);
   assert.match(script, /Restore database must be empty/);
 
   assert.match(script, /pg_restore --no-owner --no-privileges/);
@@ -114,5 +116,6 @@ test("runbook keeps production recovery gated on owner and operator evidence", a
 
   assert.match(runbook, /encrypted off-site destination/);
   assert.match(runbook, /target recovery point and recovery time objectives/);
+  assert.match(runbook, /prepared transactions/);
   assert.match(runbook, /backup and recovery remain a release blocker/);
 });
