@@ -134,9 +134,13 @@ only ordinary non-grantable `USAGE` for `PUBLIC` is accepted. It also queries us
 schemas, namespace-owned relations/functions/types/operators/text-search objects,
 extensions, event triggers, publications/subscriptions, foreign-data objects,
 transforms, large objects, custom access methods/casts, non-default languages,
-pre-existing default ACL rows, and prepared transactions for the target database. Any
-detected user-defined object, unsafe `public` schema metadata, default privilege,
-prepared transaction, or competing session fails the empty-target gate.
+pre-existing default ACL rows, and prepared transactions for the target database.
+A separate system-schema check rejects namespace-owned objects with user-assigned OIDs
+at or above PostgreSQL's `FirstNormalObjectId` boundary (`16384`) inside the
+system-named schemas `pg_catalog` and `information_schema`; ordinary low-OID built-in
+and initdb objects remain accepted. Any detected user-defined object, unsafe `public`
+schema metadata, default privilege, prepared transaction, system-schema contamination,
+or competing session fails the empty-target gate.
 
 Because the target is independently verified and isolated, restore does not use
 `pg_restore --clean` and does not intentionally drop existing objects. The archive is
