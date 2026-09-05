@@ -49,7 +49,20 @@ postgres_restore_url="$(RESTORE_DATABASE_URL="$RESTORE_DATABASE_URL" node -e '
   url.searchParams.delete("schema");
   process.stdout.write(url.toString());
 ')"
-pg_restore --exit-on-error --clean --if-exists --no-owner --no-privileges \
+
+existing_objects="$(
+  psql "$postgres_restore_url" --no-psqlrc --tuples-only --no-align --set=ON_ERROR_STOP=1 \
+    --command "SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname NOT IN ('pg_catalog', 'information_schema') AND n.nspname !~ '^pg_toast' AND c.relkind IN ('r','p','v','m','S','f');" \
+    | tr -d '[:space:]'
+)"
+if [[ "$existing_objects" != "0" ]]; then
+  echo "Restore database must be empty; found $existing_objects existing object(s)" >&2
+  exit 2
+fi
+
+# The target was independently verified empty above, so do not use --clean here.
+# Omitting destructive drop behavior makes a mistaken or raced target fail closed.
+pg_restore --exit-on-error --no-owner --no-privileges \
   --dbname="$postgres_restore_url" "$SYNAPSE_BACKUP_PATH/database.dump"
 mkdir -p "$RESTORE_UPLOAD_DIR"
 tar -xzf "$SYNAPSE_BACKUP_PATH/uploads.tar.gz" -C "$RESTORE_UPLOAD_DIR"
