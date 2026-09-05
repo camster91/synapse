@@ -2,10 +2,18 @@ import { mkdir, readdir, rm } from "node:fs/promises";
 import path from "node:path";
 import { prisma } from "../src/lib/prisma";
 
-const uploadDir = path.join(process.cwd(), "uploads");
-const trashDir = path.join(uploadDir, ".trash");
+function resolveUploadDir() {
+  const configured = process.env.SYNAPSE_UPLOAD_DIR;
+  if (!configured) return path.join(process.cwd(), "uploads");
+  if (!path.isAbsolute(configured)) {
+    throw new Error("SYNAPSE_UPLOAD_DIR must be an absolute path when set");
+  }
+  return configured;
+}
 
 async function main() {
+  const uploadDir = resolveUploadDir();
+  const trashDir = path.join(uploadDir, ".trash");
   await mkdir(uploadDir, { recursive: true });
 
   // Query the authoritative database before removing anything. If the database
