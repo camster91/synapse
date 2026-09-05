@@ -121,10 +121,25 @@ existing_objects="$(
         SELECT 1 FROM pg_operator o JOIN pg_namespace n ON n.oid = o.oprnamespace
           WHERE n.nspname = 'public'
         UNION ALL
+        SELECT 1 FROM pg_opclass o JOIN pg_namespace n ON n.oid = o.opcnamespace
+          WHERE n.nspname = 'public'
+        UNION ALL
+        SELECT 1 FROM pg_opfamily o JOIN pg_namespace n ON n.oid = o.opfnamespace
+          WHERE n.nspname = 'public'
+        UNION ALL
         SELECT 1 FROM pg_ts_config c JOIN pg_namespace n ON n.oid = c.cfgnamespace
           WHERE n.nspname = 'public'
         UNION ALL
         SELECT 1 FROM pg_ts_dict d JOIN pg_namespace n ON n.oid = d.dictnamespace
+          WHERE n.nspname = 'public'
+        UNION ALL
+        SELECT 1 FROM pg_ts_parser p JOIN pg_namespace n ON n.oid = p.prsnamespace
+          WHERE n.nspname = 'public'
+        UNION ALL
+        SELECT 1 FROM pg_ts_template t JOIN pg_namespace n ON n.oid = t.tmplnamespace
+          WHERE n.nspname = 'public'
+        UNION ALL
+        SELECT 1 FROM pg_statistic_ext s JOIN pg_namespace n ON n.oid = s.stxnamespace
           WHERE n.nspname = 'public'
         UNION ALL
         SELECT 1 FROM pg_extension WHERE extname <> 'plpgsql'
@@ -134,6 +149,7 @@ existing_objects="$(
         SELECT 1 FROM pg_publication
         UNION ALL
         SELECT 1 FROM pg_subscription
+          WHERE subdbid = (SELECT oid FROM pg_database WHERE datname = current_database())
         UNION ALL
         SELECT 1 FROM pg_foreign_data_wrapper
         UNION ALL
