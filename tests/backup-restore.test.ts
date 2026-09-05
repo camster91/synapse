@@ -6,6 +6,8 @@ test("backup captures only a canonical regular upload tree with integrity metada
   const script = await readFile("scripts/backup.sh", "utf8");
 
   assert.match(script, /canonical_existing_directory/);
+  assert.match(script, /path\.isAbsolute\(input\)/);
+  assert.match(script, /Directory path must be absolute/);
   assert.match(script, /fs\.realpathSync\(resolved\)/);
   assert.match(script, /Directory path must not contain symbolic-link components/);
   assert.match(script, /stat\.isSymbolicLink\(\)/);
@@ -57,6 +59,7 @@ test("restore drill fails closed on archive, target path, and database state", a
     "pg_user_mapping",
     "pg_transform",
     "pg_largeobject_metadata",
+    "pg_am",
     "pg_cast",
     "pg_language",
   ]) {
@@ -66,6 +69,7 @@ test("restore drill fails closed on archive, target path, and database state", a
     script,
     /pg_subscription[\s\S]*subdbid = \(SELECT oid FROM pg_database WHERE datname = current_database\(\)\)/
   );
+  assert.match(script, /pg_am WHERE oid >= 16384/);
   assert.match(script, /Restore database must be empty/);
   assert.match(script, /pg_restore --exit-on-error --no-owner --no-privileges/);
   assert.doesNotMatch(script, /pg_restore[^\n]*--clean/);
