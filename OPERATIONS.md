@@ -14,10 +14,12 @@ The backup command creates a private, timestamped directory containing:
 - `manifest.txt`: format, timestamp, revision, and an explicit no-secrets claim;
 - `checksums.sha256`: integrity hashes for every artifact.
 
-The destination must be an absolute path and cannot be `/` or the operator's home
-directory. The command removes a partial destination if creation fails. It does not
-encrypt artifacts, upload them off-site, or choose retention; use an approved encrypted
-backup target with access controls before production.
+The backup destination and upload root must be absolute paths. The command refuses
+filesystem root, the operator's home directory, the current working directory as an
+upload root, linked backup/upload roots, and any symbolic links inside the upload tree.
+It removes a partial destination if creation fails. It does not encrypt artifacts,
+upload them off-site, or choose retention; use an approved encrypted backup target
+with access controls before production.
 
 ```bash
 DATABASE_URL='postgresql://…' \
@@ -103,10 +105,14 @@ Never point the database assertion at a different deployment from the HTTP targe
 
 ## Restore drill
 
-The drill is deliberately destructive to its target database. Use a newly created,
-empty disposable database and an empty disposable uploads directory. It refuses to
-run without the exact confirmation value, verifies checksums and archive paths,
-restores both stores, confirms Prisma migration state, and reconciles upload metadata.
+Use a newly created, empty disposable database and an empty disposable uploads
+directory. The drill refuses to run without the exact confirmation value, verifies
+checksums and archive paths, rejects symbolic/hard-link archive entries, independently
+proves the target database has no non-system objects, and refuses linked or non-empty
+upload targets. Because the database is verified empty, restore does not use
+`pg_restore --clean` and therefore does not drop existing database objects. It then
+restores both stores, confirms Prisma migration state, and reconciles the exact restored
+upload directory through a restore-only explicit target argument.
 
 ```bash
 SYNAPSE_BACKUP_PATH='/absolute/path/to/one/synapse-backup' \
