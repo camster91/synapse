@@ -120,13 +120,17 @@ hard links, FIFOs, devices, and other special members fail closed before extract
 The complete listing is consumed from a file, so validation cannot be short-circuited
 by a producer receiving SIGPIPE.
 
-Before import, the drill creates one protected PostgreSQL session. That session disables
-new connections to the disposable target, terminates other target sessions, and refuses
-to continue if any competing connection remains. The same protected session then runs
-the database preflight and applies SQL generated from the backup, eliminating the race
-between an emptiness check and restore. A cleanup path reconnects through the standard
-`postgres` administrative database to re-enable target connections if the protected
-session fails after closing them.
+Before import, the drill first proves that its `postgres` maintenance connection can
+execute the exact idempotent `ALTER DATABASE … ALLOW_CONNECTIONS true` operation needed
+for failure cleanup. If the maintenance database is unavailable, CONNECT is denied,
+the target is missing, or the role lacks that permission, the drill aborts before
+freezing the disposable target. It then creates one protected PostgreSQL session. That
+session disables new connections to the disposable target, terminates other target
+sessions, and refuses to continue if any competing connection remains. The same
+protected session then runs the database preflight and applies SQL generated from the
+backup, eliminating the race between an emptiness check and restore. A cleanup path
+reconnects through the already-validated maintenance connection to re-enable target
+connections if the protected session fails after closing them.
 
 The database preflight requires exactly one standard `public` schema owned by
 `pg_database_owner`. It rejects unexpected `public` schema ACLs; outside the owner,
