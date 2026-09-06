@@ -21,7 +21,7 @@ test("backup captures only a canonical regular upload tree with integrity metada
   assert.match(script, /trap cleanup_failed_backup ERR INT TERM/);
 });
 
-test("restore drill fails closed on archive, target path, database state, concurrent access, and missing uploads", async () => {
+test("restore drill fails closed on archive, target path, database state, concurrent access, cleanup access, and missing uploads", async () => {
   const script = await readFile("scripts/restore-drill.sh", "utf8");
   const reconcile = await readFile("scripts/reconcile-uploads.ts", "utf8");
 
@@ -43,6 +43,13 @@ test("restore drill fails closed on archive, target path, database state, concur
   assert.match(script, /connections_closed=1/);
   assert.match(script, /reenable_target_connections/);
   assert.match(script, /postgres_admin_url/);
+  const cleanupProbe = script.indexOf("Prove the exact maintenance connection and permission path");
+  const freezeMarker = script.indexOf("connections_closed=1");
+  assert.ok(cleanupProbe >= 0 && freezeMarker > cleanupProbe);
+  assert.match(
+    script.slice(cleanupProbe, freezeMarker),
+    /psql "\$postgres_admin_url"[\s\S]*ALTER DATABASE %I ALLOW_CONNECTIONS true/
+  );
 
   assert.match(script, /public_schema_owner <> 'pg_database_owner'/);
   assert.match(script, /aclexplode\(COALESCE\(n\.nspacl, acldefault\('n', n\.nspowner\)\)\)/);
@@ -146,6 +153,7 @@ test("runbook keeps production recovery gated on owner and operator evidence", a
   assert.match(runbook, /target recovery point and recovery time objectives/);
   assert.match(runbook, /prepared transactions/);
   assert.match(runbook, /system-named schemas/);
+  assert.match(runbook, /maintenance connection/);
   assert.match(runbook, /every restored attachment row/);
   assert.match(runbook, /backup and recovery remain a release blocker/);
 });
