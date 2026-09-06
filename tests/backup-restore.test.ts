@@ -125,7 +125,7 @@ test("restore drill fails closed on archive, target path, database state, concur
   assert.match(script, /--file="\$restore_sql"/);
   assert.doesNotMatch(script, /pg_restore[^\n]*--clean/);
   assert.match(script, /\\set ON_ERROR_STOP on/);
-  assert.match(script, /url\.searchParams\.delete\('schema'\)|url\.searchParams\.delete\("schema"\)/);
+  assert.match(script, /searchParams\.delete\(['"]schema['"]\)/);
   assert.match(script, /prisma migrate status/);
   assert.match(
     script,
