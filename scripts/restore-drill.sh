@@ -131,6 +131,14 @@ if [[ -z "$postgres_restore_url" || -z "$postgres_admin_url" || -z "$restore_dat
   exit 2
 fi
 
+# Prove the exact maintenance connection and permission path needed by failure
+# cleanup before making the disposable target inaccessible. This is idempotent while
+# the target still accepts connections and fails closed if `postgres` is unavailable,
+# CONNECT is denied, the target is missing, or ALTER DATABASE is not permitted.
+psql "$postgres_admin_url" --no-psqlrc --set=ON_ERROR_STOP=1 --set=target_db="$restore_database_name" >/dev/null <<'SQL'
+SELECT format('ALTER DATABASE %I ALLOW_CONNECTIONS true', :'target_db') \gexec
+SQL
+
 # Generate SQL before closing target connections. Execution happens later through
 # one protected psql session so the emptiness check and restore cannot be raced.
 pg_restore --no-owner --no-privileges \
