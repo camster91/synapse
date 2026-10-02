@@ -18,6 +18,20 @@ and encryption key in Coolify without logging them. The database URL uses the
 `db` service alias in the isolated Compose network. Preserve configured
 provider values; migration itself must not send emails or request AI actions.
 
+Set the custom Compose build command to:
+
+```sh
+bash deploy/before-deploy.sh <application-uuid> && docker compose --project-name <application-uuid> build --pull
+```
+
+The guard validates the PostgreSQL dump catalog, archives uploads excluding
+previous backups, verifies backup checksums and retains filesystem-identical
+preceding images with cleanup protection. Backups are root-only under
+`/app/uploads/.ops-backups`; they are not public attachment files. Catalog
+validation is not a full restore rehearsal. Before cutover, verify the dump
+in an isolated PostgreSQL restore and coordinate upload writes for a consistent
+application snapshot.
+
 First deploy against separate existing candidate database/upload volumes,
 using a verified PostgreSQL restore and upload snapshot, private port 13070
 and isolated auth/provider configuration. Never start another PostgreSQL
