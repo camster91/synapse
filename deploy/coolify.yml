@@ -1,0 +1,60 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: synapse
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: synapse
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U synapse -d synapse"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      NEXTAUTH_URL: ${NEXTAUTH_URL:?NEXTAUTH_URL is required}
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:?NEXTAUTH_SECRET is required}
+      SYNAPSE_ENCRYPTION_KEY: ${SYNAPSE_ENCRYPTION_KEY:?SYNAPSE_ENCRYPTION_KEY is required}
+      TRUST_PROXY: ${TRUST_PROXY:-false}
+      RELEASE_REV: ${SOURCE_COMMIT:-unknown}
+      EMAIL_PROVIDER: ${EMAIL_PROVIDER:-}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      EMAIL_FROM: ${EMAIL_FROM:-}
+      EMAIL_REPLY_TO: ${EMAIL_REPLY_TO:-}
+      AUTH_PUBLIC_URL: ${AUTH_PUBLIC_URL:-}
+      AUTH_EMAIL_LOCAL_SINK: ${AUTH_EMAIL_LOCAL_SINK:-}
+      DEFAULT_AI_PROVIDER: ${DEFAULT_AI_PROVIDER:-anthropic}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-}
+    ports:
+      - "127.0.0.1:${SYNAPSE_LOCAL_PORT:-3070}:3000"
+    volumes:
+      - uploads:/app/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+    command: >
+      sh -c "npx prisma migrate deploy && npm run uploads:reconcile && node server.js"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  pgdata:
+    external: true
+    name: ${SYNAPSE_DATABASE_VOLUME:?An existing database volume is required}
+  uploads:
+    external: true
+    name: ${SYNAPSE_UPLOADS_VOLUME:?An existing uploads volume is required}
