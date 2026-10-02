@@ -18,7 +18,9 @@ test("portable export covers profile, content, attachments, plugins, and notific
 test("account deletion requires confirmation and credential verification", () => {
   assert.match(accountRoute, /z\.literal\("DELETE"\)/);
   assert.match(accountRoute, /bcrypt\.compare/);
-  assert.match(accountRoute, /where: \{ userId: session\.user\.id/);
+  assert.match(accountRoute, /const userId = session\.user\.id/);
+  assert.match(accountRoute, /where: \{ userId, provider: "credentials" \}/);
+  assert.match(accountRoute, /await tx\.user\.delete\(\{ where: \{ id: userId \} \}\)/);
 });
 
 test("account and individual attachment deletion stage files recoverably", () => {

@@ -3,13 +3,14 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 const inventory = readFileSync("LEGAL-REVIEW-INVENTORY.md", "utf8");
+const inventoryText = inventory.replace(/\*\*/g, "");
 const license = readFileSync("LICENSE", "utf8");
 
 test("legal inventory remains internal review material rather than approved policy", () => {
   assert.match(inventory, /not legal advice/i);
-  assert.match(inventory, /does not authorize publication/i);
-  assert.match(inventory, /internal review material only/i);
-  assert.match(inventory, /qualified review/i);
+  assert.match(inventoryText, /Nothing in this file authorizes publication/i);
+  assert.match(inventoryText, /factual engineering inventory only/i);
+  assert.match(inventoryText, /qualified review/i);
 });
 
 test("legal inventory keeps the unresolved owner decisions explicit", () => {
@@ -30,7 +31,7 @@ test("legal inventory keeps the unresolved owner decisions explicit", () => {
 test("inventory records the material data lifecycle and provider review areas", () => {
   assert.match(inventory, /Portable export behaviour/);
   assert.match(inventory, /Account deletion behaviour/);
-  assert.match(inventory, /does not by itself prove deletion from previously created backups/i);
+  assert.match(inventoryText, /does not by itself prove deletion from previously created backups/i);
   assert.match(inventory, /Product analytics/);
   assert.match(inventory, /AI provider data flow/);
   assert.match(inventory, /Anthropic/);
