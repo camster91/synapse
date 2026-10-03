@@ -32,6 +32,20 @@ validation is not a full restore rehearsal. Before cutover, verify the dump
 in an isolated PostgreSQL restore and coordinate upload writes for a consistent
 application snapshot.
 
+The guard identifies running app/database services by their Compose project and
+service labels, so Coolify's deployment-specific container names work. Multiple
+running services or a partial/stopped resource fail closed instead of falling
+back to the original app. The legacy fallback is used only before the resource
+has any containers.
+
+Default deployment mode rejects source builds when root disk usage is 80% or
+higher. Do not append a build after recovery-only mode or use it to bypass that
+policy. For a separately scoped backup rehearsal without a source build:
+
+```sh
+bash deploy/before-deploy.sh <application-uuid> backup-only
+```
+
 First deploy against separate existing candidate database/upload volumes,
 using a verified PostgreSQL restore and upload snapshot, private port 13070
 and isolated auth/provider configuration. Never start another PostgreSQL

@@ -3,11 +3,29 @@
 set -euo pipefail
 resource="${1:?Pass the Coolify application UUID}"
 [[ "$resource" =~ ^[a-z0-9]{24}$ ]] || exit 1
-app="$resource-app-1"
-db="$resource-db-1"
-if ! docker inspect "$app" >/dev/null 2>&1; then
+mode="${2:-deploy}"
+[[ "$mode" = deploy || "$mode" = backup-only ]] || exit 1
+if [[ "$mode" = deploy ]]; then
+  usage="$(df -P / | awk 'NR == 2 { gsub(/%/, "", $5); print $5 }')"
+  [[ "$usage" =~ ^[0-9]+$ ]] || exit 1
+  if (( usage >= 80 )); then
+    echo 'Source build blocked by the 80 percent capacity policy; use backup-only for recovery preparation.' >&2
+    exit 1
+  fi
+fi
+
+# Coolify adds a deployment suffix to names. Compose ownership labels remain
+# stable; ambiguity or a partially created stack must never back up the legacy
+# deployment instead of the requested resource.
+app="$(docker ps --filter "label=com.docker.compose.project=$resource" --filter 'label=com.docker.compose.service=app' --format '{{.ID}}')"
+db="$(docker ps --filter "label=com.docker.compose.project=$resource" --filter 'label=com.docker.compose.service=db' --format '{{.ID}}')"
+if [[ -z "$app" && -z "$db" ]]; then
+  existing="$(docker ps -a --filter "label=com.docker.compose.project=$resource" --format '{{.ID}}')"
+  [[ -z "$existing" ]] || exit 1
   app=fcb2926ac4767361a3c657683c06586c6700c326-app-1
   db=fcb2926ac4767361a3c657683c06586c6700c326-db-1
+else
+  [[ "$app" =~ ^[a-f0-9]+$ && "$db" =~ ^[a-f0-9]+$ ]] || exit 1
 fi
 for container in "$app" "$db"; do
   [[ "$(docker inspect -f '{{.State.Running}}' "$container")" = true ]] || exit 1
