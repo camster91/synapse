@@ -4,7 +4,6 @@ import test from "node:test";
 
 const packageJson = JSON.parse(readFileSync("package.json", "utf8"));
 const ci = readFileSync(".github/workflows/ci.yml", "utf8");
-const lint = readFileSync(".github/workflows/lint.yml", "utf8");
 const image = readFileSync(".github/workflows/build-and-push.yml", "utf8");
 const dockerfile = readFileSync("Dockerfile", "utf8");
 
@@ -16,16 +15,14 @@ test("test discovery is portable across the local and GitHub shells", () => {
 test("CI and production use a Node release supported by every dependency", () => {
   assert.equal(packageJson.engines.node, ">=22");
   assert.match(ci, /node-version: '24'/);
-  assert.match(lint, /node-version: '24'/);
+  assert.match(ci, /run: npm run lint/);
   assert.match(dockerfile, /FROM node:24-alpine/);
 });
 
 test("GitHub workflows use action runtimes supported by the hosted runner", () => {
-  assert.doesNotMatch(`${ci}\n${lint}\n${image}`, /actions\/(checkout|setup-node)@v4/);
+  assert.doesNotMatch(`${ci}\n${image}`, /actions\/(checkout|setup-node)@v4/);
   assert.match(ci, /actions\/checkout@v5/);
   assert.match(ci, /actions\/setup-node@v5/);
-  assert.match(lint, /actions\/checkout@v5/);
-  assert.match(lint, /actions\/setup-node@v5/);
   assert.match(image, /actions\/checkout@v5/);
 });
 

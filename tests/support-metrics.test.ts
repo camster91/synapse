@@ -108,12 +108,22 @@ test("support ledger rejects free-text or identity fields instead of silently re
         email: "private@example.com",
       },
     ])),
-    /unsupported field: email/,
+    /record 1 contains unsupported fields/,
   );
 
   assert.throws(
     () => parseSupportLedger({ ...ledger(), participantName: "Private Name" }),
-    /unsupported field: participantName/,
+    /support ledger contains unsupported fields/,
+  );
+  // Unknown keys can themselves contain personal data; error text must redact them.
+  assert.throws(
+    () => parseSupportLedger({ ...ledger(), "private@example.com": "Private Name" }),
+    (error: unknown) => {
+      assert.ok(error instanceof Error);
+      assert.match(error.message, /support ledger contains unsupported fields/);
+      assert.doesNotMatch(error.message, /private@example\.com|Private Name/);
+      return true;
+    },
   );
 });
 

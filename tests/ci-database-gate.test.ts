@@ -22,7 +22,10 @@ test("canonical CI gate remains read-only with respect to deployment", () => {
   assert.doesNotMatch(workflow, /packages:\s*write/);
   assert.doesNotMatch(workflow, /docker\/login-action/);
   assert.doesNotMatch(workflow, /docker\/build-push-action/);
-  assert.doesNotMatch(workflow, /deploy|ssh|scp/i);
+  // Prisma's "migrate deploy" targets the disposable service above, not a host.
+  const executableSteps = workflow.split("\n").filter((line) => !line.trim().startsWith("#")).join("\n");
+  assert.doesNotMatch(executableSteps, /\b(?:ssh|scp|rsync)\b|secrets\.|webhook|coolify|curl|wget/i);
+  assert.doesNotMatch(executableSteps.replace(/npx prisma migrate deploy/g, ""), /\bdeploy\b/i);
 });
 
 test("canonical CI still exercises the full application validation contract", () => {
