@@ -14,15 +14,22 @@ The backup command creates a private, timestamped directory containing:
 - `manifest.txt`: format, timestamp, revision, and an explicit no-secrets claim;
 - `checksums.sha256`: integrity hashes for every artifact.
 
-The destination must be an absolute path and cannot be `/` or the operator's home
-directory. The command removes a partial destination if creation fails. It does not
-encrypt artifacts, upload them off-site, or choose retention; use an approved encrypted
-backup target with access controls before production.
+The approved backup root and upload root must already exist as absolute canonical
+directories. The command rejects filesystem root, the operator home directory, the
+current working directory, any root whose literal path resolves through a symbolic-link
+component, symbolic links anywhere inside the upload tree, hard-linked upload files,
+and non-regular upload entries. This prevents a successful backup from referring to
+files outside the intended upload tree or producing an archive that its own restore
+workflow cannot safely consume. A partial timestamped destination is removed if backup
+creation fails.
+
+The command does not encrypt artifacts, upload them off-site, or choose retention;
+use an approved encrypted backup target with least-privilege access before production.
 
 ```bash
 DATABASE_URL='postgresql://…' \
-SYNAPSE_UPLOAD_DIR='/absolute/path/to/uploads' \
-SYNAPSE_BACKUP_DIR='/absolute/path/to/private/backups' \
+SYNAPSE_UPLOAD_DIR='/absolute/canonical/path/to/uploads' \
+SYNAPSE_BACKUP_DIR='/absolute/canonical/path/to/private/backups' \
 npm run backup
 ```
 
@@ -103,15 +110,63 @@ Never point the database assertion at a different deployment from the HTTP targe
 
 ## Restore drill
 
-The drill is deliberately destructive to its target database. Use a newly created,
-empty disposable database and an empty disposable uploads directory. It refuses to
-run without the exact confirmation value, verifies checksums and archive paths,
-restores both stores, confirms Prisma migration state, and reconciles upload metadata.
+Use a newly created, dedicated disposable database and an empty disposable uploads
+directory. Do not target `postgres`, `template0`, or `template1`. The drill refuses to
+run without the exact confirmation value. It canonicalizes the restore upload target
+and rejects linked path components, then verifies backup checksums and fully
+materializes archive name/type listings before checking traversal and member types.
+Only ordinary regular-file and directory archive members are accepted; symbolic links,
+hard links, FIFOs, devices, and other special members fail closed before extraction.
+The complete listing is consumed from a file, so validation cannot be short-circuited
+by a producer receiving SIGPIPE.
+
+Before import, the drill first proves that its `postgres` maintenance connection can
+execute the exact idempotent `ALTER DATABASE … ALLOW_CONNECTIONS true` operation needed
+for failure cleanup. If the maintenance database is unavailable, CONNECT is denied,
+the target is missing, or the role lacks that permission, the drill aborts before
+freezing the disposable target. It then creates one protected PostgreSQL session. That
+session disables new connections to the disposable target, terminates other target
+sessions, and refuses to continue if any competing connection remains. The same
+protected session then runs the database preflight and applies SQL generated from the
+backup, eliminating the race between an emptiness check and restore. A cleanup path
+reconnects through the already-validated maintenance connection to re-enable target
+connections if the protected session fails after closing them.
+
+The database preflight requires exactly one standard `public` schema owned by
+`pg_database_owner`. It rejects unexpected `public` schema ACLs; outside the owner,
+only ordinary non-grantable `USAGE` for `PUBLIC` is accepted. It also queries user
+schemas, namespace-owned relations/functions/types/operators/text-search objects,
+extensions, event triggers, publications/subscriptions, foreign-data objects,
+transforms, large objects, custom access methods/casts, non-default languages,
+pre-existing default ACL rows, and prepared transactions for the target database.
+A separate system-schema check rejects namespace-owned objects with user-assigned OIDs
+at or above PostgreSQL's `FirstNormalObjectId` boundary (`16384`) inside the
+system-named schemas `pg_catalog` and `information_schema`; ordinary low-OID built-in
+and initdb objects remain accepted. Any detected user-defined object, unsafe `public`
+schema metadata, default privilege, prepared transaction, system-schema contamination,
+or competing session fails the empty-target gate.
+
+Because the target is independently verified and isolated, restore does not use
+`pg_restore --clean` and does not intentionally drop existing objects. The archive is
+rendered to SQL with owner/privilege restoration disabled, then applied with psql
+`ON_ERROR_STOP` inside the protected target session. Connections are re-enabled only
+after that protected restore completes.
+
+After the upload archive is extracted, restore-only upload reconciliation verifies
+that every restored attachment row has a matching regular file in the restored upload
+directory before removing orphan files or rebuilding quota accounting. A database dump
+that references a file missing from the archive therefore fails the drill instead of
+being reported healthy. Normal production startup does not enable this completeness
+check; it retains the standard `./uploads` reconciliation behaviour.
+
+The drill then confirms Prisma migration state and reconciles the exact restored upload
+directory through the restore-only explicit argument. Normal production startup still
+reconciles only its standard `./uploads` directory.
 
 ```bash
 SYNAPSE_BACKUP_PATH='/absolute/path/to/one/synapse-backup' \
 RESTORE_DATABASE_URL='postgresql://…/synapse_restore_drill' \
-RESTORE_UPLOAD_DIR='/absolute/path/to/empty/restore-uploads' \
+RESTORE_UPLOAD_DIR='/absolute/canonical/path/to/empty/restore-uploads' \
 RESTORE_CONFIRM='EMPTY_DISPOSABLE_DATABASE' \
 npm run restore:drill
 ```
